@@ -750,7 +750,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="logo">🧠</div>
   <div>
     <h1>AI Флаш Карт</h1>
-    <span>.</span>
+    <span>Groq · llama-3.3-70b</span>
   </div>
   <div class="header-user">
     <button class="exam-room-btn" onclick="openExamRoom()">🎓 Шалгалтийн өрөө</button>
@@ -1347,7 +1347,7 @@ function renderQuizInput() {
       </div>
       <div class="quiz-input-body">
         <div class="quiz-meta">
-          <span class="quiz-meta-pill">🤖 <span>.</span></span>
+          <span class="quiz-meta-pill">🤖 <span>llama-3.3-70b</span></span>
           <span class="quiz-meta-pill">✦ <span>4 сонголт</span></span>
           <span class="quiz-meta-pill">📋 <span>8–15 асуулт</span></span>
         </div>
@@ -1526,8 +1526,8 @@ function showQuizDone() {
   const msgs=[
     [100,'🎉 Гайхалтай! Бүх асуултыг зөв хариуллаа. Та сэдвийг бүрэн эзэмшжээ!'],
     [80, '👏 Маш сайн үр дүн! Материалыг сайн мэдэж байна.'],
-    [60, '📖 50% үр дүн. Буруу хариулсан хэсгүүдийг давтаарай.'],
-    [40, '💪 Сурах шаардлагатай. Текстийг дахин уншаад туршаарай.'],
+    [60, '📖 Дунд зэргийн үр дүн. Буруу хариулсан хэсгүүдийг давтаарай.'],
+    [40, '💪 Суулгах шаардлагатай. Текстийг дахин уншаад туршаарай.'],
     [0,  '🔁 Ойлгоогүй зүйл их байна. Дахин сурч тест өг!'],
   ];
   const msg=msgs.find(m=>pct>=m[0]);
@@ -1781,7 +1781,7 @@ function pushCheatEvent(type, meta={}){
         const sb = document.getElementById('exFeedback') || document.getElementById('joinStatus');
         if(sb){
           sb.className = (sb.id==='exFeedback') ? 'exam-feedback no' : 'exam-status visible error';
-          sb.innerHTML = '⚠️ Анхааруулга: Та олон удаа өөр таб/app руу гарсан байна. энэ бүгд  багшид “cheat” гэж тэмдэглэгдэнэ.';
+          sb.innerHTML = '⚠️ Анхааруулга: Та олон удаа өөр таб/app руу гарсан байна. Дахин давтагдвал багшид “cheat” гэж тэмдэглэгдэнэ.';
         } else {
           alert('⚠️ Анхааруулга: Олон удаа өөр таб/app руу гарсан байна.');
         }
@@ -2189,8 +2189,8 @@ async function exportDashboardExcel(){
     const wb = XLSX.utils.book_new();
     const ws1 = XLSX.utils.json_to_sheet(scoreRows.length ? scoreRows : [{Name:'',Percent:'',Correct:'',Total:'',Status:'',StartedAt:'',CompletedAt:''}]);
     const ws2 = XLSX.utils.json_to_sheet(cheatRows.length ? cheatRows : [{Нэр:'',Давтамж:'',Цаг:'',Төрөл:''}]);
-    XLSX.utils.book_append_sheet(wb, ws1, 'Дүн');
-    XLSX.utils.book_append_sheet(wb, ws2, 'Cheat');
+    XLSX.utils.book_append_sheet(wb, ws1, 'Sheet1-Дүн');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Sheet2-Cheat');
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   }catch(e){
     alert('Excel татахад алдаа гарлаа: ' + (e?.message || e));
