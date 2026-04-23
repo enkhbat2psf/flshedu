@@ -2728,8 +2728,18 @@ function launchExam() {
       document.onvisibilitychange = () => {
         if(document.visibilityState === 'hidden') pushCheatEvent('visibility_hidden');
       };
-      window.onblur = () => pushCheatEvent('window_blur');
-      window.onresize = () => pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight });
+      window.addEventListener('blur', () => pushCheatEvent('window_blur'), { passive:true });
+      window.addEventListener('resize', () => pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight }), { passive:true });
+      window.addEventListener('orientationchange', () => pushCheatEvent('window_resize', { reason:'orientationchange' }), { passive:true });
+      try{
+        if(window.visualViewport){
+          window.visualViewport.addEventListener('resize', () => pushCheatEvent('window_resize', {
+            vvW: Math.round(window.visualViewport.width),
+            vvH: Math.round(window.visualViewport.height),
+            scale: window.visualViewport.scale
+          }), { passive:true });
+        }
+      }catch{}
     }
   }catch{}
 }
