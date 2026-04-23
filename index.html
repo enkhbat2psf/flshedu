@@ -423,6 +423,38 @@ textarea:focus{border-color:var(--accent)}
 #examTeacherDashboard .exam-label{font-size:.78rem}
 #examTeacherDashboard #dashDetail{font-size:.92rem}
 #examTeacherDashboard .dash-card-title{font-size:.95rem;font-weight:900;margin-bottom:10px}
+#examTeacherDashboard .exam-body{
+  background:
+    radial-gradient(circle at 12% 18%, rgba(78,205,196,.10), transparent 45%),
+    radial-gradient(circle at 88% 10%, rgba(124,106,247,.12), transparent 40%);
+}
+#examTeacherDashboard .dash-card{
+  background:rgba(19,19,30,.75);
+  border:1px solid rgba(37,37,56,.9);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+#examTeacherDashboard .dash-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 10px;border-bottom:1px solid rgba(37,37,56,.85);
+  cursor:pointer;
+  transition:background .15s, transform .1s;
+}
+#examTeacherDashboard .dash-row:hover{background:rgba(124,106,247,.06)}
+#examTeacherDashboard .dash-row:active{transform:scale(.995)}
+#examTeacherDashboard .dash-pill{
+  padding:8px 12px;border-radius:999px;
+  border:1px solid rgba(37,37,56,.95);
+  background:rgba(19,19,30,.8);
+  font-family:'JetBrains Mono',monospace;
+  font-size:.78rem;font-weight:700;
+}
+#examTeacherDashboard .dash-actions{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  margin-bottom:12px;
+}
+#examTeacherDashboard .dash-actions-right{display:flex;gap:10px;flex-wrap:wrap}
 @media(max-width:900px){
   .exam-modal.dash-wide{max-width:720px}
 }
@@ -1021,21 +1053,26 @@ textarea:focus{border-color:var(--accent)}
       <div class="exam-title" style="margin-bottom:6px" id="dashTitle"></div>
       <div class="exam-subtitle" style="margin-bottom:18px" id="dashSubtitle"></div>
 
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+      <div class="dash-actions">
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <div style="padding:8px 12px;border-radius:999px;background:rgba(61,220,151,.10);border:1px solid rgba(61,220,151,.25);font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--know);font-weight:700">
+          <div class="dash-pill" style="border-color:rgba(61,220,151,.25);color:var(--know)">
             🟠 Явж байна: <span id="dashCountActive">0</span>
           </div>
-          <div style="padding:8px 12px;border-radius:999px;background:rgba(232,93,117,.10);border:1px solid rgba(232,93,117,.25);font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#e85d75;font-weight:700">
+          <div class="dash-pill" style="border-color:rgba(232,93,117,.25);color:#e85d75">
             ⚠ Cheat: <span id="dashCountCheat">0</span>
           </div>
-          <div style="padding:8px 12px;border-radius:999px;background:rgba(124,106,247,.10);border:1px solid rgba(124,106,247,.25);font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--accent);font-weight:700">
+          <div class="dash-pill" style="border-color:rgba(124,106,247,.25);color:var(--accent)">
             ✅ Дууссан: <span id="dashCountDone">0</span>
           </div>
         </div>
-        <button class="exam-next-btn" style="padding:10px 16px;background:linear-gradient(135deg,#e85d75,#c2185b)" onclick="openEndExamPanel()">
-          ⛔ Шалгалт дуусгах
-        </button>
+        <div class="dash-actions-right">
+          <button class="exam-next-btn" style="padding:10px 16px;background:linear-gradient(135deg,var(--accent2),#178a84)" onclick="exportDashboardExcel()">
+            ⬇ Excel татах
+          </button>
+          <button class="exam-next-btn" style="padding:10px 16px;background:linear-gradient(135deg,#e85d75,#c2185b)" onclick="openEndExamPanel()">
+            ⛔ Шалгалт дуусгах
+          </button>
+        </div>
       </div>
 
       <div id="dashEndWrap" style="display:none;margin-bottom:14px">
@@ -1055,25 +1092,25 @@ textarea:focus{border-color:var(--accent)}
       </div>
 
       <div style="display:grid;gap:14px">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
+        <div class="dash-card">
           <div class="dash-card-title">1) Шалгалт өгч байгаа сурагчид</div>
           <div id="dashActiveEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Одоогоор идэвхтэй шалгалт өгч буй сурагч алга.</div>
           <div id="dashActiveList" style="display:none"></div>
         </div>
 
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
+        <div class="dash-card">
           <div class="dash-card-title">2) Cheat хийсэн сурагчид (давтамж · цаг · нэр)</div>
           <div id="dashCheatEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Cheat сэжиг илрээгүй байна.</div>
           <div id="dashCheatList" style="display:none"></div>
         </div>
 
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
+        <div class="dash-card">
           <div class="dash-card-title">3) Дүн</div>
           <div id="dashScoreEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Одоогоор дүн ирээгүй байна.</div>
           <div id="dashScoreList" style="display:none"></div>
         </div>
 
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
+        <div class="dash-card">
           <div class="dash-card-title">4) Realtime явц (сурагч дээр дарж дэлгэрэнгүй)</div>
           <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:12px">
             <div style="border:1px solid var(--border);border-radius:14px;padding:10px">
@@ -1117,6 +1154,9 @@ textarea:focus{border-color:var(--accent)}
 <!-- Firebase (Realtime Database) - compat build for simple <script> usage -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<!-- Excel export (SheetJS) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 // ══════════════════════════
 // CONFIG
@@ -2065,7 +2105,7 @@ function dashRow(s, {right='', onClick='' }={}){
   const name = esc(s.name || s.key || '');
   const key = esc(s.key || '');
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="${onClick}">
+    <div class="dash-row" onclick="${onClick}">
       <div style="min-width:0">
         <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${key}</div>
@@ -2073,6 +2113,78 @@ function dashRow(s, {right='', onClick='' }={}){
       <div style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--muted);flex-shrink:0;text-align:right">${right}</div>
     </div>
   `;
+}
+
+function safeFilePart(s){
+  return String(s||'')
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g,'-')
+    .replace(/\s+/g,' ')
+    .slice(0, 60);
+}
+
+async function exportDashboardExcel(){
+  if(!activeRoomId) return;
+  if(!window.XLSX){
+    alert('Excel export (XLSX) ачаалж чадсангүй.');
+    return;
+  }
+  try{
+    const room = activeRoomCached || await fetchRoom(activeRoomId);
+    const cfg = room?.config || {};
+    const diffLabel = cfg.difficulty==='easy'?'Амархан':cfg.difficulty==='hard'?'Хэцүү':'Дунд';
+    const sourceLabel = (cfg.source === 'ai') ? 'AI' : 'Багш';
+    const baseName = `${safeFilePart(cfg.subject)}-${safeFilePart(diffLabel)}-${safeFilePart(cfg.count)}-${safeFilePart(cfg.type)}-${safeFilePart(sourceLabel)}` || `exam-${activeRoomId}`;
+
+    const attemptsMap = teacherDashAttemptsCache || {};
+    const attempts = Object.entries(attemptsMap).map(([k,v])=>({ key:k, ...(v||{}) }));
+    const scoreRows = attempts
+      .filter(a=>a && a.name)
+      .map(a=>{
+        const total = Number(a.total || a.questions?.length || cfg.count || 0) || 0;
+        const score = Number(a.score || 0) || 0;
+        const pct = total ? Math.round((score/total)*100) : 0;
+        return {
+          Name: a.name || a.key,
+          Percent: `${pct}%`,
+          Correct: score,
+          Total: total,
+          Status: a.status || '',
+          StartedAt: a.startedAt ? new Date(Number(a.startedAt)).toLocaleString() : '',
+          CompletedAt: a.completedAt ? new Date(Number(a.completedAt)).toLocaleString() : ''
+        };
+      });
+
+    const cheatsMap = teacherDashCheatsCache || {};
+    const cheatRows = [];
+    Object.entries(cheatsMap).forEach(([key,val])=>{
+      const eventsMap = val?.events || {};
+      const events = Object.values(eventsMap).filter(Boolean);
+      if(!events.length) return;
+      const byType = {};
+      events.forEach(e=>{
+        const t = String(e.type || 'unknown');
+        byType[t] = (byType[t]||0) + 1;
+      });
+      const lastAt = events.reduce((m,e)=>Math.max(m, Number(e.at||0)||0), 0);
+      cheatRows.push({
+        Name: attemptsMap?.[key]?.name || val?.name || key,
+        Count: Number(val?.count || events.length || 0),
+        LastTime: lastAt ? new Date(lastAt).toLocaleString() : '',
+        Types: Object.entries(byType).map(([t,n])=>`${t}:${n}`).join(', ')
+      });
+    });
+    cheatRows.sort((a,b)=>Number(b.Count)-Number(a.Count));
+
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(scoreRows.length ? scoreRows : [{Name:'',Percent:'',Correct:'',Total:'',Status:'',StartedAt:'',CompletedAt:''}]);
+    const ws2 = XLSX.utils.json_to_sheet(cheatRows.length ? cheatRows : [{Name:'',Count:'',LastTime:'',Types:''}]);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Sheet1-Дүн');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Sheet2-Cheat');
+    XLSX.writeFile(wb, `${baseName}.xlsx`);
+  }catch(e){
+    alert('Excel татахад алдаа гарлаа: ' + (e?.message || e));
+  }
 }
 
 function dashProgText(s){
