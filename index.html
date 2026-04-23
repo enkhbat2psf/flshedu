@@ -2134,7 +2134,8 @@ async function exportDashboardExcel(){
     const cfg = room?.config || {};
     const diffLabel = cfg.difficulty==='easy'?'Амархан':cfg.difficulty==='hard'?'Хэцүү':'Дунд';
     const sourceLabel = (cfg.source === 'ai') ? 'AI' : 'Багш';
-    const baseName = `${safeFilePart(cfg.subject)}-${safeFilePart(diffLabel)}-${safeFilePart(cfg.count)}-${safeFilePart(cfg.type)}-${safeFilePart(sourceLabel)}` || `exam-${activeRoomId}`;
+    const testLabel = `${safeFilePart(cfg.count)} test`;
+    const baseName = `${safeFilePart(cfg.subject)}-${safeFilePart(diffLabel)}-${testLabel}-${safeFilePart(cfg.type)}-${safeFilePart(sourceLabel)}` || `exam-${activeRoomId}`;
 
     const attemptsMap = teacherDashAttemptsCache || {};
     const attempts = Object.entries(attemptsMap).map(([k,v])=>({ key:k, ...(v||{}) }));
@@ -2155,6 +2156,13 @@ async function exportDashboardExcel(){
         };
       });
 
+    const typeMn = {
+      visibility_hidden: 'tab-tab хооронд',
+      window_blur: 'tab-app хооронд',
+      window_resize: 'дэлгэц хуваалт/resize',
+      unknown: 'тодорхойгүй'
+    };
+
     const cheatsMap = teacherDashCheatsCache || {};
     const cheatRows = [];
     Object.entries(cheatsMap).forEach(([key,val])=>{
@@ -2168,17 +2176,19 @@ async function exportDashboardExcel(){
       });
       const lastAt = events.reduce((m,e)=>Math.max(m, Number(e.at||0)||0), 0);
       cheatRows.push({
-        Name: attemptsMap?.[key]?.name || val?.name || key,
-        Count: Number(val?.count || events.length || 0),
-        LastTime: lastAt ? new Date(lastAt).toLocaleString() : '',
-        Types: Object.entries(byType).map(([t,n])=>`${t}:${n}`).join(', ')
+        Нэр: attemptsMap?.[key]?.name || val?.name || key,
+        Давтамж: Number(val?.count || events.length || 0),
+        Цаг: lastAt ? new Date(lastAt).toLocaleString() : '',
+        Төрөл: Object.entries(byType)
+          .map(([t,n])=>`${typeMn[t] || t}: ${n}`)
+          .join(', ')
       });
     });
-    cheatRows.sort((a,b)=>Number(b.Count)-Number(a.Count));
+    cheatRows.sort((a,b)=>Number(b.Давтамж)-Number(a.Давтамж));
 
     const wb = XLSX.utils.book_new();
     const ws1 = XLSX.utils.json_to_sheet(scoreRows.length ? scoreRows : [{Name:'',Percent:'',Correct:'',Total:'',Status:'',StartedAt:'',CompletedAt:''}]);
-    const ws2 = XLSX.utils.json_to_sheet(cheatRows.length ? cheatRows : [{Name:'',Count:'',LastTime:'',Types:''}]);
+    const ws2 = XLSX.utils.json_to_sheet(cheatRows.length ? cheatRows : [{Нэр:'',Давтамж:'',Цаг:'',Төрөл:''}]);
     XLSX.utils.book_append_sheet(wb, ws1, 'Sheet1-Дүн');
     XLSX.utils.book_append_sheet(wb, ws2, 'Sheet2-Cheat');
     XLSX.writeFile(wb, `${baseName}.xlsx`);
