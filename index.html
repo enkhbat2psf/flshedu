@@ -2551,7 +2551,7 @@ async function studentGenerateAndStartExam(){
   try{
     btn.disabled = true;
     sb.className='exam-status visible';
-    sb.innerHTML = `⏳ AI тест боловсруулж байна… <span class="loading-dots"><span></span><span></span><span></span></span>`;
+    sb.innerHTML = `⏳ Тест бэлдэж байна… <span class="loading-dots"><span></span><span></span><span></span></span>`;
 
     const room = activeRoomCached || await fetchRoom(activeRoomId);
     if(!room) throw new Error('Өрөө олдсонгүй.');
@@ -2583,34 +2583,43 @@ async function studentGenerateAndStartExam(){
     const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
 
     const count = Number(room.config?.count || 20);
-    const isTeacherSource = (room.config?.source === 'teacher') && String(room.config?.teacherText || '').trim().length > 0;
+    const teacherQs = Array.isArray(room.config?.teacherQuestions) ? room.config.teacherQuestions : null;
+    const isTeacherSource = (room.config?.source === 'teacher') && (teacherQs && teacherQs.length>0);
+
+    // TEACHER SOURCE: Use the teacher's normalized questions directly (NO AI).
+    if(isTeacherSource){
+      const qs = teacherQs
+        .filter(q=>q && q.q && q.correct && Array.isArray(q.wrong) && q.wrong.length>=1)
+        .map(q=>({ q:String(q.q), correct:String(q.correct), wrong:(q.wrong||[]).map(String) }));
+      if(!qs.length) throw new Error('Багшийн тест олдсонгүй (teacherQuestions хоосон).');
+
+      examConfig.subject = room.config?.subject || 'Шалгалт';
+      examConfig.type = room.config?.type || '';
+      examConfig.difficulty = room.config?.difficulty || 'medium';
+      examConfig.count = count;
+      examConfig.source = 'teacher';
+      examQs = shuffle(qs).slice(0, count);
+
+      recordAttemptStart(examQs, room.config || {});
+      document.getElementById('examStudentJoin').style.display = 'none';
+      document.getElementById('examPlayArea').style.display = 'block';
+      launchExam();
+      return;
+    }
+
+    // AI SOURCE
     // Stronger prompt: prevent meta questions, ensure real content questions
-    const prompt = isTeacherSource
-      ? (
-        `You are given a teacher-provided test in arbitrary messy text format.\n`+
-        `Your job: normalize it into a clean multiple-choice exam WITHOUT changing the original wording.\n\n`+
-        `CRITICAL RULES:\n`+
-        `- Do NOT paraphrase. Do NOT fix grammar/typos. Do NOT translate.\n`+
-        `- Copy question text and option texts exactly as they appear (same punctuation/case/words). You may trim leading numbering like "1.".\n`+
-        `- Each question MUST output exactly 4 options mapped to A/B/C/D. If the source has fewer than 4, keep missing ones as "—".\n`+
-        `- Then decide which option letter is correct based on knowledge.\n`+
-        `- Return ONLY JSON array. No markdown, no explanations.\n\n`+
-        `OUTPUT JSON FORMAT (array):\n`+
-        `[{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}, ...]\n\n`+
-        `TEACHER_RAW_TEXT:\n`+
-        String(room.config?.teacherText || '').slice(0, 120000)
-      )
-      : (
-        `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
-        `Сэдэв: ${room.config?.subject || ''}\n`+
-        `Дэд сэдэв/төрөл: ${room.config?.type || ''}\n`+
-        `Түвшин: ${diffMn}\n`+
-        `Асуултын тоо: ${count}\n\n`+
-        `ХОРИГЛОХ: "энэ шалгалт хэдэн асуулттай вэ?", "ямар түвшний шалгалт вэ?" гэх мэт шалгалтын тухай (meta) асуулт БҮҮ гарга.\n`+
-        `ЗӨВХӨН сэдвийн мэдлэг шалгах асуулт гарга. Асуулт бүр 4 сонголттой (A/B/C/D) ба ганц зөв хариулттай байх.\n`+
-        `Асуултууд давтагдахгүй, нэг мөрөөр ойлгомжтой, эргэлзээтэй (гэхдээ нэг л зөв хариулттай) байхаар зохио.\n`+
-        `ЖИШЭЭ (English grammar): She usually ___ to school by bus.\n`
-      );
+    const prompt = (
+      `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
+      `Сэдэв: ${room.config?.subject || ''}\n`+
+      `Дэд сэдэв/төрөл: ${room.config?.type || ''}\n`+
+      `Түвшин: ${diffMn}\n`+
+      `Асуултын тоо: ${count}\n\n`+
+      `ХОРИГЛОХ: "энэ шалгалт хэдэн асуулттай вэ?", "ямар түвшний шалгалт вэ?" гэх мэт шалгалтын тухай (meta) асуулт БҮҮ гарга.\n`+
+      `ЗӨВХӨН сэдвийн мэдлэг шалгах асуулт гарга. Асуулт бүр 4 сонголттой (A/B/C/D) ба ганц зөв хариулттай байх.\n`+
+      `Асуултууд давтагдахгүй, нэг мөрөөр ойлгомжтой, эргэлзээтэй (гэхдээ нэг л зөв хариулттай) байхаар зохио.\n`+
+      `ЖИШЭЭ (English grammar): She usually ___ to school by bus.\n`
+    );
 
     const studentName = document.getElementById('joinStudentName').value.trim() || 'Student';
     async function callAI(action){
@@ -2666,41 +2675,12 @@ async function studentGenerateAndStartExam(){
     let r = await callAI('test');
     let data = r.data;
     let qs = [];
-    if(isTeacherSource){
-      // Expect: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}, ...]
-      const rawArr = extractQuestions(data);
-      const arr = Array.isArray(rawArr) ? rawArr : [];
-      const mapped = [];
-      for(const item of arr){
-        const qText = (item && typeof item.q === 'string') ? item.q : '';
-        const A = (item && typeof item.A === 'string') ? item.A : '—';
-        const B = (item && typeof item.B === 'string') ? item.B : '—';
-        const C = (item && typeof item.C === 'string') ? item.C : '—';
-        const D = (item && typeof item.D === 'string') ? item.D : '—';
-        const key = String(item?.correct || '').trim().toUpperCase();
-        if(!qText) continue;
-        if(!['A','B','C','D'].includes(key)) continue;
-        const opts = { A, B, C, D };
-        mapped.push({
-          q: qText,
-          correct: String(opts[key]),
-          wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>String(opts[k]))
-        });
-      }
-      qs = mapped.filter(x => x && x.q && x.correct && Array.isArray(x.wrong) && x.wrong.length >= 1);
-    }else{
-      qs = normalizeQuestions(extractQuestions(data));
-    }
+    qs = normalizeQuestions(extractQuestions(data));
 
     if(!r.ok || data?.error || !qs.length){
       r = await callAI('examroom');
       data = r.data;
-      if(isTeacherSource){
-        // teacher mode should not fall back to random generation
-        qs = [];
-      }else{
-        qs = normalizeQuestions(extractQuestions(data));
-      }
+      qs = normalizeQuestions(extractQuestions(data));
     }
 
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -2712,9 +2692,6 @@ async function studentGenerateAndStartExam(){
     }
     if(!qs.length) {
       const hint = typeof data?._raw === 'string' ? data._raw.slice(0, 120) : '';
-      if(isTeacherSource){
-        throw new Error('Багшийн тестийг задлаж/шалгаж чадсангүй. (Форматыг A/B/C/D сонголттой байлгаарай.)');
-      }
       throw new Error('AI тест үүсгэж чадсангүй.' + (hint ? ` (${hint}…)` : ''));
     }
 
@@ -2723,7 +2700,7 @@ async function studentGenerateAndStartExam(){
     examConfig.type = room.config?.type || '';
     examConfig.difficulty = room.config?.difficulty || 'medium';
     examConfig.count = count;
-    examConfig.source = isTeacherSource ? 'teacher' : 'ai';
+    examConfig.source = 'ai';
     examQs = shuffle(qs).slice(0, count);
 
     // write attempt start to DB (questions + metadata)
@@ -2837,6 +2814,7 @@ async function startExamRoom() {
   if(!examConfig.subject){ shakeInput('examSubject'); renderExamStep(0); return; }
   if(!examConfig.difficulty){ renderExamStep(1); shakeEl('diff-easy'); return; }
   if(!examConfig.type){ shakeInput('examType'); renderExamStep(2); return; }
+  let teacherQuestions = null;
   if(examConfig.source === 'teacher'){
     const raw = (document.getElementById('teacherTestTA')?.value || '').trim();
     if(!raw){
@@ -2862,7 +2840,9 @@ async function startExamRoom() {
       type: examConfig.type,
       count: examConfig.count,
       source: examConfig.source,
-      teacherText: examConfig.teacherText || ''
+      teacherText: examConfig.teacherText || '',
+      // In teacher source: store normalized questions so students can start WITHOUT AI.
+      teacherQuestions: teacherQuestions || null
     },
     studentsByName: {}
   };
@@ -2871,15 +2851,95 @@ async function startExamRoom() {
   try{
     btn.disabled = true;
     sb.className = 'exam-status visible';
-    sb.textContent = '⏳ Өрөө үүсгэж байна…';
+    sb.textContent = examConfig.source === 'teacher'
+      ? '⏳ Багшийн тестийг AI нэг формат руу оруулж байна…'
+      : '⏳ Өрөө үүсгэж байна…';
+
+    // Teacher source: AI normalize ONCE (teacher-side) so all students get the same test.
+    if(examConfig.source === 'teacher'){
+      const count = Number(examConfig.count || 10);
+      const prompt =
+        `You are given a teacher-provided exam in arbitrary messy format.\n`+
+        `It may contain:\n`+
+        `- question + answer (short answer)\n`+
+        `- multiple choice\n`+
+        `- true/false\n`+
+        `- mixed formatting and numbering\n\n`+
+        `TASK:\n`+
+        `Convert it into a clean multiple-choice exam.\n`+
+        `- Create exactly ${count} questions (if more exist, take the first ${count}; if fewer exist, create additional questions using ONLY the same topic/context the teacher provided).\n`+
+        `- Each question MUST have exactly 4 options A/B/C/D.\n`+
+        `- Mark the correct option letter in \"correct\".\n`+
+        `- Preserve the teacher's original meaning. Do NOT ask meta questions about the exam.\n`+
+        `- If the teacher provided correct answers, use them (do not invent different correct answers).\n`+
+        `- Return ONLY a JSON array. No markdown.\n\n`+
+        `OUTPUT JSON FORMAT:\n`+
+        `[{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}, ...]\n\n`+
+        `TEACHER_RAW_TEXT:\n`+
+        String(examConfig.teacherText || '').slice(0, 120000);
+
+      const res = await fetch(SCRIPT_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action: 'test',
+          userName: userName || 'Багш',
+          inputText: prompt,
+          subject: examConfig.subject,
+          difficulty: examConfig.difficulty,
+          examType: examConfig.type,
+          count
+        })
+      });
+      const rawText = await res.text();
+      let data = null;
+      try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
+
+      // Extract JSON array
+      let arr = null;
+      if(Array.isArray(data)) arr = data;
+      else if(data && Array.isArray(data.questions)) arr = data.questions;
+      else if(data && typeof data._raw === 'string'){
+        const m = data._raw.match(/\[[\s\S]*\]/);
+        if(m){ try{ const a = JSON.parse(m[0]); if(Array.isArray(a)) arr = a; }catch{} }
+      }
+      if(!res.ok || data?.error || !Array.isArray(arr) || !arr.length){
+        const msg = data?.error ? String(data.error) : `HTTP ${res.status}`;
+        throw new Error(msg || 'AI тест боловсруулж чадсангүй.');
+      }
+
+      const mapped = [];
+      for(const item of arr){
+        const qText = (item && typeof item.q === 'string') ? item.q.trim() : '';
+        const A = (item && typeof item.A === 'string') ? item.A.trim() : '';
+        const B = (item && typeof item.B === 'string') ? item.B.trim() : '';
+        const C = (item && typeof item.C === 'string') ? item.C.trim() : '';
+        const D = (item && typeof item.D === 'string') ? item.D.trim() : '';
+        const key = String(item?.correct || '').trim().toUpperCase();
+        if(!qText) continue;
+        if(!A || !B || !C || !D) continue;
+        if(!['A','B','C','D'].includes(key)) continue;
+        const opt = {A,B,C,D};
+        mapped.push({
+          q: qText,
+          correct: opt[key],
+          wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>opt[k])
+        });
+      }
+      if(!mapped.length){
+        throw new Error('AI тестийн формат буруу байна. (JSON: q, A, B, C, D, correct шаардлагатай)');
+      }
+      room.config.teacherQuestions = shuffle(mapped).slice(0, count);
+    }
+
     initFirebaseOnce();
     await createRoomInDb(room);
     sb.className = 'exam-status';
     sb.textContent = '';
     showTeacherLobby(roomId);
-  }catch{
+  }catch(e){
     sb.className = 'exam-status visible error';
-    sb.textContent = '❌ Firebase руу холбогдож чадсангүй. (Database rules/интернетийг шалга)';
+    sb.textContent = '❌ ' + formatUserFacingAiError(e);
   }finally{
     btn.disabled = false;
   }
@@ -2921,12 +2981,18 @@ function parseTeacherTestLoose(raw){
   const flush = () => {
     if(!cur) return;
     const o = cur.opts || {};
-    if(cur.q && o.A && o.B && o.C && o.D){
-      out.push({ q: cur.q, opts: { A:o.A, B:o.B, C:o.C, D:o.D } });
+    if(cur.q && (o.A||o.B||o.C||o.D)){
+      out.push({
+        q: cur.q,
+        opts: { A:o.A||'', B:o.B||'', C:o.C||'', D:o.D||'' },
+        correctKey: cur.correctKey || null,
+        qNo: cur.qNo || null
+      });
     }
     cur = null;
   };
 
+  let runningNo = 0;
   for(const l0 of lines){
     const l = l0.replace(/^\uFEFF/, '');
     const q1 = l.match(/^\s*\d+\s*[\.\)]\s*(.+)$/);      // "1. Question"
@@ -2937,7 +3003,10 @@ function parseTeacherTestLoose(raw){
     // Start new question
     if(q1 || q2){
       flush();
-      cur = { q: (q1 ? q1[1] : q2[1]).trim(), opts: {}, correctKey: null };
+      runningNo += 1;
+      const qText = (q1 ? q1[1] : q2[1]).trim();
+      const qNo = q1 ? parseInt((l.match(/^\s*(\d+)/) || [])[1] || runningNo) : runningNo;
+      cur = { q: qText, opts: {}, correctKey: null, qNo };
       continue;
     }
 
@@ -2945,7 +3014,8 @@ function parseTeacherTestLoose(raw){
     if(!cur){
       // If line is not an option, treat as question start
       if(!opt && !correctLine){
-        cur = { q: l.trim(), opts: {}, correctKey: null };
+        runningNo += 1;
+        cur = { q: l.trim(), opts: {}, correctKey: null, qNo: runningNo };
       }
       continue;
     }
@@ -2967,6 +3037,107 @@ function parseTeacherTestLoose(raw){
   }
   flush();
   return out;
+}
+
+function parseAnswerKeyLoose(raw){
+  // Supports:
+  // - "1-B 2-D 3-A"
+  // - "1. B" (one per line)
+  // - "Answer key: 1:B, 2:C"
+  const text = String(raw||'').replace(/\r/g,'\n');
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const map = {};
+
+  // 1) line-by-line patterns
+  for(const line of lines){
+    const m1 = line.match(/^\s*(\d{1,3})\s*[\.\)]?\s*[:\-]?\s*([A-D])\s*$/i);
+    if(m1){
+      map[parseInt(m1[1])] = m1[2].toUpperCase();
+      continue;
+    }
+  }
+
+  // 2) inline patterns (scan full text)
+  const re = /(\d{1,3})\s*[:\-\.\)]\s*([A-D])\b/gi;
+  let m;
+  while((m = re.exec(text))){
+    const n = parseInt(m[1]);
+    const k = String(m[2]||'').toUpperCase();
+    if(n && ['A','B','C','D'].includes(k)) map[n] = k;
+  }
+  return map;
+}
+
+function normalizeTeacherTestToExamQuestions(raw, desiredCount){
+  const parsed = parseTeacherTestLoose(raw);
+  if(!parsed.length){
+    return { ok:false, error:'Оруулсан тестээс асуулт таньж чадсангүй. "1. ..." + "A) ... B) ... C) ... D) ..." хэлбэрээр оруулна уу.' };
+  }
+  const keyMap = parseAnswerKeyLoose(raw);
+
+  const normalized = [];
+  const missing = [];
+  const badOpts = [];
+  for(const item of parsed){
+    const q = String(item?.q || '').trim();
+    if(!q) continue;
+    const opts = item?.opts || {};
+    const A = String(opts.A||'').trim();
+    const B = String(opts.B||'').trim();
+    const C = String(opts.C||'').trim();
+    const D = String(opts.D||'').trim();
+    const qNo = Number(item?.qNo || 0) || null;
+
+    // Must have 4 options to be a strict exam question
+    if(!A || !B || !C || !D){
+      badOpts.push(qNo || (normalized.length+1));
+      continue;
+    }
+
+    const key = (String(item?.correctKey || '') || '').trim().toUpperCase()
+      || (qNo && keyMap[qNo] ? String(keyMap[qNo]).toUpperCase() : '');
+
+    if(!['A','B','C','D'].includes(key)){
+      missing.push(qNo || (normalized.length+1));
+      continue;
+    }
+    const optMap = { A, B, C, D };
+    const correct = optMap[key];
+    const wrong = ['A','B','C','D'].filter(k=>k!==key).map(k=>optMap[k]);
+    normalized.push({ q, correct, wrong });
+  }
+
+  if(!normalized.length){
+    if(badOpts.length){
+      return { ok:false, error:`Сонголт дутуу асуултууд байна (A/B/C/D бүгд хэрэгтэй): ${badOpts.slice(0,12).join(', ')}${badOpts.length>12?'…':''}` };
+    }
+    return { ok:false, error:'Зөв хариу (Зөв: A/B/C/D) олдсонгүй. Асуулт бүр дээр "Зөв: B" гэж бичих эсвэл төгсгөлд нь "1-B 2-D ..." гэсэн answer key нэмнэ үү.' };
+  }
+  if(missing.length){
+    return { ok:false, error:`Зөв хариу дутуу асуултууд байна: ${missing.slice(0,12).join(', ')}${missing.length>12?'…':''}. "Зөв: A" эсвэл "1-A 2-B ..." нэмнэ үү.` };
+  }
+
+  // If teacher pasted more than desiredCount, take the first N (stable order)
+  const n = Math.max(1, Number(desiredCount||normalized.length) || normalized.length);
+  const finalQs = normalized.slice(0, n);
+  if(finalQs.length < Math.min(n, normalized.length)){
+    // no-op; slicing already did it
+  }
+  if(finalQs.length < Math.min(n, normalized.length) && finalQs.length===0){
+    return { ok:false, error:'Тест боловсруулахад алдаа гарлаа. Дахин шалгаад оруулна уу.' };
+  }
+  if(finalQs.length < Math.min(n, n)){
+    // ignore; just defensive
+  }
+  if(finalQs.length < Math.min(n, n) && finalQs.length===0){
+    return { ok:false, error:'Тест боловсруулахад алдаа гарлаа.' };
+  }
+
+  if(finalQs.length < n){
+    return { ok:false, error:`Та ${n} асуулт сонгосон байна, гэхдээ зөв форматтай/зөв хариутай ${finalQs.length} асуулт л олдлоо. Илүү асуулт нэмэх эсвэл тоог багасгана уу.` };
+  }
+
+  return { ok:true, questions: finalQs };
 }
 
 function launchExam() {
