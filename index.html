@@ -994,6 +994,9 @@ textarea:focus{border-color:var(--accent)}
           <input class="exam-input" id="lobbyLink" readonly onclick="this.select()" />
           <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
             <button class="exam-next-btn" style="padding:10px 18px" onclick="copyLobbyLink()">📋 Линк хуулах</button>
+            <button class="exam-next-btn" id="prepPoolBtn" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#5f48f0)" onclick="teacherPrepareQuestionPoolOnce()">
+              🧰 Асуулт бэлдэх (20)
+            </button>
             <button class="exam-next-btn" style="padding:10px 18px;background:linear-gradient(135deg,var(--know),#1aa96a)" onclick="teacherStartRoomNow()">✅ Шалгалт эхлүүлэх</button>
             <button class="exam-next-btn" id="openDashBtn" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent2),#178a84);opacity:.55;cursor:not-allowed" onclick="openTeacherDashboard()">
               📊 Хяналтын самбар
@@ -2428,35 +2431,13 @@ async function teacherStartRoomNow(){
     if(startBtn) startBtn.disabled = true;
     if(sb){ sb.style.display='block'; sb.className='exam-status visible'; sb.innerHTML='⏳ Шалгалт эхлүүлж байна… <span class="loading-dots"><span></span><span></span><span></span></span>'; }
 
-    // AI mode: generate one shared pool ONCE per room (prevents 200 students hitting API).
     const room = await fetchRoom(activeRoomId);
     if(room?.config?.source === 'ai'){
-      if(sb){ sb.className='exam-status visible'; sb.innerHTML='⏳ AI асуултын сан үүсгэж байна… <span class="loading-dots"><span></span><span></span><span></span></span>'; }
+      // Require teacher to prepare pool explicitly (prevents Groq 429 spam).
       const poolSnap = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
       if(!poolSnap.exists()){
-        // Retry pool generation a few times (API rate-limit / transient failures)
-        let ok = false;
-        for(let attempt=1; attempt<=3; attempt++){
-          try{
-            await teacherPrepareQuestionPool(activeRoomId);
-            ok = true;
-            break;
-          }catch{}
-          // small backoff
-          await new Promise(r=>setTimeout(r, 900 * attempt));
-        }
-        if(!ok){
-          throw new Error('AI асуултын сан үүсгэж чадсангүй. Дахин оролдоно уу.');
-        }
+        throw new Error('AI тест бэлдээгүй байна. "🧰 Асуулт бэлдэх (20)" товчийг дарна уу.');
       }
-      // re-check after generation attempt (poll a bit to avoid eventual consistency issues)
-      let hasPool = false;
-      for(let i=0;i<10;i++){
-        const poolSnap2 = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
-        if(poolSnap2.exists()){ hasPool = true; break; }
-        await new Promise(r=>setTimeout(r, 300));
-      }
-      if(!hasPool) throw new Error('AI асуултын сан үүсээгүй байна. Дахин оролдоно уу.');
     }
     await rtdb.ref(`rooms/${activeRoomId}/status`).set({
       state: 'started',
@@ -2473,6 +2454,111 @@ async function teacherStartRoomNow(){
     }
   }finally{
     if(startBtn) startBtn.disabled = false;
+  }
+}
+
+async function teacherPrepareQuestionPoolOnce(){
+  if(!activeRoomId) return;
+  const sb = document.getElementById('poolStatus');
+  const btn = document.getElementById('prepPoolBtn');
+  const poolCount = 20; // requirement
+  try{
+    if(btn){
+      btn.disabled = true;
+      btn.style.opacity = '.65';
+      btn.style.cursor = 'not-allowed';
+    }
+    if(sb){
+      sb.style.display='block';
+      sb.className='exam-status visible';
+      sb.innerHTML='⏳ Асуулт бэлдэж байна… <span class="loading-dots"><span></span><span></span><span></span></span>';
+    }
+
+    initFirebaseOnce();
+    const room = await fetchRoom(activeRoomId);
+    if(!room) throw new Error('Өрөө олдсонгүй.');
+
+    const subject = room.config?.subject || '';
+    const type = room.config?.type || '';
+    const diff = room.config?.difficulty || 'medium';
+    const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
+    const teacherText = String(room.config?.teacherText || '').trim();
+    const source = room.config?.source || 'ai';
+    const subjLower = String(subject||'').toLowerCase();
+    const typeLower = String(type||'').toLowerCase();
+    const wantEnglish = subjLower.includes('english') || subjLower.includes('англи') || typeLower.includes('english');
+    const langRule = wantEnglish
+      ? 'Output language MUST be English.'
+      : 'Output language MUST match the teacher/subject language (do not translate).';
+
+    const prompt = source === 'teacher' && teacherText
+      ? (
+        `TASK: Convert teacher content into multiple-choice questions.\n`+
+        `RULES: ${langRule} 4 options A/B/C/D, single correct, NO meta.\n`+
+        `Create exactly ${poolCount} questions.\n`+
+        `Return ONLY JSON array: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}]\n`+
+        `TEACHER_RAW_TEXT:\n`+ teacherText.slice(0, 40000)
+      )
+      : (
+        `${wantEnglish ? 'Create real English exam questions only.\n' : ''}`+
+        `Subject: ${subject}\nType: ${type}\nLevel: ${diffMn}\n`+
+        `RULES: ${langRule} 4 options A/B/C/D, single correct, NO meta.\n`+
+        `Create exactly ${poolCount} questions.\n`+
+        `Return ONLY JSON array: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}]\n`
+      );
+
+    const res = await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'test',
+        model: AI_MODEL,
+        userName: userName || 'Багш',
+        inputText: prompt,
+        subject,
+        difficulty: diff,
+        examType: type,
+        count: poolCount
+      })
+    });
+    const rawText = await res.text();
+    let data = null;
+    try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
+    if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
+    if(data?.error) throw new Error(String(data.error));
+
+    const arr = extractJsonArrayFromAny(data);
+    const pool = normalizePoolQuestions(arr);
+    if(pool.length < poolCount){
+      const hint = String(rawText||'').trim().slice(0, 160);
+      throw new Error('AI-гийн хариу буруу форматтай байна.' + (hint?` (${hint}…)`:''));
+    }
+
+    await rtdb.ref(`rooms/${activeRoomId}/questionPool`).set(pool.slice(0, poolCount));
+    await rtdb.ref(`rooms/${activeRoomId}/poolMeta`).set({
+      size: poolCount,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      model: AI_MODEL
+    });
+
+    if(sb){
+      sb.className='exam-status visible';
+      sb.textContent = `✅ Асуултын сан бэлэн. (${poolCount} асуулт)`;
+    }
+    if(btn) btn.textContent = '✅ Бэлэн';
+  }catch(e){
+    // On error, allow retry (re-enable button)
+    if(sb){
+      sb.style.display='block';
+      sb.className='exam-status visible error';
+      sb.textContent = '❌ ' + formatUserFacingAiError(e);
+    }
+    if(btn){
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.cursor = '';
+    }
+    throw e;
   }
 }
 
@@ -2520,154 +2606,7 @@ function normalizePoolQuestions(arr){
   return out;
 }
 
-async function teacherPrepareQuestionPool(roomIdOverride){
-  const rid = roomIdOverride || activeRoomId;
-  if(!rid) return;
-  const sb = document.getElementById('poolStatus');
-  // IMPORTANT: generate exactly the room's configured count (e.g., 20 => 20)
-  // (no premature fetchRoom before Firebase init; that caused intermittent failures)
-  let poolCount = 10;
-
-  // Hard timeout so teacher can retry quickly if API hangs
-  const TIMEOUT_MS = 45000;
-  const ctrl = ('AbortController' in window) ? new AbortController() : null;
-  const t = setTimeout(()=>{ try{ ctrl?.abort(); }catch{} }, TIMEOUT_MS);
-
-  try{
-    if(sb){
-      sb.style.display='block';
-      sb.className='exam-status visible';
-      sb.innerHTML='⏳ Асуултын сан үүсгэж байна… <span class="loading-dots"><span></span><span></span><span></span></span>';
-    }
-    initFirebaseOnce();
-    const room = await fetchRoom(rid);
-    if(!room) throw new Error('Өрөө олдсонгүй.');
-    const cfgCount = Number(room?.config?.count || 10);
-    poolCount = isNaN(cfgCount) ? 10 : Math.max(1, Math.min(50, cfgCount));
-
-    const subject = room.config?.subject || '';
-    const type = room.config?.type || '';
-    const diff = room.config?.difficulty || 'medium';
-    const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
-    const teacherText = String(room.config?.teacherText || '').trim();
-    const source = room.config?.source || 'ai';
-    const subjLower = String(subject||'').toLowerCase();
-    const typeLower = String(type||'').toLowerCase();
-    const wantEnglish = subjLower.includes('english') || subjLower.includes('англи') || typeLower.includes('english');
-    const langRule = wantEnglish
-      ? 'Output language MUST be English.'
-      : 'Output language MUST match the teacher/subject language (do not translate).';
-
-    // Keep prompt short to avoid token limits; generate in chunks.
-    const basePrompt = source === 'teacher' && teacherText
-      ? (
-        `TASK: Convert the teacher content into multiple-choice questions.\n`+
-        `RULES: ${langRule} 4 options A/B/C/D, single correct, NO meta.\n`+
-        `Return ONLY JSON array: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}]\n`+
-        `TEACHER_RAW_TEXT:\n`+ teacherText.slice(0, 40000)
-      )
-      : (
-        `${wantEnglish ? 'Create real English exam questions only.\n' : ''}`+
-        `Subject: ${subject}\nType: ${type}\nLevel: ${diffMn}\n`+
-        `RULES: ${langRule} 4 options A/B/C/D, single correct, NO meta.\n`+
-        `Return ONLY JSON array: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}]\n`
-      );
-
-    async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
-    function extractWaitMs(msg){
-      const m = String(msg||'').match(/([0-9]+(?:\.[0-9]+)?)\s*s/i);
-      const s = m ? parseFloat(m[1]) : NaN;
-      return isNaN(s) ? 0 : Math.ceil(s*1000);
-    }
-    async function callAiChunk(n, attemptNo){
-      const prompt = basePrompt + `\nCOUNT: ${n}\n`;
-      const res = await fetch(SCRIPT_URL, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        signal: ctrl?.signal,
-        body: JSON.stringify({
-          action: 'test',
-          model: AI_MODEL,
-          userName: userName || 'Багш',
-          inputText: prompt,
-          subject,
-          difficulty: diff,
-          examType: type,
-          count: n
-        })
-      });
-      const rawText = await res.text();
-      let data = null;
-      try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
-      if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
-      if(data?.error) throw new Error(String(data.error));
-      const arr = extractJsonArrayFromAny(data);
-      const mapped = normalizePoolQuestions(arr);
-      if(mapped.length < Math.max(1, Math.min(3, n))){
-        const hint = String(rawText||'').trim().slice(0, 160);
-        throw new Error('AI-гийн хариу буруу форматтай байна.' + (hint?` (${hint}…)`:''));
-      }
-      return mapped;
-    }
-
-    const chunkSize = Math.min(5, Math.max(1, poolCount));
-    const chunks = Math.ceil(poolCount / chunkSize);
-    let pool = [];
-    for(let i=0;i<chunks;i++){
-      const need = Math.min(chunkSize, poolCount - pool.length);
-      if(sb){
-        sb.className='exam-status visible';
-        sb.innerHTML = `⏳ AI асуулт үүсгэж байна… (${pool.length}/${poolCount}) <span class="loading-dots"><span></span><span></span><span></span></span>`;
-      }
-      // retry per chunk on rate limit
-      for(let attempt=1; attempt<=4; attempt++){
-        try{
-          const got = await callAiChunk(need, attempt);
-          pool = pool.concat(got);
-          break;
-        }catch(e){
-          const msg = String(e?.message||e||'');
-          const waitMs = extractWaitMs(msg);
-          if(waitMs){
-            if(sb){
-              sb.className='exam-status visible';
-              sb.innerHTML = `⏳ AI үйлчилгээ түр хязгаарлагдлаа. ${Math.ceil(waitMs/1000)}s дараа үргэлжлүүлнэ… <span class="loading-dots"><span></span><span></span><span></span></span>`;
-            }
-            await sleep(waitMs + 250);
-            continue;
-          }
-          if(attempt===4) throw e;
-          await sleep(600 * attempt);
-        }
-      }
-    }
-    // Trim to exact count and shuffle
-    pool = shuffle(pool).slice(0, poolCount);
-
-    // Save pool in Firebase (students will only read this)
-    await rtdb.ref(`rooms/${rid}/questionPool`).set(pool.slice(0, poolCount));
-    await rtdb.ref(`rooms/${rid}/poolMeta`).set({
-      size: poolCount,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      model: AI_MODEL
-    });
-
-    if(sb){ sb.className='exam-status visible'; sb.textContent = `✅ Асуултын сан бэлэн боллоо. (${poolCount} асуулт)`; }
-  }catch(e){
-    // Requirement: if API hangs/no response => show "Алдаа гарлаа, дахин дарна уу"
-    const msg = (String(e?.name||'')==='AbortError')
-      ? 'Алдаа гарлаа, дахин дарна уу'
-      : formatUserFacingAiError(e);
-    if(sb){
-      sb.className='exam-status visible error';
-      sb.textContent = '❌ ' + msg;
-    }
-    // IMPORTANT: propagate failure so teacherStartRoomNow retry/poll works correctly
-    throw e;
-  }finally{
-    clearTimeout(t);
-  }
-}
+// (removed) teacherPrepareQuestionPool(): replaced by teacherPrepareQuestionPoolOnce() to avoid Groq 429 spam
 function resetExamRoomToSetup(){
   stopListenRoom();
   activeRoomId = null;
@@ -2824,7 +2763,8 @@ async function studentGenerateAndStartExam(){
       }
     }catch{}
 
-    const count = Number(room.config?.count || 20);
+    // STUDENT must never call API. Always use Firebase questionPool, fixed 20 questions.
+    const count = 20;
     const src = room.config?.source || 'ai';
 
     // TEACHER PROVIDED (AI-гүй): distribute variants randomly per student
@@ -2849,13 +2789,13 @@ async function studentGenerateAndStartExam(){
       examConfig.source = 'teacher';
       examQs = shuffle(qs).slice(0, count);
     }else{
-      // AI MODE (fixed): students NEVER call API. They read the shared pool generated by teacher.
+      // AI MODE: students NEVER call API. They read teacher-prepared pool from Firebase.
       initFirebaseOnce();
       const poolSnap = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
       const poolRaw = poolSnap.exists() ? (poolSnap.val() || []) : [];
       const pool = normalizePoolQuestions(Array.isArray(poolRaw) ? poolRaw : []);
       if(pool.length < count){
-        throw new Error('AI тест бэлдээгүй байна. Багш шалгалтыг эхлүүлэх үед асуултын сан үүсгэнэ. Түр хүлээгээд дахин дарна уу.');
+        throw new Error('AI тест бэлдээгүй байна. Багш "Асуулт бэлдэх" товчийг дарна уу.');
       }
       examConfig.subject = room.config?.subject || 'Шалгалт';
       examConfig.type = room.config?.type || '';
@@ -3574,4 +3514,4 @@ function finishExam() {
 })();
 </script>
 </body>
-</html>c
+</html>
