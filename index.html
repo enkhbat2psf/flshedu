@@ -2555,19 +2555,21 @@ async function studentGenerateAndStartExam(){
 
     const count = Number(room.config?.count || 20);
     const isTeacherSource = (room.config?.source === 'teacher') && String(room.config?.teacherText || '').trim().length > 0;
-    let teacherParsed = [];
-    if(isTeacherSource){
-      teacherParsed = parseTeacherTestLoose(String(room.config?.teacherText || ''));
-    }
     // Stronger prompt: prevent meta questions, ensure real content questions
     const prompt = isTeacherSource
       ? (
-        `You are grading a teacher-provided multiple-choice test.\n`+
-        `IMPORTANT: Do NOT rewrite questions or choices. Do NOT fix typos in the text. Keep everything exactly as given.\n`+
-        `Task: For each item, choose the correct option LETTER only (A/B/C/D).\n`+
-        `Return ONLY a JSON array of the same length in the same order.\n`+
-        `Format: [{"correct":"A"},{"correct":"B"},...]\n\n`+
-        `ITEMS_JSON:\n`+ JSON.stringify(teacherParsed).slice(0, 120000)
+        `You are given a teacher-provided test in arbitrary messy text format.\n`+
+        `Your job: normalize it into a clean multiple-choice exam WITHOUT changing the original wording.\n\n`+
+        `CRITICAL RULES:\n`+
+        `- Do NOT paraphrase. Do NOT fix grammar/typos. Do NOT translate.\n`+
+        `- Copy question text and option texts exactly as they appear (same punctuation/case/words). You may trim leading numbering like "1.".\n`+
+        `- Each question MUST output exactly 4 options mapped to A/B/C/D. If the source has fewer than 4, keep missing ones as "—".\n`+
+        `- Then decide which option letter is correct based on knowledge.\n`+
+        `- Return ONLY JSON array. No markdown, no explanations.\n\n`+
+        `OUTPUT JSON FORMAT (array):\n`+
+        `[{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}, ...]\n\n`+
+        `TEACHER_RAW_TEXT:\n`+
+        String(room.config?.teacherText || '').slice(0, 120000)
       )
       : (
         `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
@@ -2636,24 +2638,27 @@ async function studentGenerateAndStartExam(){
     let data = r.data;
     let qs = [];
     if(isTeacherSource){
-      // Expect: [{"correct":"A"}, ...]
-      const picks = extractQuestions(data);
-      const arr = Array.isArray(picks) ? picks : [];
+      // Expect: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}, ...]
+      const rawArr = extractQuestions(data);
+      const arr = Array.isArray(rawArr) ? rawArr : [];
       const mapped = [];
-      for(let i=0;i<Math.min(teacherParsed.length, arr.length);i++){
-        const pick = arr[i];
-        const key = String(pick?.correct || '').trim().toUpperCase();
-        const item = teacherParsed[i];
-        const o = item?.opts || {};
-        if(!item?.q || !o.A || !o.B || !o.C || !o.D) continue;
+      for(const item of arr){
+        const qText = (item && typeof item.q === 'string') ? item.q : '';
+        const A = (item && typeof item.A === 'string') ? item.A : '—';
+        const B = (item && typeof item.B === 'string') ? item.B : '—';
+        const C = (item && typeof item.C === 'string') ? item.C : '—';
+        const D = (item && typeof item.D === 'string') ? item.D : '—';
+        const key = String(item?.correct || '').trim().toUpperCase();
+        if(!qText) continue;
         if(!['A','B','C','D'].includes(key)) continue;
+        const opts = { A, B, C, D };
         mapped.push({
-          q: String(item.q),
-          correct: String(o[key]),
-          wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>String(o[k]))
+          q: qText,
+          correct: String(opts[key]),
+          wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>String(opts[k]))
         });
       }
-      qs = mapped;
+      qs = mapped.filter(x => x && x.q && x.correct && Array.isArray(x.wrong) && x.wrong.length >= 1);
     }else{
       qs = normalizeQuestions(extractQuestions(data));
     }
