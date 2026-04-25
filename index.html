@@ -1168,6 +1168,8 @@ textarea:focus{border-color:var(--accent)}
 // CONFIG
 // ══════════════════════════
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw27PhqlrB8dNs4MFWXGS9YQHyqIfTkfaXEHcgsRpTknkMR_eXiakWTRHdn52xvuqxRaw/exec";
+// AI model hint (backend must support this field; safe to send even if ignored)
+const AI_MODEL = "llama-3.1-8b-instant";
 
 // Firebase config (Realtime Database)
 const firebaseConfig = {
@@ -1256,7 +1258,7 @@ async function generateFlashcards() {
   if(!inputText){alert('Текстээ оруулна уу!');return;}
   btn.disabled=true; sb.className='status-bar visible'; sb.textContent='⏳ AI бодож байна… түр хүлээнэ үү.';
   try {
-    const res = await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'flashcard',userName,inputText})});
+    const res = await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'flashcard',model:AI_MODEL,userName,inputText})});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
     if(data.error){sb.className='status-bar visible error';sb.textContent='❌ '+data.error;return;}
@@ -1390,7 +1392,7 @@ async function generateTest() {
     const res=await fetch(SCRIPT_URL,{
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'test',userName,inputText})
+      body:JSON.stringify({action:'test',model:AI_MODEL,userName,inputText})
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data=await res.json();
@@ -2628,6 +2630,7 @@ async function studentGenerateAndStartExam(){
         headers:{'Content-Type':'text/plain;charset=utf-8'},
         body: JSON.stringify({
           action,
+          model: AI_MODEL,
           userName: studentName,
           inputText: prompt,
           subject: room.config?.subject,
@@ -2883,6 +2886,7 @@ async function startExamRoom() {
         headers:{'Content-Type':'text/plain;charset=utf-8'},
         body: JSON.stringify({
           action: 'test',
+          model: AI_MODEL,
           userName: userName || 'Багш',
           inputText: prompt,
           subject: examConfig.subject,
@@ -2895,21 +2899,43 @@ async function startExamRoom() {
       let data = null;
       try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
 
-      // Extract JSON array
-      let arr = null;
-      if(Array.isArray(data)) arr = data;
-      else if(data && Array.isArray(data.questions)) arr = data.questions;
-      else if(data && typeof data._raw === 'string'){
-        const m = data._raw.match(/\[[\s\S]*\]/);
-        if(m){ try{ const a = JSON.parse(m[0]); if(Array.isArray(a)) arr = a; }catch{} }
-      }
-      if(!res.ok || data?.error || !Array.isArray(arr) || !arr.length){
-        const msg = data?.error ? String(data.error) : `HTTP ${res.status}`;
-        throw new Error(msg || 'AI тест боловсруулж чадсангүй.');
+      const extractAnyArray = (payload) => {
+        let raw = payload;
+        if(raw && typeof raw === 'object' && typeof raw._raw === 'string') raw = raw._raw;
+        if(Array.isArray(raw)) return raw;
+        if(raw && Array.isArray(raw.questions)) return raw.questions;
+        if(typeof raw === 'string'){
+          const m = raw.match(/\[[\s\S]*\]/);
+          if(m){
+            try{
+              const a = JSON.parse(m[0]);
+              if(Array.isArray(a)) return a;
+            }catch{}
+          }
+        }
+        return [];
+      };
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      if(data?.error) throw new Error(String(data.error));
+      const arr = extractAnyArray(data);
+      if(!Array.isArray(arr) || !arr.length){
+        const hint = (typeof rawText === 'string' ? rawText.trim().slice(0, 160) : '');
+        throw new Error('AI хариу ойлгогдохгүй байна.' + (hint ? ` (${hint}…)` : ''));
       }
 
       const mapped = [];
       for(const item of arr){
+        // Case 1: already normalized exam shape [{q,correct,wrong}]
+        if(item && typeof item.q === 'string' && typeof item.correct === 'string' && Array.isArray(item.wrong)){
+          const q = item.q.trim();
+          const correct = item.correct.trim();
+          const wrong = item.wrong.map(x=>String(x||'').trim()).filter(Boolean);
+          if(q && correct && wrong.length>=1){
+            mapped.push({ q, correct, wrong: wrong.slice(0,3) });
+          }
+          continue;
+        }
+
         const qText = (item && typeof item.q === 'string') ? item.q.trim() : '';
         const A = (item && typeof item.A === 'string') ? item.A.trim() : '';
         const B = (item && typeof item.B === 'string') ? item.B.trim() : '';
@@ -2920,14 +2946,11 @@ async function startExamRoom() {
         if(!A || !B || !C || !D) continue;
         if(!['A','B','C','D'].includes(key)) continue;
         const opt = {A,B,C,D};
-        mapped.push({
-          q: qText,
-          correct: opt[key],
-          wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>opt[k])
-        });
+        mapped.push({ q: qText, correct: opt[key], wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>opt[k]) });
       }
       if(!mapped.length){
-        throw new Error('AI тестийн формат буруу байна. (JSON: q, A, B, C, D, correct шаардлагатай)');
+        const hint = (typeof rawText === 'string' ? rawText.trim().slice(0, 160) : '');
+        throw new Error('AI тестийн формат буруу байна.' + (hint ? ` (${hint}…)` : ''));
       }
       room.config.teacherQuestions = shuffle(mapped).slice(0, count);
     }
@@ -3328,4 +3351,4 @@ function finishExam() {
 })();
 </script>
 </body>
-</html>x
+</html>
