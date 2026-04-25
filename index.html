@@ -1259,7 +1259,7 @@ async function generateFlashcards() {
   btn.disabled=true; sb.className='status-bar visible'; sb.textContent='⏳ AI бодож байна… түр хүлээнэ үү.';
   try {
     const res = await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'flashcard',model:AI_MODEL,userName,inputText})});
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
     const data = await res.json();
     if(data.error){sb.className='status-bar visible error';sb.textContent='❌ '+data.error;return;}
     let parsed=[];
@@ -1394,7 +1394,7 @@ async function generateTest() {
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify({action:'test',model:AI_MODEL,userName,inputText})
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
     const data=await res.json();
     if(data.error){sb.className='status-bar visible error';sb.textContent='❌ '+data.error;btn.disabled=false;return;}
 
@@ -2642,7 +2642,7 @@ async function studentGenerateAndStartExam(){
       const rawText = await res.text();
       let data = null;
       try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
-      return { ok: res.ok, status: res.status, data };
+      return { ok: (res.status>=200 && res.status<300), status: res.status, data };
     }
 
     function extractQuestions(payload){
@@ -2915,7 +2915,7 @@ async function startExamRoom() {
         }
         return [];
       };
-      if(!res.ok) throw new Error('HTTP '+res.status);
+      if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
       if(data?.error) throw new Error(String(data.error));
       const arr = extractAnyArray(data);
       if(!Array.isArray(arr) || !arr.length){
