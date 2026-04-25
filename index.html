@@ -946,12 +946,18 @@ textarea:focus{border-color:var(--accent)}
 
         <!-- Teacher input (conditionally shown) -->
         <div id="teacherInputWrap" style="display:none;margin-top:20px">
-          <div class="exam-label" style="margin-bottom:8px">Тестийн асуулт оруулах</div>
-          <textarea class="teacher-input-area" id="teacherTestTA"
-            placeholder="Асуулт бүрийг дараах байдлаар оруулна уу (Зөв: A гэдэг мөрийг бичихгүй байж болно):&#10;&#10;1. If it is &quot;raining cats and dogs,&quot; what is the weather like?&#10;A. It is drizzling lightly.&#10;B. It is raining heavily.&#10;C. It is very windy.&#10;D. It is starting to snow.&#10;&#10;2. ..."></textarea>
+          <div class="exam-label" style="margin-bottom:8px">Тестийн хувилбар</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+            <div style="color:var(--muted);font-size:.85rem">Хувилбарын тоо</div>
+            <input class="exam-input" id="teacherVariantCount" type="number" min="1" max="6" value="1"
+              style="max-width:120px" oninput="renderTeacherVariants()"/>
+            <div style="color:var(--muted);font-size:.82rem;line-height:1.4">
+              Хувилбар бүрийн тестийг тус тусад нь оруулна. Сурагч бүрт хувилбар random очно (AI ашиглахгүй).
+            </div>
+          </div>
+          <div id="teacherVariantsWrap"></div>
           <div class="teacher-format-hint">
-            💡 Формат: Асуулт → A B C D сонголтууд<br>
-            “Зөв: A” гэж бичих шаардлагагүй — систем AI ашиглаад зөв хариуг автоматаар олж тохируулна.
+            💡 Формат (AI-гүй шалгахын тулд): Асуулт + A/B/C/D сонголт + “Зөв: A/B/C/D” мөр (эсвэл төгсгөлд нь “1-A 2-B ...” answer key).
           </div>
         </div>
 
@@ -988,16 +994,13 @@ textarea:focus{border-color:var(--accent)}
           <input class="exam-input" id="lobbyLink" readonly onclick="this.select()" />
           <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
             <button class="exam-next-btn" style="padding:10px 18px" onclick="copyLobbyLink()">📋 Линк хуулах</button>
-            <button class="exam-next-btn" id="prepPoolBtn" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#5f48f0)" onclick="teacherPrepareQuestionPool()">
-              🧰 Асуулт бэлдэх
-            </button>
             <button class="exam-next-btn" style="padding:10px 18px;background:linear-gradient(135deg,var(--know),#1aa96a)" onclick="teacherStartRoomNow()">✅ Шалгалт эхлүүлэх</button>
             <button class="exam-next-btn" id="openDashBtn" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent2),#178a84);opacity:.55;cursor:not-allowed" onclick="openTeacherDashboard()">
               📊 Хяналтын самбар
             </button>
             <button class="exam-back-btn" onclick="resetExamRoomToSetup()">↺ Дахин тохируулах</button>
           </div>
-          <div class="exam-status" id="poolStatus" style="margin-top:12px"></div>
+          <div class="exam-status" id="poolStatus" style="display:none"></div>
         </div>
       </div>
 
@@ -2733,22 +2736,78 @@ async function studentGenerateAndStartExam(){
       }
     }catch{}
 
-    // STUDENT: never call API. Read questionPool from Firebase only.
     const count = Number(room.config?.count || 20);
-    initFirebaseOnce();
-    const poolSnap = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
-    const poolRaw = poolSnap.exists() ? (poolSnap.val() || []) : [];
-    const pool = normalizePoolQuestions(Array.isArray(poolRaw) ? poolRaw : []);
-    if(pool.length < count){
-      throw new Error('Асуултын сан бэлдээгүй байна. Багш "Асуултын сан бэлдэх" товчийг дарна уу.');
-    }
+    const src = room.config?.source || 'ai';
 
-    examConfig.subject = room.config?.subject || 'Шалгалт';
-    examConfig.type = room.config?.type || '';
-    examConfig.difficulty = room.config?.difficulty || 'medium';
-    examConfig.count = count;
-    examConfig.source = room.config?.source === 'teacher' ? 'teacher' : 'ai';
-    examQs = shuffle(pool).slice(0, count);
+    // TEACHER PROVIDED (AI-гүй): distribute variants randomly per student
+    if(src === 'teacher'){
+      const variants = Array.isArray(room.config?.teacherVariants) ? room.config.teacherVariants : null;
+      if(!variants || !variants.length) throw new Error('Багшийн тест олдсонгүй. (Хувилбарууд хоосон байна)');
+
+      // stable random assignment: hash(studentKey) % variantCount
+      const vn = variants.length;
+      let h = 0;
+      const keyStr = String(studentExamKey || studentExamName || '');
+      for(let i=0;i<keyStr.length;i++){ h = (h*31 + keyStr.charCodeAt(i)) >>> 0; }
+      const pick = h % vn;
+      const chosen = variants[pick] || variants[0];
+      const qs = Array.isArray(chosen?.questions) ? chosen.questions : [];
+      if(qs.length < count) throw new Error('Багшийн тестийн асуулт хангалтгүй байна.');
+
+      examConfig.subject = room.config?.subject || 'Шалгалт';
+      examConfig.type = room.config?.type || '';
+      examConfig.difficulty = room.config?.difficulty || 'medium';
+      examConfig.count = count;
+      examConfig.source = 'teacher';
+      examQs = shuffle(qs).slice(0, count);
+    }else{
+      // AI MODE: generate per student only when they click this button
+      const diff = room.config?.difficulty || 'medium';
+      const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
+      const prompt =
+        `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
+        `Сэдэв: ${room.config?.subject || ''}\n`+
+        `Дэд сэдэв/төрөл: ${room.config?.type || ''}\n`+
+        `Түвшин: ${diffMn}\n`+
+        `Асуултын тоо: ${count}\n\n`+
+        `ХОРИГЛОХ: шалгалтын тухай (meta) асуулт.\n`+
+        `Асуулт бүр 4 сонголттой, ганц зөв хариулттай.\n`+
+        `JSON хэлбэрээр буцаа: {"questions":[{"q":"...","correct":"...","wrong":["..","..",".."]}, ...]}\n`;
+
+      const res = await fetch(SCRIPT_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action: 'test',
+          model: AI_MODEL,
+          userName: studentExamName || 'Student',
+          inputText: prompt,
+          subject: room.config?.subject,
+          difficulty: diff,
+          examType: room.config?.type,
+          count
+        })
+      });
+      const rawText = await res.text();
+      let data = null;
+      try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
+      if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
+      if(data?.error) throw new Error(String(data.error));
+      const arr = extractJsonArrayFromAny(data);
+      const qs = (arr||[])
+        .filter(q=>q && q.q && q.correct && Array.isArray(q.wrong) && q.wrong.length>=1)
+        .map(q=>({ q:String(q.q), correct:String(q.correct), wrong:q.wrong.map(String) }));
+      if(qs.length < count){
+        const hint = String(rawText||'').trim().slice(0, 120);
+        throw new Error('AI тест үүсгэж чадсангүй.' + (hint?` (${hint}…)`:''));
+      }
+      examConfig.subject = room.config?.subject || 'Шалгалт';
+      examConfig.type = room.config?.type || '';
+      examConfig.difficulty = room.config?.difficulty || 'medium';
+      examConfig.count = count;
+      examConfig.source = 'ai';
+      examQs = shuffle(qs).slice(0, count);
+    }
 
     // write attempt start to DB (questions + metadata)
     recordAttemptStart(examQs, room.config || {});
@@ -2770,7 +2829,8 @@ function openExamRoom() {
   document.getElementById('examSubject').value = '';
   document.getElementById('examType').value = '';
   document.getElementById('examCountDisplay').textContent = '10';
-  document.getElementById('teacherTestTA').value = '';
+  try{ document.getElementById('teacherVariantCount').value = '1'; }catch{}
+  try{ renderTeacherVariants(); }catch{}
   document.getElementById('teacherInputWrap').style.display = 'none';
   document.getElementById('examSetupStatus').className = 'exam-status';
   document.getElementById('examSetupModal').style.display = 'block';
@@ -2781,6 +2841,32 @@ function openExamRoom() {
   renderExamStep(0);
   document.getElementById('examOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('examSubject').focus(), 300);
+}
+
+function renderTeacherVariants(){
+  const wrap = document.getElementById('teacherVariantsWrap');
+  const n0 = parseInt(document.getElementById('teacherVariantCount')?.value || '1', 10);
+  const n = Math.max(1, Math.min(6, isNaN(n0)?1:n0));
+  if(document.getElementById('teacherVariantCount')) document.getElementById('teacherVariantCount').value = String(n);
+  if(!wrap) return;
+  const prev = [];
+  for(let i=1;i<=6;i++){
+    const ta = document.getElementById('teacherTestTA_'+i);
+    if(ta) prev[i] = ta.value || '';
+  }
+  wrap.innerHTML = Array.from({length:n}).map((_,idx)=>{
+    const k = idx+1;
+    return `
+      <div style="margin-bottom:12px">
+        <div class="exam-label" style="margin-bottom:6px">Хувилбар ${k}</div>
+        <textarea class="teacher-input-area" id="teacherTestTA_${k}" placeholder="Энд Хувилбар ${k}-ийн тестээ оруулна уу…"></textarea>
+      </div>
+    `;
+  }).join('');
+  for(let i=1;i<=n;i++){
+    const ta = document.getElementById('teacherTestTA_'+i);
+    if(ta && prev[i]) ta.value = prev[i];
+  }
 }
 
 function closeExamRoom() {
@@ -2838,6 +2924,9 @@ function selectSource(src) {
   document.getElementById('yn-yes').className = 'yn-btn' + (src==='teacher' ? ' selected-yes' : '');
   document.getElementById('yn-no').className  = 'yn-btn' + (src==='ai'      ? ' selected-no'  : '');
   document.getElementById('teacherInputWrap').style.display = src==='teacher' ? 'block' : 'none';
+  if(src==='teacher'){
+    try{ renderTeacherVariants(); }catch{}
+  }
 }
 
 function shakeInput(id) {
@@ -2862,18 +2951,51 @@ async function startExamRoom() {
   if(!examConfig.difficulty){ renderExamStep(1); shakeEl('diff-easy'); return; }
   if(!examConfig.type){ shakeInput('examType'); renderExamStep(2); return; }
   let teacherQuestions = null;
+  let teacherVariants = null;
   if(examConfig.source === 'teacher'){
-    const raw = (document.getElementById('teacherTestTA')?.value || '').trim();
-    if(!raw){
+    const vn0 = parseInt(document.getElementById('teacherVariantCount')?.value || '1', 10);
+    const vn = Math.max(1, Math.min(6, isNaN(vn0)?1:vn0));
+    const variants = [];
+    for(let i=1;i<=vn;i++){
+      const raw = (document.getElementById('teacherTestTA_'+i)?.value || '').trim();
+      if(!raw){
+        const sb = document.getElementById('examSetupStatus');
+        sb.className = 'exam-status visible error';
+        sb.textContent = `❌ Хувилбар ${i}-ийн тестээ оруулна уу.`;
+        try{ document.getElementById('teacherTestTA_'+i)?.focus(); }catch{}
+        return;
+      }
+      // Parse locally (AI-гүй) so scoring works.
+      const norm = normalizeTeacherTestToExamQuestions(raw, examConfig.count);
+      if(!norm.ok){
+        const sb = document.getElementById('examSetupStatus');
+        sb.className = 'exam-status visible error';
+        sb.textContent = '❌ ' + norm.error + ` (Хувилбар ${i})`;
+        try{ document.getElementById('teacherTestTA_'+i)?.focus(); }catch{}
+        return;
+      }
+      variants.push({ id: i, rawText: raw, questions: norm.questions });
+    }
+    teacherVariants = variants;
+    examConfig.teacherText = variants[0]?.rawText || '';
+    teacherQuestions = variants[0]?.questions || null;
+  }else{
+    examConfig.teacherText = '';
+  }
+
+  // keep legacy room.config.teacherText for display; teacherVariants carries the real exam.
+  if(examConfig.source === 'teacher'){
+    // already set above
+  }else{
+    examConfig.teacherText = '';
+  }
+
+  if(examConfig.source === 'teacher' && (!teacherVariants || !teacherVariants.length)){
       const sb = document.getElementById('examSetupStatus');
       sb.className = 'exam-status visible error';
       sb.textContent = '❌ Тестийн асуултаа оруулна уу.';
-      try{ document.getElementById('teacherTestTA')?.focus(); }catch{}
+      try{ document.getElementById('teacherTestTA_1')?.focus(); }catch{}
       return;
-    }
-    examConfig.teacherText = raw;
-  }else{
-    examConfig.teacherText = '';
   }
 
   const roomId = randId(8);
@@ -2889,7 +3011,8 @@ async function startExamRoom() {
       source: examConfig.source,
       teacherText: examConfig.teacherText || '',
       // In teacher source: store normalized questions so students can start WITHOUT AI.
-      teacherQuestions: teacherQuestions || null
+      teacherQuestions: teacherQuestions || null,
+      teacherVariants: teacherVariants || null
     },
     studentsByName: {}
   };
