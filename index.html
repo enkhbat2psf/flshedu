@@ -948,10 +948,10 @@ textarea:focus{border-color:var(--accent)}
         <div id="teacherInputWrap" style="display:none;margin-top:20px">
           <div class="exam-label" style="margin-bottom:8px">Тестийн асуулт оруулах</div>
           <textarea class="teacher-input-area" id="teacherTestTA"
-            placeholder="Асуулт бүрийг дараах форматаар оруулна уу:&#10;&#10;Асуулт: Энд асуулт бичнэ?&#10;A) Хариулт нэг&#10;B) Хариулт хоёр&#10;C) Хариулт гурав&#10;D) Хариулт дөрөв&#10;Зөв: A&#10;&#10;Асуулт: Дараагийн асуулт?&#10;A) ..."></textarea>
+            placeholder="Асуулт бүрийг дараах байдлаар оруулна уу (Зөв: A гэдэг мөрийг бичихгүй байж болно):&#10;&#10;1. If it is &quot;raining cats and dogs,&quot; what is the weather like?&#10;A. It is drizzling lightly.&#10;B. It is raining heavily.&#10;C. It is very windy.&#10;D. It is starting to snow.&#10;&#10;2. ..."></textarea>
           <div class="teacher-format-hint">
-            💡 Формат: Асуулт → A B C D сонголтууд → Зөв: [үсэг]<br>
-            Зөв хариулт үсгийг ЗААВАЛ тэмдэглэнэ — Зөв: A эсвэл Зөв: B гэх мэт
+            💡 Формат: Асуулт → A B C D сонголтууд<br>
+            “Зөв: A” гэж бичих шаардлагагүй — систем AI ашиглаад зөв хариуг автоматаар олж тохируулна.
           </div>
         </div>
 
@@ -1770,6 +1770,8 @@ async function upsertStudent(roomId, name){
 
 function pushCheatEvent(type, meta={}){
   if(!studentExamRoomId || !studentExamKey || !studentExamInProgress) return;
+  // Zoom / resize events are too noisy across browsers; don't treat as cheat.
+  if(type === 'window_resize') return;
   try{
     initFirebaseOnce();
     const ref = rtdb.ref(`rooms/${studentExamRoomId}/cheats/${studentExamKey}/events`).push();
@@ -1898,72 +1900,16 @@ function disableStudentExamLockdown(){
 
 function attachStudentCheatSignals(){
   if(studentCheatSignalHandlers) return;
-  // Treat zoom as NOT a cheat: zoom triggers resize/visualViewport events.
-  // We'll ignore resize signals that coincide with a viewport scale change.
-  let lastVvScale = null;
-  let lastZoomAt = 0;
-  let lastResizeLogAt = 0;
-  const isCoarsePointer = (() => {
-    try{ return window.matchMedia && window.matchMedia('(pointer: coarse)').matches; }catch{ return false; }
-  })();
+  // NOTE: We intentionally do NOT log resize/zoom as cheat.
+  // Desktop zoom (Ctrl+/browser zoom) and mobile pinch-zoom trigger many resize/vv events.
 
   const onVis = () => {
     if(document.visibilityState === 'hidden') pushCheatEvent('visibility_hidden');
   };
   const onBlur = () => pushCheatEvent('window_blur');
-  const onResize = () => {
-    // Mobile browsers fire many resize events during pinch-zoom.
-    // We treat resize as non-cheat on coarse-pointer devices.
-    if(isCoarsePointer) return;
-    // Ignore window resize right after zoom gestures
-    if(lastZoomAt && (Date.now() - lastZoomAt) < 800) return;
-    // Throttle resize logging to avoid spam
-    const now = Date.now();
-    if(now - lastResizeLogAt < 5000) return;
-    lastResizeLogAt = now;
-    pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight });
-  };
-  const onOrient = () => {
-    // Orientation changes can also happen during zoom on some devices; apply same guard.
-    if(isCoarsePointer) return;
-    if(lastZoomAt && (Date.now() - lastZoomAt) < 800) return;
-    const now = Date.now();
-    if(now - lastResizeLogAt < 5000) return;
-    lastResizeLogAt = now;
-    pushCheatEvent('window_resize', { reason:'orientationchange' });
-  };
-  const onVvResize = () => {
-    if(!window.visualViewport) return;
-    if(isCoarsePointer) return;
-    const scale = Number(window.visualViewport.scale || 1);
-    if(lastVvScale === null) lastVvScale = scale;
-    // If scale changed, treat as zoom and DO NOT log as cheat.
-    if(Math.abs(scale - lastVvScale) > 0.01){
-      lastVvScale = scale;
-      lastZoomAt = Date.now();
-      return;
-    }
-    // If only vv size changed without scale change, log (e.g. split view / real resize)
-    const now = Date.now();
-    if(now - lastResizeLogAt < 5000) return;
-    lastResizeLogAt = now;
-    pushCheatEvent('window_resize', {
-      vvW: Math.round(window.visualViewport.width),
-      vvH: Math.round(window.visualViewport.height),
-      scale
-    });
-  };
-
-  studentCheatSignalHandlers = { onVis, onBlur, onResize, onOrient, onVvResize };
+  studentCheatSignalHandlers = { onVis, onBlur };
   try{ document.addEventListener('visibilitychange', onVis, { passive:true }); }catch{}
   try{ window.addEventListener('blur', onBlur, { passive:true }); }catch{}
-  try{ window.addEventListener('resize', onResize, { passive:true }); }catch{}
-  try{ window.addEventListener('orientationchange', onOrient, { passive:true }); }catch{}
-  try{
-    if(window.visualViewport){
-      window.visualViewport.addEventListener('resize', onVvResize, { passive:true });
-    }
-  }catch{}
 }
 
 function detachStudentCheatSignals(){
@@ -1971,13 +1917,6 @@ function detachStudentCheatSignals(){
   if(!h) return;
   try{ document.removeEventListener('visibilitychange', h.onVis, { passive:true }); }catch{}
   try{ window.removeEventListener('blur', h.onBlur, { passive:true }); }catch{}
-  try{ window.removeEventListener('resize', h.onResize, { passive:true }); }catch{}
-  try{ window.removeEventListener('orientationchange', h.onOrient, { passive:true }); }catch{}
-  try{
-    if(window.visualViewport){
-      window.visualViewport.removeEventListener('resize', h.onVvResize, { passive:true });
-    }
-  }catch{}
   studentCheatSignalHandlers = null;
 }
 
@@ -2615,17 +2554,32 @@ async function studentGenerateAndStartExam(){
     const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
 
     const count = Number(room.config?.count || 20);
+    const isTeacherSource = (room.config?.source === 'teacher') && String(room.config?.teacherText || '').trim().length > 0;
     // Stronger prompt: prevent meta questions, ensure real content questions
-    const prompt =
-      `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
-      `Сэдэв: ${room.config?.subject || ''}\n`+
-      `Дэд сэдэв/төрөл: ${room.config?.type || ''}\n`+
-      `Түвшин: ${diffMn}\n`+
-      `Асуултын тоо: ${count}\n\n`+
-      `ХОРИГЛОХ: "энэ шалгалт хэдэн асуулттай вэ?", "ямар түвшний шалгалт вэ?" гэх мэт шалгалтын тухай (meta) асуулт БҮҮ гарга.\n`+
-      `ЗӨВХӨН сэдвийн мэдлэг шалгах асуулт гарга. Асуулт бүр 4 сонголттой (A/B/C/D) ба ганц зөв хариулттай байх.\n`+
-      `Асуултууд давтагдахгүй, нэг мөрөөр ойлгомжтой, эргэлзээтэй (гэхдээ нэг л зөв хариулттай) байхаар зохио.\n`+
-      `ЖИШЭЭ (English grammar): She usually ___ to school by bus.\n`;
+    const prompt = isTeacherSource
+      ? (
+        `Та доорх багшийн оруулсан multiple-choice тестийг боловсруул.\n`+
+        `Даалгавар: Асуулт бүрийн зөв хариуг мэдлэгээрээ тогтоож, зөвхөн JSON ARRAY буцаа.\n`+
+        `Формат: [{"q":"...","correct":"(зөв сонголтын текст)","wrong":["(буруу1)","(буруу2)","(буруу3)"]}, ...]\n`+
+        `Шаардлага:\n`+
+        `- Асуулт бүр 4 сонголттой (A/B/C/D).\n`+
+        `- "correct" нь зөв сонголтын ТЕКСТ, "wrong" нь бусад 3 сонголтын ТЕКСТ байна.\n`+
+        `- Аль болох ${count} асуулт гарга (байвал бүгдийг авч болно).\n`+
+        `- Нэмэлт тайлбар, markdown, текст БҮҮ бич. Зөвхөн JSON буцаа.\n\n`+
+        `БАГШИЙН ТЕСТ:\n`+
+        String(room.config?.teacherText || '')
+      )
+      : (
+        `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
+        `Сэдэв: ${room.config?.subject || ''}\n`+
+        `Дэд сэдэв/төрөл: ${room.config?.type || ''}\n`+
+        `Түвшин: ${diffMn}\n`+
+        `Асуултын тоо: ${count}\n\n`+
+        `ХОРИГЛОХ: "энэ шалгалт хэдэн асуулттай вэ?", "ямар түвшний шалгалт вэ?" гэх мэт шалгалтын тухай (meta) асуулт БҮҮ гарга.\n`+
+        `ЗӨВХӨН сэдвийн мэдлэг шалгах асуулт гарга. Асуулт бүр 4 сонголттой (A/B/C/D) ба ганц зөв хариулттай байх.\n`+
+        `Асуултууд давтагдахгүй, нэг мөрөөр ойлгомжтой, эргэлзээтэй (гэхдээ нэг л зөв хариулттай) байхаар зохио.\n`+
+        `ЖИШЭЭ (English grammar): She usually ___ to school by bus.\n`
+      );
 
     const studentName = document.getElementById('joinStudentName').value.trim() || 'Student';
     async function callAI(action){
@@ -2705,7 +2659,7 @@ async function studentGenerateAndStartExam(){
     examConfig.type = room.config?.type || '';
     examConfig.difficulty = room.config?.difficulty || 'medium';
     examConfig.count = count;
-    examConfig.source = 'ai';
+    examConfig.source = isTeacherSource ? 'teacher' : 'ai';
     examQs = shuffle(qs).slice(0, count);
 
     // write attempt start to DB (questions + metadata)
@@ -2819,6 +2773,19 @@ async function startExamRoom() {
   if(!examConfig.subject){ shakeInput('examSubject'); renderExamStep(0); return; }
   if(!examConfig.difficulty){ renderExamStep(1); shakeEl('diff-easy'); return; }
   if(!examConfig.type){ shakeInput('examType'); renderExamStep(2); return; }
+  if(examConfig.source === 'teacher'){
+    const raw = (document.getElementById('teacherTestTA')?.value || '').trim();
+    if(!raw){
+      const sb = document.getElementById('examSetupStatus');
+      sb.className = 'exam-status visible error';
+      sb.textContent = '❌ Тестийн асуултаа оруулна уу.';
+      try{ document.getElementById('teacherTestTA')?.focus(); }catch{}
+      return;
+    }
+    examConfig.teacherText = raw;
+  }else{
+    examConfig.teacherText = '';
+  }
 
   const roomId = randId(8);
   const room = {
@@ -2830,7 +2797,8 @@ async function startExamRoom() {
       difficulty: examConfig.difficulty,
       type: examConfig.type,
       count: examConfig.count,
-      source: examConfig.source
+      source: examConfig.source,
+      teacherText: examConfig.teacherText || ''
     },
     studentsByName: {}
   };
