@@ -1623,6 +1623,8 @@ let teacherSelectedStudentKey = null;
 let studentExamRoomId = null;
 let studentExamKey = null; // normalized name key
 let studentExamName = null;
+let studentExamInProgress = false;
+let studentCheatSignalHandlers = null;
 
 function randId(len=8){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1767,7 +1769,7 @@ async function upsertStudent(roomId, name){
 }
 
 function pushCheatEvent(type, meta={}){
-  if(!studentExamRoomId || !studentExamKey) return;
+  if(!studentExamRoomId || !studentExamKey || !studentExamInProgress) return;
   try{
     initFirebaseOnce();
     const ref = rtdb.ref(`rooms/${studentExamRoomId}/cheats/${studentExamKey}/events`).push();
@@ -1892,6 +1894,47 @@ function disableStudentExamLockdown(){
     if(h.ctxHandler) document.removeEventListener('contextmenu', h.ctxHandler, true);
     window.__studentLockdownHandlers = null;
   }catch{}
+}
+
+function attachStudentCheatSignals(){
+  if(studentCheatSignalHandlers) return;
+  const onVis = () => {
+    if(document.visibilityState === 'hidden') pushCheatEvent('visibility_hidden');
+  };
+  const onBlur = () => pushCheatEvent('window_blur');
+  const onResize = () => pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight });
+  const onOrient = () => pushCheatEvent('window_resize', { reason:'orientationchange' });
+  const onVvResize = () => pushCheatEvent('window_resize', {
+    vvW: Math.round(window.visualViewport.width),
+    vvH: Math.round(window.visualViewport.height),
+    scale: window.visualViewport.scale
+  });
+
+  studentCheatSignalHandlers = { onVis, onBlur, onResize, onOrient, onVvResize };
+  try{ document.addEventListener('visibilitychange', onVis, { passive:true }); }catch{}
+  try{ window.addEventListener('blur', onBlur, { passive:true }); }catch{}
+  try{ window.addEventListener('resize', onResize, { passive:true }); }catch{}
+  try{ window.addEventListener('orientationchange', onOrient, { passive:true }); }catch{}
+  try{
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize', onVvResize, { passive:true });
+    }
+  }catch{}
+}
+
+function detachStudentCheatSignals(){
+  const h = studentCheatSignalHandlers;
+  if(!h) return;
+  try{ document.removeEventListener('visibilitychange', h.onVis, { passive:true }); }catch{}
+  try{ window.removeEventListener('blur', h.onBlur, { passive:true }); }catch{}
+  try{ window.removeEventListener('resize', h.onResize, { passive:true }); }catch{}
+  try{ window.removeEventListener('orientationchange', h.onOrient, { passive:true }); }catch{}
+  try{
+    if(window.visualViewport){
+      window.visualViewport.removeEventListener('resize', h.onVvResize, { passive:true });
+    }
+  }catch{}
+  studentCheatSignalHandlers = null;
 }
 
 function writeAttemptPatch(patch){
@@ -2809,7 +2852,9 @@ function launchExam() {
   // cheat signal hooks (student sessions only)
   try{
     if(studentExamRoomId && studentExamKey){
+      studentExamInProgress = true;
       enableStudentExamLockdown();
+      attachStudentCheatSignals();
       // listen for teacher force-close
       listenRoomStatus(studentExamRoomId, (status)=>{
         if(status?.state === 'closed'){
@@ -2827,23 +2872,10 @@ function launchExam() {
           try{ finishExam(); }catch{}
         }
       });
-      document.onvisibilitychange = () => {
-        if(document.visibilityState === 'hidden') pushCheatEvent('visibility_hidden');
-      };
-      window.addEventListener('blur', () => pushCheatEvent('window_blur'), { passive:true });
-      window.addEventListener('resize', () => pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight }), { passive:true });
-      window.addEventListener('orientationchange', () => pushCheatEvent('window_resize', { reason:'orientationchange' }), { passive:true });
-      try{
-        if(window.visualViewport){
-          window.visualViewport.addEventListener('resize', () => pushCheatEvent('window_resize', {
-            vvW: Math.round(window.visualViewport.width),
-            vvH: Math.round(window.visualViewport.height),
-            scale: window.visualViewport.scale
-          }), { passive:true });
-        }
-      }catch{}
     }else{
       // ensure no leftover handlers from a previous student session
+      studentExamInProgress = false;
+      detachStudentCheatSignals();
       disableStudentExamLockdown();
     }
   }catch{}
@@ -2947,6 +2979,12 @@ function answerExam(btn, isOk, correctText) {
 }
 
 function finishExam() {
+  // Stop cheat tracking after exam ends (prevents logging after completion)
+  try{
+    studentExamInProgress = false;
+    detachStudentCheatSignals();
+    disableStudentExamLockdown();
+  }catch{}
   document.getElementById('exCard').style.display='none';
   document.getElementById('exOpts').style.display='none';
   document.getElementById('exFeedback').style.display='none';
