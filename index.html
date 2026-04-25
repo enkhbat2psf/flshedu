@@ -2555,19 +2555,19 @@ async function studentGenerateAndStartExam(){
 
     const count = Number(room.config?.count || 20);
     const isTeacherSource = (room.config?.source === 'teacher') && String(room.config?.teacherText || '').trim().length > 0;
+    let teacherParsed = [];
+    if(isTeacherSource){
+      teacherParsed = parseTeacherTestLoose(String(room.config?.teacherText || ''));
+    }
     // Stronger prompt: prevent meta questions, ensure real content questions
     const prompt = isTeacherSource
       ? (
-        `Та доорх багшийн оруулсан multiple-choice тестийг боловсруул.\n`+
-        `Даалгавар: Асуулт бүрийн зөв хариуг мэдлэгээрээ тогтоож, зөвхөн JSON ARRAY буцаа.\n`+
-        `Формат: [{"q":"...","correct":"(зөв сонголтын текст)","wrong":["(буруу1)","(буруу2)","(буруу3)"]}, ...]\n`+
-        `Шаардлага:\n`+
-        `- Асуулт бүр 4 сонголттой (A/B/C/D).\n`+
-        `- "correct" нь зөв сонголтын ТЕКСТ, "wrong" нь бусад 3 сонголтын ТЕКСТ байна.\n`+
-        `- Аль болох ${count} асуулт гарга (байвал бүгдийг авч болно).\n`+
-        `- Нэмэлт тайлбар, markdown, текст БҮҮ бич. Зөвхөн JSON буцаа.\n\n`+
-        `БАГШИЙН ТЕСТ:\n`+
-        String(room.config?.teacherText || '')
+        `You are grading a teacher-provided multiple-choice test.\n`+
+        `IMPORTANT: Do NOT rewrite questions or choices. Do NOT fix typos in the text. Keep everything exactly as given.\n`+
+        `Task: For each item, choose the correct option LETTER only (A/B/C/D).\n`+
+        `Return ONLY a JSON array of the same length in the same order.\n`+
+        `Format: [{"correct":"A"},{"correct":"B"},...]\n\n`+
+        `ITEMS_JSON:\n`+ JSON.stringify(teacherParsed).slice(0, 120000)
       )
       : (
         `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
@@ -2634,12 +2634,39 @@ async function studentGenerateAndStartExam(){
     // Prefer test (known working). If not, fallback to examroom.
     let r = await callAI('test');
     let data = r.data;
-    let qs = normalizeQuestions(extractQuestions(data));
+    let qs = [];
+    if(isTeacherSource){
+      // Expect: [{"correct":"A"}, ...]
+      const picks = extractQuestions(data);
+      const arr = Array.isArray(picks) ? picks : [];
+      const mapped = [];
+      for(let i=0;i<Math.min(teacherParsed.length, arr.length);i++){
+        const pick = arr[i];
+        const key = String(pick?.correct || '').trim().toUpperCase();
+        const item = teacherParsed[i];
+        const o = item?.opts || {};
+        if(!item?.q || !o.A || !o.B || !o.C || !o.D) continue;
+        if(!['A','B','C','D'].includes(key)) continue;
+        mapped.push({
+          q: String(item.q),
+          correct: String(o[key]),
+          wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>String(o[k]))
+        });
+      }
+      qs = mapped;
+    }else{
+      qs = normalizeQuestions(extractQuestions(data));
+    }
 
     if(!r.ok || data?.error || !qs.length){
       r = await callAI('examroom');
       data = r.data;
-      qs = normalizeQuestions(extractQuestions(data));
+      if(isTeacherSource){
+        // teacher mode should not fall back to random generation
+        qs = [];
+      }else{
+        qs = normalizeQuestions(extractQuestions(data));
+      }
     }
 
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -2651,6 +2678,9 @@ async function studentGenerateAndStartExam(){
     }
     if(!qs.length) {
       const hint = typeof data?._raw === 'string' ? data._raw.slice(0, 120) : '';
+      if(isTeacherSource){
+        throw new Error('Багшийн тестийг задлаж/шалгаж чадсангүй. (Форматыг A/B/C/D сонголттой байлгаарай.)');
+      }
       throw new Error('AI тест үүсгэж чадсангүй.' + (hint ? ` (${hint}…)` : ''));
     }
 
@@ -2841,6 +2871,68 @@ function parseTeacherTest(raw) {
     }
   }
   return result;
+}
+
+// Loose parser: keeps teacher's question/choices text as-is (best effort).
+// Accepts formats like:
+// 1. Question...
+// A) ... / A. ... / A - ...
+// (optional) blank lines between questions
+function parseTeacherTestLoose(raw){
+  const text = String(raw||'').replace(/\r/g,'\n');
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length);
+  const out = [];
+  let cur = null;
+
+  const flush = () => {
+    if(!cur) return;
+    const o = cur.opts || {};
+    if(cur.q && o.A && o.B && o.C && o.D){
+      out.push({ q: cur.q, opts: { A:o.A, B:o.B, C:o.C, D:o.D } });
+    }
+    cur = null;
+  };
+
+  for(const l0 of lines){
+    const l = l0.replace(/^\uFEFF/, '');
+    const q1 = l.match(/^\s*\d+\s*[\.\)]\s*(.+)$/);      // "1. Question"
+    const q2 = l.match(/^(?:Асуулт|Q)\s*[:\.\)]\s*(.+)$/i);
+    const opt = l.match(/^([A-D])\s*[\)\.\-:]\s*(.+)$/i);
+    const correctLine = l.match(/^(?:Зөв|Correct|Answer)\s*[:\.\)]\s*([A-D])\b/i);
+
+    // Start new question
+    if(q1 || q2){
+      flush();
+      cur = { q: (q1 ? q1[1] : q2[1]).trim(), opts: {}, correctKey: null };
+      continue;
+    }
+
+    // If no current question yet, try to infer that this line is a question anyway
+    if(!cur){
+      // If line is not an option, treat as question start
+      if(!opt && !correctLine){
+        cur = { q: l.trim(), opts: {}, correctKey: null };
+      }
+      continue;
+    }
+
+    if(opt){
+      cur.opts[opt[1].toUpperCase()] = opt[2].trim();
+      continue;
+    }
+    if(correctLine){
+      cur.correctKey = correctLine[1].toUpperCase();
+      continue;
+    }
+
+    // Continuation lines: append to question text (some teachers paste multi-line questions)
+    // Avoid appending if it looks like a dangling option label without punctuation.
+    if(cur && cur.q){
+      cur.q = (cur.q + ' ' + l.trim()).replace(/\s+/g,' ').trim();
+    }
+  }
+  flush();
+  return out;
 }
 
 function launchExam() {
