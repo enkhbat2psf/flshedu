@@ -1902,23 +1902,39 @@ function attachStudentCheatSignals(){
   // We'll ignore resize signals that coincide with a viewport scale change.
   let lastVvScale = null;
   let lastZoomAt = 0;
+  let lastResizeLogAt = 0;
+  const isCoarsePointer = (() => {
+    try{ return window.matchMedia && window.matchMedia('(pointer: coarse)').matches; }catch{ return false; }
+  })();
 
   const onVis = () => {
     if(document.visibilityState === 'hidden') pushCheatEvent('visibility_hidden');
   };
   const onBlur = () => pushCheatEvent('window_blur');
   const onResize = () => {
+    // Mobile browsers fire many resize events during pinch-zoom.
+    // We treat resize as non-cheat on coarse-pointer devices.
+    if(isCoarsePointer) return;
     // Ignore window resize right after zoom gestures
     if(lastZoomAt && (Date.now() - lastZoomAt) < 800) return;
+    // Throttle resize logging to avoid spam
+    const now = Date.now();
+    if(now - lastResizeLogAt < 5000) return;
+    lastResizeLogAt = now;
     pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight });
   };
   const onOrient = () => {
     // Orientation changes can also happen during zoom on some devices; apply same guard.
+    if(isCoarsePointer) return;
     if(lastZoomAt && (Date.now() - lastZoomAt) < 800) return;
+    const now = Date.now();
+    if(now - lastResizeLogAt < 5000) return;
+    lastResizeLogAt = now;
     pushCheatEvent('window_resize', { reason:'orientationchange' });
   };
   const onVvResize = () => {
     if(!window.visualViewport) return;
+    if(isCoarsePointer) return;
     const scale = Number(window.visualViewport.scale || 1);
     if(lastVvScale === null) lastVvScale = scale;
     // If scale changed, treat as zoom and DO NOT log as cheat.
@@ -1928,6 +1944,9 @@ function attachStudentCheatSignals(){
       return;
     }
     // If only vv size changed without scale change, log (e.g. split view / real resize)
+    const now = Date.now();
+    if(now - lastResizeLogAt < 5000) return;
+    lastResizeLogAt = now;
     pushCheatEvent('window_resize', {
       vvW: Math.round(window.visualViewport.width),
       vvH: Math.round(window.visualViewport.height),
@@ -3044,4 +3063,4 @@ function finishExam() {
 })();
 </script>
 </body>
-</html>c
+</html>
