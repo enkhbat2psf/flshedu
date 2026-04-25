@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
 <title>AI Флаш Карт</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -733,7 +734,7 @@ textarea:focus{border-color:var(--accent)}
 }
 </style>
 </head>
-<body>
+<body translate="no" class="notranslate">
 
 <!-- LOGIN -->
 <div id="loginGate">
@@ -988,12 +989,16 @@ textarea:focus{border-color:var(--accent)}
           <input class="exam-input" id="lobbyLink" readonly onclick="this.select()" />
           <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
             <button class="exam-next-btn" style="padding:10px 18px" onclick="copyLobbyLink()">📋 Линк хуулах</button>
+            <button class="exam-next-btn" id="prepPoolBtn" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#5f48f0)" onclick="teacherPrepareQuestionPool()">
+              🧰 Асуултын сан бэлдэх
+            </button>
             <button class="exam-next-btn" style="padding:10px 18px;background:linear-gradient(135deg,var(--know),#1aa96a)" onclick="teacherStartRoomNow()">✅ Шалгалт эхлүүлэх</button>
             <button class="exam-next-btn" id="openDashBtn" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent2),#178a84);opacity:.55;cursor:not-allowed" onclick="openTeacherDashboard()">
               📊 Хяналтын самбар
             </button>
             <button class="exam-back-btn" onclick="resetExamRoomToSetup()">↺ Дахин тохируулах</button>
           </div>
+          <div class="exam-status" id="poolStatus" style="margin-top:12px"></div>
         </div>
       </div>
 
@@ -1170,6 +1175,10 @@ textarea:focus{border-color:var(--accent)}
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw27PhqlrB8dNs4MFWXGS9YQHyqIfTkfaXEHcgsRpTknkMR_eXiakWTRHdn52xvuqxRaw/exec";
 // AI model hint (backend must support this field; safe to send even if ignored)
 const AI_MODEL = "llama-3.1-8b-instant";
+
+// Exam question pool defaults (teacher generates once, students only read)
+const QUESTION_POOL_MIN = 60;
+const QUESTION_POOL_MAX = 100;
 
 // Firebase config (Realtime Database)
 const firebaseConfig = {
@@ -2424,6 +2433,142 @@ async function teacherStartRoomNow(){
     openTeacherDashboard();
   }catch{}
 }
+
+function normalizePoolQuestions(arr){
+  // Accept either:
+  // - [{q,correct,wrong}]
+  // - [{q,A,B,C,D,correct:"A"}]
+  const out = [];
+  for(const item of (arr||[])){
+    if(item && typeof item.q === 'string' && typeof item.correct === 'string' && Array.isArray(item.wrong)){
+      const q = item.q.trim();
+      const correct = item.correct.trim();
+      const wrong = item.wrong.map(x=>String(x||'').trim()).filter(Boolean);
+      if(q && correct && wrong.length>=1) out.push({ q, correct, wrong: wrong.slice(0,3) });
+      continue;
+    }
+    const qText = (item && typeof item.q === 'string') ? item.q.trim() : '';
+    const A = (item && typeof item.A === 'string') ? item.A.trim() : '';
+    const B = (item && typeof item.B === 'string') ? item.B.trim() : '';
+    const C = (item && typeof item.C === 'string') ? item.C.trim() : '';
+    const D = (item && typeof item.D === 'string') ? item.D.trim() : '';
+    const key = String(item?.correct || '').trim().toUpperCase();
+    if(!qText || !A || !B || !C || !D) continue;
+    if(!['A','B','C','D'].includes(key)) continue;
+    const opt = {A,B,C,D};
+    out.push({ q: qText, correct: opt[key], wrong: ['A','B','C','D'].filter(k=>k!==key).map(k=>opt[k]) });
+  }
+  return out;
+}
+
+function extractJsonArrayFromAny(payload){
+  let raw = payload;
+  if(raw && typeof raw === 'object' && typeof raw._raw === 'string') raw = raw._raw;
+  if(Array.isArray(raw)) return raw;
+  if(raw && Array.isArray(raw.questions)) return raw.questions;
+  if(typeof raw === 'string'){
+    const m = raw.match(/\[[\s\S]*\]/);
+    if(m){
+      try{
+        const a = JSON.parse(m[0]);
+        if(Array.isArray(a)) return a;
+      }catch{}
+    }
+  }
+  return [];
+}
+
+async function teacherPrepareQuestionPool(){
+  if(!activeRoomId) return;
+  const sb = document.getElementById('poolStatus');
+  const btn = document.getElementById('prepPoolBtn');
+  const startBtn = document.querySelector('#examTeacherLobby button[onclick="teacherStartRoomNow()"]');
+  try{
+    btn.disabled = true;
+    if(sb){ sb.className='exam-status visible'; sb.innerHTML='⏳ Асуултын сан үүсгэж байна… <span class="loading-dots"><span></span><span></span><span></span></span>'; }
+    if(startBtn) startBtn.disabled = true;
+
+    initFirebaseOnce();
+    const room = await fetchRoom(activeRoomId);
+    if(!room) throw new Error('Өрөө олдсонгүй.');
+
+    const poolSize = Math.max(QUESTION_POOL_MIN, Math.min(QUESTION_POOL_MAX, (Number(room.config?.count||20) * 4) || 80));
+    const diff = room.config?.difficulty || 'medium';
+    const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
+    const subject = room.config?.subject || '';
+    const type = room.config?.type || '';
+    const teacherText = String(room.config?.teacherText || '').trim();
+    const source = room.config?.source || 'ai';
+
+    const prompt = source === 'teacher' && teacherText
+      ? (
+        `You are given teacher-provided exam content in arbitrary messy format.\n`+
+        `Normalize it into a multiple-choice question pool.\n\n`+
+        `RULES:\n`+
+        `- Build about ${poolSize} questions.\n`+
+        `- Each question must have A/B/C/D options and a single correct answer.\n`+
+        `- Use the teacher text as the primary source; if it's insufficient, add more questions consistent with the same topic.\n`+
+        `- No meta questions about the exam.\n`+
+        `- Return ONLY JSON array.\n\n`+
+        `FORMAT:\n`+
+        `[{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}, ...]\n\n`+
+        `TEACHER_RAW_TEXT:\n`+ teacherText.slice(0, 120000)
+      )
+      : (
+        `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
+        `Сэдэв: ${subject}\n`+
+        `Дэд сэдэв/төрөл: ${type}\n`+
+        `Түвшин: ${diffMn}\n`+
+        `Асуултын сангийн хэмжээ: ~${poolSize}\n\n`+
+        `ХОРИГЛОХ: шалгалтын тухай (meta) асуулт.\n`+
+        `Асуулт бүр 4 сонголттой (A/B/C/D), ганц зөв хариулттай.\n`+
+        `ЗӨВХӨН JSON буцаа: {"questions":[{"q":"...","correct":"...","wrong":["..","..",".."]}, ...]} эсвэл шууд array.\n`
+      );
+
+    const res = await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'test',
+        model: AI_MODEL,
+        userName: userName || 'Багш',
+        inputText: prompt,
+        subject,
+        difficulty: diff,
+        examType: type,
+        count: poolSize
+      })
+    });
+    const rawText = await res.text();
+    let data = null;
+    try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
+    if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
+    if(data?.error) throw new Error(String(data.error));
+
+    const arr = extractJsonArrayFromAny(data);
+    const pool = normalizePoolQuestions(arr);
+    if(pool.length < Math.min(20, room.config?.count||20)){
+      const hint = String(rawText||'').trim().slice(0, 160);
+      throw new Error('AI асуултын сан буруу форматтай ирлээ.' + (hint?` (${hint}…)`:''));
+    }
+
+    // Save pool in Firebase
+    await rtdb.ref(`rooms/${activeRoomId}/questionPool`).set(pool.slice(0, QUESTION_POOL_MAX));
+    await rtdb.ref(`rooms/${activeRoomId}/poolMeta`).set({
+      size: Math.min(pool.length, QUESTION_POOL_MAX),
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      model: AI_MODEL
+    });
+
+    if(sb){ sb.className='exam-status visible'; sb.textContent = `✅ Асуултын сан бэлэн боллоо. (${Math.min(pool.length, QUESTION_POOL_MAX)} асуулт)`; }
+    if(startBtn) startBtn.disabled = false;
+  }catch(e){
+    if(sb){ sb.className='exam-status visible error'; sb.textContent = '❌ ' + formatUserFacingAiError(e); }
+    if(startBtn) startBtn.disabled = false;
+  }finally{
+    btn.disabled = false;
+  }
+}
 function resetExamRoomToSetup(){
   stopListenRoom();
   activeRoomId = null;
@@ -2580,131 +2725,22 @@ async function studentGenerateAndStartExam(){
       }
     }catch{}
 
-    // Map difficulty to Mongolian label
-    const diff = room.config?.difficulty;
-    const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
-
+    // Students MUST NOT call API. They only read questionPool from Firebase.
     const count = Number(room.config?.count || 20);
-    const teacherQs = Array.isArray(room.config?.teacherQuestions) ? room.config.teacherQuestions : null;
-    const isTeacherSource = (room.config?.source === 'teacher') && (teacherQs && teacherQs.length>0);
-
-    // TEACHER SOURCE: Use the teacher's normalized questions directly (NO AI).
-    if(isTeacherSource){
-      const qs = teacherQs
-        .filter(q=>q && q.q && q.correct && Array.isArray(q.wrong) && q.wrong.length>=1)
-        .map(q=>({ q:String(q.q), correct:String(q.correct), wrong:(q.wrong||[]).map(String) }));
-      if(!qs.length) throw new Error('Багшийн тест олдсонгүй (teacherQuestions хоосон).');
-
-      examConfig.subject = room.config?.subject || 'Шалгалт';
-      examConfig.type = room.config?.type || '';
-      examConfig.difficulty = room.config?.difficulty || 'medium';
-      examConfig.count = count;
-      examConfig.source = 'teacher';
-      examQs = shuffle(qs).slice(0, count);
-
-      recordAttemptStart(examQs, room.config || {});
-      document.getElementById('examStudentJoin').style.display = 'none';
-      document.getElementById('examPlayArea').style.display = 'block';
-      launchExam();
-      return;
+    initFirebaseOnce();
+    const poolSnap = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
+    const poolRaw = poolSnap.exists() ? (poolSnap.val() || []) : [];
+    const pool = normalizePoolQuestions(Array.isArray(poolRaw) ? poolRaw : []);
+    if(pool.length < count){
+      throw new Error('Асуултын сан бэлдээгүй байна. (Багш "Асуултын сан бэлдэх" товчийг дарна.)');
     }
 
-    // AI SOURCE
-    // Stronger prompt: prevent meta questions, ensure real content questions
-    const prompt = (
-      `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
-      `Сэдэв: ${room.config?.subject || ''}\n`+
-      `Дэд сэдэв/төрөл: ${room.config?.type || ''}\n`+
-      `Түвшин: ${diffMn}\n`+
-      `Асуултын тоо: ${count}\n\n`+
-      `ХОРИГЛОХ: "энэ шалгалт хэдэн асуулттай вэ?", "ямар түвшний шалгалт вэ?" гэх мэт шалгалтын тухай (meta) асуулт БҮҮ гарга.\n`+
-      `ЗӨВХӨН сэдвийн мэдлэг шалгах асуулт гарга. Асуулт бүр 4 сонголттой (A/B/C/D) ба ганц зөв хариулттай байх.\n`+
-      `Асуултууд давтагдахгүй, нэг мөрөөр ойлгомжтой, эргэлзээтэй (гэхдээ нэг л зөв хариулттай) байхаар зохио.\n`+
-      `ЖИШЭЭ (English grammar): She usually ___ to school by bus.\n`
-    );
-
-    const studentName = document.getElementById('joinStudentName').value.trim() || 'Student';
-    async function callAI(action){
-      const res = await fetch(SCRIPT_URL, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({
-          action,
-          model: AI_MODEL,
-          userName: studentName,
-          inputText: prompt,
-          subject: room.config?.subject,
-          difficulty: diff,
-          examType: room.config?.type,
-          count
-        })
-      });
-      const rawText = await res.text();
-      let data = null;
-      try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
-      return { ok: (res.status>=200 && res.status<300), status: res.status, data };
-    }
-
-    function extractQuestions(payload){
-      // Supported shapes:
-      // - {questions:[...]}
-      // - [...]
-      // - {_raw:"...json..."}
-      let raw = payload;
-      if(raw && typeof raw === 'object' && typeof raw._raw === 'string') raw = raw._raw;
-
-      if(Array.isArray(raw)) return raw;
-      if(raw && Array.isArray(raw.questions)) return raw.questions;
-
-      if(typeof raw === 'string'){
-        // Try to recover JSON array from text
-        const m = raw.match(/\[[\s\S]*\]/);
-        if(m){
-          try{
-            const a = JSON.parse(m[0]);
-            if(Array.isArray(a)) return a;
-          }catch{}
-        }
-      }
-      return [];
-    }
-    function normalizeQuestions(arr){
-      return (arr||[])
-        .filter(q=>q && q.q && q.correct && Array.isArray(q.wrong) && q.wrong.length>=1)
-        .map(q=>({ q:String(q.q), correct:String(q.correct), wrong:q.wrong.map(String) }));
-    }
-
-    // Prefer test (known working). If not, fallback to examroom.
-    let r = await callAI('test');
-    let data = r.data;
-    let qs = [];
-    qs = normalizeQuestions(extractQuestions(data));
-
-    if(!r.ok || data?.error || !qs.length){
-      r = await callAI('examroom');
-      data = r.data;
-      qs = normalizeQuestions(extractQuestions(data));
-    }
-
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    if(data?.error) {
-      // If backend returns an error but includes recoverable questions, try to salvage
-      const salvaged = normalizeQuestions(extractQuestions(String(data.error)));
-      if(salvaged.length) qs = salvaged;
-      else throw new Error(data.error);
-    }
-    if(!qs.length) {
-      const hint = typeof data?._raw === 'string' ? data._raw.slice(0, 120) : '';
-      throw new Error('AI тест үүсгэж чадсангүй.' + (hint ? ` (${hint}…)` : ''));
-    }
-
-    // reuse existing exam UI
     examConfig.subject = room.config?.subject || 'Шалгалт';
     examConfig.type = room.config?.type || '';
     examConfig.difficulty = room.config?.difficulty || 'medium';
     examConfig.count = count;
-    examConfig.source = 'ai';
-    examQs = shuffle(qs).slice(0, count);
+    examConfig.source = room.config?.source === 'teacher' ? 'teacher' : 'ai';
+    examQs = shuffle(pool).slice(0, count);
 
     // write attempt start to DB (questions + metadata)
     recordAttemptStart(examQs, room.config || {});
