@@ -408,6 +408,12 @@ textarea:focus{border-color:var(--accent)}
   z-index:300;overflow-y:auto;padding:20px;
 }
 #examOverlay.open{display:flex;align-items:flex-start;justify-content:center;padding-top:40px}
+.exam-lockdown,
+.exam-lockdown *{
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
 .exam-modal{
   background:var(--card);border:1px solid var(--border);
   border-radius:24px;width:100%;max-width:560px;
@@ -1775,6 +1781,8 @@ function pushCheatEvent(type, meta={}){
     const countRef = rtdb.ref(`rooms/${studentExamRoomId}/cheats/${studentExamKey}/count`);
     countRef.transaction((cur)=> (Number(cur||0) + 1)).then((res)=>{
       const n = Number(res?.snapshot?.val() || 0);
+      // Hard stop after too many cheat signals (still not "perfect", but deters translate/tab switching)
+      const MAX = 10;
       if(n === 6){
         // Show a clear warning to the student
         const sb = document.getElementById('exFeedback') || document.getElementById('joinStatus');
@@ -1788,7 +1796,101 @@ function pushCheatEvent(type, meta={}){
           rtdb.ref(`rooms/${studentExamRoomId}/cheats/${studentExamKey}/warnedAt`).set(firebase.database.ServerValue.TIMESTAMP);
         }catch{}
       }
+      if(n >= MAX){
+        try{
+          // Disable options and finish attempt immediately
+          document.querySelectorAll('.exam-opt').forEach(b=>{ b.disabled=true; b.style.pointerEvents='none'; });
+        }catch{}
+        const fb = document.getElementById('exFeedback') || document.getElementById('joinStatus');
+        if(fb){
+          fb.className = (fb.id==='exFeedback') ? 'exam-feedback no' : 'exam-status visible error';
+          fb.innerHTML = '⛔ Шалгалтын горим зөрчсөн (олон удаа өөр таб/app руу гарсан/shortcut хэрэглэсэн). Таны одоогийн дүн хадгалагдаж, шалгалт дууслаа.';
+        }
+        try{ recordAttemptFinish(examScore, examWrong, examQs.length || 0); }catch{}
+        try{ finishExam(); }catch{}
+      }
     }).catch(()=>{});
+  }catch{}
+}
+
+// Student exam "lockdown" (best-effort). Not a full blocker; combines with cheat logging.
+let studentLockdownOn = false;
+function enableStudentExamLockdown(){
+  if(studentLockdownOn) return;
+  studentLockdownOn = true;
+  try{ document.getElementById('examPlayArea')?.classList.add('exam-lockdown'); }catch{}
+
+  // Request fullscreen on first user gesture (mobile/desktop friendly)
+  try{
+    const fs = () => {
+      const el = document.documentElement;
+      const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+      if(isFs) return;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if(req) req.call(el).catch?.(()=>{});
+    };
+    window.addEventListener('pointerdown', fs, { once:true, passive:true });
+  }catch{}
+
+  // Block obvious copy/paste/select/search/print/devtools shortcuts
+  try{
+    const keyHandler = (e) => {
+      if(!studentExamRoomId || !studentExamKey) return;
+      const k = String(e.key||'').toLowerCase();
+      const ctrl = !!(e.ctrlKey || e.metaKey);
+      const alt  = !!e.altKey;
+      const shift= !!e.shiftKey;
+
+      const blocked =
+        k === 'f12' ||
+        (ctrl && ['c','x','v','a','f','p','s','u','l','r'].includes(k)) ||
+        (ctrl && shift && ['i','j','c'].includes(k)) ||
+        (alt && (k === 'd' || k === 'tab'));
+
+      if(blocked){
+        e.preventDefault();
+        e.stopPropagation();
+        pushCheatEvent('blocked_shortcut', { key: e.key, ctrl, alt, shift });
+        return false;
+      }
+    };
+    const clipHandler = (e) => {
+      if(!studentExamRoomId || !studentExamKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      pushCheatEvent('blocked_clipboard', { type: e.type });
+      return false;
+    };
+    const ctxHandler = (e) => {
+      if(!studentExamRoomId || !studentExamKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      pushCheatEvent('blocked_contextmenu');
+      return false;
+    };
+
+    window.__studentLockdownHandlers = { keyHandler, clipHandler, ctxHandler };
+    document.addEventListener('keydown', keyHandler, true);
+    document.addEventListener('copy', clipHandler, true);
+    document.addEventListener('cut', clipHandler, true);
+    document.addEventListener('paste', clipHandler, true);
+    document.addEventListener('contextmenu', ctxHandler, true);
+  }catch{}
+}
+function disableStudentExamLockdown(){
+  if(!studentLockdownOn) return;
+  studentLockdownOn = false;
+  try{ document.getElementById('examPlayArea')?.classList.remove('exam-lockdown'); }catch{}
+  try{
+    const h = window.__studentLockdownHandlers || {};
+    if(h.keyHandler) document.removeEventListener('keydown', h.keyHandler, true);
+    if(h.clipHandler){
+      document.removeEventListener('copy', h.clipHandler, true);
+      document.removeEventListener('cut', h.clipHandler, true);
+      document.removeEventListener('paste', h.clipHandler, true);
+    }
+    if(h.ctxHandler) document.removeEventListener('contextmenu', h.ctxHandler, true);
+    window.__studentLockdownHandlers = null;
   }catch{}
 }
 
@@ -2707,6 +2809,7 @@ function launchExam() {
   // cheat signal hooks (student sessions only)
   try{
     if(studentExamRoomId && studentExamKey){
+      enableStudentExamLockdown();
       // listen for teacher force-close
       listenRoomStatus(studentExamRoomId, (status)=>{
         if(status?.state === 'closed'){
@@ -2739,6 +2842,9 @@ function launchExam() {
           }), { passive:true });
         }
       }catch{}
+    }else{
+      // ensure no leftover handlers from a previous student session
+      disableStudentExamLockdown();
     }
   }catch{}
 }
