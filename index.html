@@ -2515,6 +2515,35 @@ function joinRoomNow(){
   });
 }
 
+function formatUserFacingAiError(err){
+  const raw = String(err?.message || err || '').trim();
+  const lower = raw.toLowerCase();
+  if(!raw) return 'AI үйлчилгээний алдаа гарлаа. Дахин оролдоно уу.';
+
+  // Common rate-limit patterns (hide provider/model details)
+  if(lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('tpd') || lower.includes('tokens per day')){
+    // Try to extract "try again in X" if present
+    const m = raw.match(/try again in\s+([0-9a-z:\.\s]+)\b/i);
+    const wait = m?.[1]?.trim();
+    return wait
+      ? `AI үйлчилгээ түр хязгаарлагдлаа. ${wait} дараа дахин оролдоно уу.`
+      : 'AI үйлчилгээ түр хязгаарлагдлаа. Түр хүлээгээд дахин оролдоно уу.';
+  }
+  if(lower.includes('http 429')){
+    return 'AI үйлчилгээ түр хязгаарлагдлаа (429). Түр хүлээгээд дахин оролдоно уу.';
+  }
+  if(lower.includes('networkerror') || lower.includes('failed to fetch') || lower.includes('network')){
+    return 'Интернет/сүлжээний алдаа гарлаа. Холболтоо шалгаад дахин оролдоно уу.';
+  }
+
+  // Default: do not leak provider/model/org ids/urls
+  if(lower.includes('groq') || lower.includes('llama') || lower.includes('org_') || lower.includes('console.groq.com')){
+    return 'AI үйлчилгээний алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.';
+  }
+  // Keep short, user-friendly
+  return raw.length > 140 ? (raw.slice(0, 140) + '…') : raw;
+}
+
 async function studentGenerateAndStartExam(){
   if(!activeRoomId) return;
   const sb = document.getElementById('joinStatus');
@@ -2705,7 +2734,7 @@ async function studentGenerateAndStartExam(){
     launchExam();
   }catch(e){
     sb.className='exam-status visible error';
-    sb.textContent='❌ ' + (e?.message || 'Алдаа гарлаа');
+    sb.textContent='❌ ' + formatUserFacingAiError(e);
   }finally{
     btn.disabled = false;
   }
