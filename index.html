@@ -1176,7 +1176,7 @@ textarea:focus{border-color:var(--accent)}
 // ══════════════════════════
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw27PhqlrB8dNs4MFWXGS9YQHyqIfTkfaXEHcgsRpTknkMR_eXiakWTRHdn52xvuqxRaw/exec";
 // AI model hint (backend must support this field; safe to send even if ignored)
-const AI_MODEL = "llama-3.1-8b-instant";
+const AI_MODEL = "llama-3.3-70b-versatile";
 
 // Firebase config (Realtime Database)
 const firebaseConfig = {
@@ -2632,6 +2632,8 @@ async function teacherPrepareQuestionPool(roomIdOverride){
       sb.className='exam-status visible error';
       sb.textContent = '❌ ' + msg;
     }
+    // IMPORTANT: propagate failure so teacherStartRoomNow retry/poll works correctly
+    throw e;
   }finally{
     clearTimeout(t);
   }
