@@ -2558,61 +2558,91 @@ async function teacherPrepareQuestionPool(roomIdOverride){
       ? 'Output language MUST be English.'
       : 'Output language MUST match the teacher/subject language (do not translate).';
 
-    const prompt = source === 'teacher' && teacherText
+    // Keep prompt short to avoid token limits; generate in chunks.
+    const basePrompt = source === 'teacher' && teacherText
       ? (
-        `You are given teacher-provided content in arbitrary messy format.\n`+
-        `Convert it into a multiple-choice exam.\n\n`+
-        `RULES:\n`+
-        `- ${langRule}\n`+
-        `- Create exactly ${poolCount} questions.\n`+
-        `- Each question must have A/B/C/D options and a single correct answer.\n`+
-        `- Use the teacher text as the primary source; if insufficient, add questions consistent with the same topic.\n`+
-        `- ABSOLUTELY NO meta questions about the exam (e.g., number of questions, rules, how many correct answers, etc.).\n`+
-        `- Return ONLY JSON array.\n\n`+
-        `FORMAT:\n`+
-        `[{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}, ...]\n\n`+
-        `TEACHER_RAW_TEXT:\n`+ teacherText.slice(0, 120000)
+        `TASK: Convert the teacher content into multiple-choice questions.\n`+
+        `RULES: ${langRule} 4 options A/B/C/D, single correct, NO meta.\n`+
+        `Return ONLY JSON array: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}]\n`+
+        `TEACHER_RAW_TEXT:\n`+ teacherText.slice(0, 40000)
       )
       : (
-        `${wantEnglish ? 'Create real English exam questions only.\n' : 'Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n'}`+
-        `Сэдэв: ${subject}\n`+
-        `Дэд сэдэв/төрөл: ${type}\n`+
-        `Түвшин: ${diffMn}\n`+
-        `Асуултын тоо: ${poolCount}\n\n`+
-        `ХОРИГЛОХ: шалгалтын тухай (meta) асуулт.\n`+
-        `${wantEnglish ? 'Output language MUST be English.\n' : ''}`+
-        `Асуулт бүр 4 сонголттой (A/B/C/D), ганц зөв хариулттай.\n`+
-        `ЗӨВХӨН JSON буцаа.\n`+
-        `JSON формат: {"questions":[{"q":"...","correct":"...","wrong":["...","...","..."]}, ...]} эсвэл шууд array.\n`
+        `${wantEnglish ? 'Create real English exam questions only.\n' : ''}`+
+        `Subject: ${subject}\nType: ${type}\nLevel: ${diffMn}\n`+
+        `RULES: ${langRule} 4 options A/B/C/D, single correct, NO meta.\n`+
+        `Return ONLY JSON array: [{"q":"...","A":"...","B":"...","C":"...","D":"...","correct":"A"}]\n`
       );
 
-    const res = await fetch(SCRIPT_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      signal: ctrl?.signal,
-      body: JSON.stringify({
-        action: 'test',
-        model: AI_MODEL,
-        userName: userName || 'Багш',
-        inputText: prompt,
-        subject,
-        difficulty: diff,
-        examType: type,
-        count: poolCount
-      })
-    });
-    const rawText = await res.text();
-    let data = null;
-    try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
-    if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
-    if(data?.error) throw new Error(String(data.error));
-
-    const arr = extractJsonArrayFromAny(data);
-    const pool = normalizePoolQuestions(arr);
-    if(pool.length < poolCount){
-      const hint = String(rawText||'').trim().slice(0, 160);
-      throw new Error('AI-гийн хариу буруу форматтай байна.' + (hint?` (${hint}…)`:''));
+    async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+    function extractWaitMs(msg){
+      const m = String(msg||'').match(/([0-9]+(?:\.[0-9]+)?)\s*s/i);
+      const s = m ? parseFloat(m[1]) : NaN;
+      return isNaN(s) ? 0 : Math.ceil(s*1000);
     }
+    async function callAiChunk(n, attemptNo){
+      const prompt = basePrompt + `\nCOUNT: ${n}\n`;
+      const res = await fetch(SCRIPT_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        signal: ctrl?.signal,
+        body: JSON.stringify({
+          action: 'test',
+          model: AI_MODEL,
+          userName: userName || 'Багш',
+          inputText: prompt,
+          subject,
+          difficulty: diff,
+          examType: type,
+          count: n
+        })
+      });
+      const rawText = await res.text();
+      let data = null;
+      try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
+      if(!(res.status>=200 && res.status<300)) throw new Error('HTTP '+res.status);
+      if(data?.error) throw new Error(String(data.error));
+      const arr = extractJsonArrayFromAny(data);
+      const mapped = normalizePoolQuestions(arr);
+      if(mapped.length < Math.max(1, Math.min(3, n))){
+        const hint = String(rawText||'').trim().slice(0, 160);
+        throw new Error('AI-гийн хариу буруу форматтай байна.' + (hint?` (${hint}…)`:''));
+      }
+      return mapped;
+    }
+
+    const chunkSize = Math.min(5, Math.max(1, poolCount));
+    const chunks = Math.ceil(poolCount / chunkSize);
+    let pool = [];
+    for(let i=0;i<chunks;i++){
+      const need = Math.min(chunkSize, poolCount - pool.length);
+      if(sb){
+        sb.className='exam-status visible';
+        sb.innerHTML = `⏳ AI асуулт үүсгэж байна… (${pool.length}/${poolCount}) <span class="loading-dots"><span></span><span></span><span></span></span>`;
+      }
+      // retry per chunk on rate limit
+      for(let attempt=1; attempt<=4; attempt++){
+        try{
+          const got = await callAiChunk(need, attempt);
+          pool = pool.concat(got);
+          break;
+        }catch(e){
+          const msg = String(e?.message||e||'');
+          const waitMs = extractWaitMs(msg);
+          if(waitMs){
+            if(sb){
+              sb.className='exam-status visible';
+              sb.innerHTML = `⏳ AI үйлчилгээ түр хязгаарлагдлаа. ${Math.ceil(waitMs/1000)}s дараа үргэлжлүүлнэ… <span class="loading-dots"><span></span><span></span><span></span></span>`;
+            }
+            await sleep(waitMs + 250);
+            continue;
+          }
+          if(attempt===4) throw e;
+          await sleep(600 * attempt);
+        }
+      }
+    }
+    // Trim to exact count and shuffle
+    pool = shuffle(pool).slice(0, poolCount);
 
     // Save pool in Firebase (students will only read this)
     await rtdb.ref(`rooms/${rid}/questionPool`).set(pool.slice(0, poolCount));
