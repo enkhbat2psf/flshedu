@@ -1898,17 +1898,42 @@ function disableStudentExamLockdown(){
 
 function attachStudentCheatSignals(){
   if(studentCheatSignalHandlers) return;
+  // Treat zoom as NOT a cheat: zoom triggers resize/visualViewport events.
+  // We'll ignore resize signals that coincide with a viewport scale change.
+  let lastVvScale = null;
+  let lastZoomAt = 0;
+
   const onVis = () => {
     if(document.visibilityState === 'hidden') pushCheatEvent('visibility_hidden');
   };
   const onBlur = () => pushCheatEvent('window_blur');
-  const onResize = () => pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight });
-  const onOrient = () => pushCheatEvent('window_resize', { reason:'orientationchange' });
-  const onVvResize = () => pushCheatEvent('window_resize', {
-    vvW: Math.round(window.visualViewport.width),
-    vvH: Math.round(window.visualViewport.height),
-    scale: window.visualViewport.scale
-  });
+  const onResize = () => {
+    // Ignore window resize right after zoom gestures
+    if(lastZoomAt && (Date.now() - lastZoomAt) < 800) return;
+    pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight });
+  };
+  const onOrient = () => {
+    // Orientation changes can also happen during zoom on some devices; apply same guard.
+    if(lastZoomAt && (Date.now() - lastZoomAt) < 800) return;
+    pushCheatEvent('window_resize', { reason:'orientationchange' });
+  };
+  const onVvResize = () => {
+    if(!window.visualViewport) return;
+    const scale = Number(window.visualViewport.scale || 1);
+    if(lastVvScale === null) lastVvScale = scale;
+    // If scale changed, treat as zoom and DO NOT log as cheat.
+    if(Math.abs(scale - lastVvScale) > 0.01){
+      lastVvScale = scale;
+      lastZoomAt = Date.now();
+      return;
+    }
+    // If only vv size changed without scale change, log (e.g. split view / real resize)
+    pushCheatEvent('window_resize', {
+      vvW: Math.round(window.visualViewport.width),
+      vvH: Math.round(window.visualViewport.height),
+      scale
+    });
+  };
 
   studentCheatSignalHandlers = { onVis, onBlur, onResize, onOrient, onVvResize };
   try{ document.addEventListener('visibilitychange', onVis, { passive:true }); }catch{}
