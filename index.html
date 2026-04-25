@@ -2421,25 +2421,43 @@ function renderDashDetail(key, attempt){
 
 async function teacherStartRoomNow(){
   if(!activeRoomId) return;
+  const sb = document.getElementById('poolStatus');
+  const startBtn = document.querySelector('#examTeacherLobby button[onclick="teacherStartRoomNow()"]');
   try{
     initFirebaseOnce();
+    if(startBtn) startBtn.disabled = true;
+    if(sb){ sb.style.display='block'; sb.className='exam-status visible'; sb.innerHTML='⏳ Шалгалт эхлүүлж байна… <span class="loading-dots"><span></span><span></span><span></span></span>'; }
+
     // AI mode: generate one shared pool ONCE per room (prevents 200 students hitting API).
-    try{
-      const room = await fetchRoom(activeRoomId);
-      if(room?.config?.source === 'ai'){
-        const poolSnap = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
-        if(!poolSnap.exists()){
-          await teacherPrepareQuestionPool(activeRoomId);
-        }
+    const room = await fetchRoom(activeRoomId);
+    if(room?.config?.source === 'ai'){
+      if(sb){ sb.className='exam-status visible'; sb.innerHTML='⏳ AI асуултын сан үүсгэж байна… <span class="loading-dots"><span></span><span></span><span></span></span>'; }
+      const poolSnap = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
+      if(!poolSnap.exists()){
+        await teacherPrepareQuestionPool(activeRoomId);
       }
-    }catch{}
+      // re-check after generation attempt
+      const poolSnap2 = await rtdb.ref(`rooms/${activeRoomId}/questionPool`).get();
+      if(!poolSnap2.exists()){
+        throw new Error('AI асуултын сан үүсээгүй байна. Дахин оролдоно уу.');
+      }
+    }
     await rtdb.ref(`rooms/${activeRoomId}/status`).set({
       state: 'started',
       startedAt: firebase.database.ServerValue.TIMESTAMP
     });
+    if(sb){ sb.className='exam-status'; sb.textContent=''; }
     // after starting, show the dashboard automatically
     openTeacherDashboard();
-  }catch{}
+  }catch(e){
+    if(sb){
+      sb.style.display='block';
+      sb.className='exam-status visible error';
+      sb.textContent='❌ ' + formatUserFacingAiError(e);
+    }
+  }finally{
+    if(startBtn) startBtn.disabled = false;
+  }
 }
 
 function extractJsonArrayFromAny(payload){
@@ -2499,6 +2517,7 @@ async function teacherPrepareQuestionPool(roomIdOverride){
 
   try{
     if(sb){
+      sb.style.display='block';
       sb.className='exam-status visible';
       sb.innerHTML='⏳ Асуултын сан үүсгэж байна… <span class="loading-dots"><span></span><span></span><span></span></span>';
     }
