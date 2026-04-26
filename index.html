@@ -1321,6 +1321,7 @@ let studentAutoSubmitted = false;
 let roomUnsubs = [];
 let teacherRequestUnsubs = [];
 let roomConfig = null;
+let cheatArmed = false; // counts only when exam started
 
 function openExamRoom() {
   const ov = document.getElementById('examRoomOverlay');
@@ -1705,6 +1706,7 @@ async function studentJoinRoom() {
   unsubAllRoom();
   studentWarnings = 0;
   studentAutoSubmitted = false;
+  cheatArmed = false;
 
   const roomIdSnap = await dbRef(`roomsByPin/${pin}`).get();
   const roomId = roomIdSnap.val();
@@ -1727,6 +1729,8 @@ async function studentJoinRoom() {
   studentJoined = true;
 
   roomStatus('roomStudentStatus', `✅ Холбогдлоо. PIN: ${pin}. Багш эхлүүлэхийг хүлээнэ үү.`);
+  // Install anti-cheat in background now (counts only after exam starts)
+  installAntiCheat(roomId, studentId);
   listenStudentRoom(roomId, studentId);
 }
 
@@ -1817,15 +1821,15 @@ async function startStudentExam(roomId, stuId, qs) {
     return;
   }
 
-  // Lock down (anti-cheat)
-  enableAntiCheat(roomId, stuId);
+  // Lock down (anti-cheat) — already installed on join, now ARM it
+  armAntiCheat(roomId, stuId);
 
   // Render exam
   const stage = document.getElementById('studentStage');
   stage.innerHTML = `
     <div class="quiz-start-box" style="text-align:left">
       <div class="study-badge">Шалгалт</div>
-      <div class="hint">Анхаар: Tab/апп сольвол cheat тоологдоно. 2 дахь удаад автоматаар submit болно.</div>
+      <div class="hint">Анхаар: Tab/апп сольвол cheat тоологдоно. 6 удаа хүртэл зөвхөн сануулга өгнө.</div>
     </div>
     <div id="examQs"></div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 12px">
@@ -1884,7 +1888,7 @@ async function studentSubmit(forcedCheat) {
   }
 
   studentAutoSubmitted = true;
-  disableAntiCheat();
+  disarmAntiCheat();
 
   await dbRef(`activeRooms/${ctx.roomId}/submissions/${ctx.stuId}`).set({
     answers: ans,
@@ -1923,14 +1927,18 @@ function renderStudentStageWaiting(text) {
 }
 
 // ── Anti-cheat (student only) ──
-function enableAntiCheat(roomId, stuId) {
+function installAntiCheat(roomId, stuId) {
   document.body.classList.add('no-select');
+  cheatArmed = false;
 
   // hard block selection/copy
   document.addEventListener('copy', blockEvt, true);
   document.addEventListener('cut', blockEvt, true);
   document.addEventListener('contextmenu', blockEvt, true);
   document.addEventListener('selectstart', blockEvt, true);
+
+  // block some shortcuts (best-effort)
+  document.addEventListener('keydown', onKey, true);
 
   // focus/visibility
   window.addEventListener('blur', onCheat, true);
@@ -1940,30 +1948,42 @@ function enableAntiCheat(roomId, stuId) {
 
   // split screen / resize
   window.addEventListener('resize', onResize, true);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize, true);
 
   function blockEvt(e) { e.preventDefault(); }
+  function onKey(e) {
+    // Don't count before exam; but once armed, try to block common "escape" shortcuts
+    if (!cheatArmed) return;
+    const k = (e.key || '').toLowerCase();
+    if (e.ctrlKey && ['c','x','v','p','s','u','l','t','w','r','f'].includes(k)) e.preventDefault();
+    if (e.metaKey && ['c','x','v','p','s','l','t','w','r','f'].includes(k)) e.preventDefault();
+  }
   function onResize() {
-    // heuristic: if window becomes too small compared to screen -> warn
+    // heuristic: split-screen detection; ignore zoom changes
+    if (window.visualViewport && window.visualViewport.scale && window.visualViewport.scale !== 1) return;
     const sw = screen.availWidth || screen.width || window.innerWidth;
     const sh = screen.availHeight || screen.height || window.innerHeight;
-    if (window.innerWidth < sw * 0.72 || window.innerHeight < sh * 0.72) onCheat();
+    if (window.innerWidth < sw * 0.68 || window.innerHeight < sh * 0.68) onCheat();
   }
 
   async function onCheat() {
     if (studentAutoSubmitted) return;
+    // Before exam starts: block/notify but DO NOT count as cheat
+    if (!cheatArmed) {
+      showOverlay('Анхаар', 'Шалгалт эхлэхээс өмнө энэ хуудсаас гарах/Tab солихыг хориглоно. Буцаад шалгалтаа эхлүүлнэ үү.');
+      setTimeout(hideOverlay, 1600);
+      return;
+    }
+
     studentWarnings++;
     const wEl = document.getElementById('warnCount');
     if (wEl) wEl.textContent = String(studentWarnings);
-
     await dbRef(`activeRooms/${roomId}/students/${stuId}/cheatCount`).transaction(v => (Number(v||0) + 1));
 
-    if (studentWarnings === 1) {
-      showOverlay('Сэрэмжлүүлэг', 'Өөр tab/апп руу шилжсэн байна. Дахин давтагдвал шалгалт автоматаар submit болно.');
-      setTimeout(hideOverlay, 1800);
-    } else {
-      showOverlay('Auto‑submit', 'Cheat 2 удаа илэрсэн тул шалгалтыг автоматаар илгээж байна…');
-      await studentSubmit(true);
-      setTimeout(hideOverlay, 1400);
+    // Only warnings (max 6), no auto-submit
+    if (studentWarnings <= 6) {
+      showOverlay('Сэрэмжлүүлэг', `Cheat илэрлээ. Сануулга: ${studentWarnings} / 6`);
+      setTimeout(hideOverlay, 1200);
     }
   }
 
@@ -1974,9 +1994,21 @@ function enableAntiCheat(roomId, stuId) {
     document.removeEventListener('cut', blockEvt, true);
     document.removeEventListener('contextmenu', blockEvt, true);
     document.removeEventListener('selectstart', blockEvt, true);
+    document.removeEventListener('keydown', onKey, true);
     window.removeEventListener('blur', onCheat, true);
     window.removeEventListener('resize', onResize, true);
+    if (window.visualViewport) window.visualViewport.removeEventListener('resize', onResize, true);
   };
+}
+
+function armAntiCheat(roomId, stuId) {
+  // Ensure installed
+  if (!window.__antiCheatCleanup) installAntiCheat(roomId, stuId);
+  cheatArmed = true;
+}
+
+function disarmAntiCheat() {
+  cheatArmed = false;
 }
 
 function disableAntiCheat() {
