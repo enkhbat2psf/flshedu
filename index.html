@@ -347,6 +347,21 @@
   }
   .stu .n { font-weight: 800; }
   .stu .c { color: var(--unknow); font-weight: 800; }
+  .stu .actions { display:flex; gap:8px; align-items:center; }
+  .btn-mini {
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,.02);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: .78rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .btn-mini:hover { border-color: rgba(80,210,194,.45); }
+  .stu.locked { border-color: rgba(240,94,94,.55); background: rgba(240,94,94,.06); }
+  .stu .lock { color: var(--unknow); font-weight: 900; }
 
   /* Anti-copy/select helpers */
   .no-select, .no-select * { user-select: none !important; -webkit-user-select: none !important; }
@@ -1117,6 +1132,14 @@
           <div style="height:12px"></div>
           <div class="list" id="teacherStudentList"><div class="hint">Одоогоор сурагч алга.</div></div>
         </div>
+
+      <div style="height:14px"></div>
+      <div class="box" style="padding:14px">
+        <div style="font-weight:900">Ирсэн дүн (Realtime)</div>
+        <div class="hint">Сурагч “Дуусгах” дармагц энд оноо нь орж ирнэ.</div>
+        <div style="height:10px"></div>
+        <div class="list" id="teacherSubmissionList"><div class="hint">Одоогоор дүн алга.</div></div>
+      </div>
       </div>
 
       <!-- Student side -->
@@ -1329,6 +1352,11 @@ let teacherRequestUnsubs = [];
 let roomConfig = null;
 let cheatArmed = false; // counts only when exam started
 let examLockedUntil = 0;
+let hardLock = false; // (deprecated) kept to avoid breaking old logic
+let totalCheat = 0;
+let aiTranslateStrikes = 0;
+let warnedTotalCheat = false;
+let lastCheatAt = 0;
 
 function openExamRoom() {
   const ov = document.getElementById('examRoomOverlay');
@@ -1518,6 +1546,7 @@ async function createRoom(cfg) {
 
     listenTeacherRoom(roomId);
     listenTeacherRequests(roomId);
+    listenTeacherSubmissions(roomId);
   } catch (e) {
     console.error(e);
     roomStatus('roomTeacherStatus', '❌ ' + (e.message || 'Алдаа'), true);
@@ -1690,12 +1719,46 @@ function listenTeacherRoom(roomId) {
       .sort((a,b)=>(b.joinedAt||0)-(a.joinedAt||0))
       .map(s => `
         <div class="stu">
-          <div class="n">${esc(s.name || '—')}</div>
-          <div class="c">Cheat: ${Number(s.cheatCount||0)}</div>
+          <div>
+            <div class="n">${esc(s.name || '—')}</div>
+            <div class="hint" style="margin-top:4px">
+              Cheat: <span class="mono">${Number(s.cheatCount||0)}</span>
+            </div>
+          </div>
+          <div class="actions"></div>
         </div>
       `).join('');
   });
 }
+
+function listenTeacherSubmissions(roomId) {
+  const el = document.getElementById('teacherSubmissionList');
+  if (!el) return;
+  const r = dbRef(`activeRooms/${roomId}/submissions`);
+  on(r, 'value', snap => {
+    const val = snap.val() || null;
+    const items = val && typeof val === 'object' ? Object.entries(val).map(([id, v]) => ({ id, ...(v||{}) })) : [];
+    if (!items.length) {
+      el.innerHTML = `<div class="hint">Одоогоор дүн алга.</div>`;
+      return;
+    }
+    el.innerHTML = items
+      .sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0))
+      .map(s => `
+        <div class="stu">
+          <div>
+            <div class="n">${esc(s.id)}</div>
+            <div class="hint" style="margin-top:4px">
+              Оноо: <span class="mono">${Number(s.score||0)} / ${Number(s.total||0)}</span>
+              ${s.cheated ? ' · <span class="lock">CHEATED</span>' : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+  });
+}
+
+// unlockStudent removed (no hard-lock)
 
 async function teacherStartExam() {
   if (!activeRoomId) return roomStatus('roomTeacherStatus', '⚠️ Эхлээд өрөө үүсгэнэ үү.', true);
@@ -1734,6 +1797,10 @@ async function studentJoinRoom() {
   studentWarnings = 0;
   studentAutoSubmitted = false;
   cheatArmed = false;
+  hardLock = false;
+  totalCheat = 0;
+  aiTranslateStrikes = 0;
+  warnedTotalCheat = false;
 
   const roomIdSnap = await dbRef(`roomsByPin/${pin}`).get();
   const roomId = roomIdSnap.val();
@@ -1752,6 +1819,7 @@ async function studentJoinRoom() {
     joinedAt: firebase.database.ServerValue.TIMESTAMP,
     cheatCount: 0,
     status: 'waiting',
+    locked: false,
   });
   studentJoined = true;
 
@@ -1779,6 +1847,8 @@ function listenStudentRoom(roomId, stuId) {
     if (st === 'live') renderStudentStartButton(roomId, stuId);
     if (st === 'ended') renderStudentStageWaiting('Шалгалт дууссан байна.');
   });
+
+  // (no hard-lock now) — teacher unlock UI removed from logic
 }
 
 function renderStudentStartButton(roomId, stuId) {
@@ -1891,6 +1961,7 @@ async function startStudentExam(roomId, stuId, qs) {
 }
 
 function pick(qi, oi) {
+  if (hardLock) return;
   if (!window.__examAnswers) return;
   window.__examAnswers[qi] = oi;
   // light UI mark: highlight selected option
@@ -1902,6 +1973,7 @@ function pick(qi, oi) {
 }
 
 async function studentSubmit(forcedCheat) {
+  if (hardLock) return;
   if (studentAutoSubmitted) return;
   const ctx = window.__examRoom;
   const qs = window.__examQuestions || [];
@@ -1968,15 +2040,15 @@ function installAntiCheat(roomId, stuId) {
   document.addEventListener('keydown', onKey, true);
 
   // focus/visibility
-  window.addEventListener('blur', onCheat, true);
+  window.addEventListener('blur', () => onCheat('tab'), true);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) onCheat();
+    if (document.hidden) onCheat('ai_translate');
   }, true);
 
   // fullscreen exit detection (when armed)
   document.addEventListener('fullscreenchange', () => {
     if (!cheatArmed) return;
-    if (!document.fullscreenElement) onCheat();
+    if (!document.fullscreenElement) onCheat('tab');
   }, true);
 
   // split screen / resize
@@ -1996,10 +2068,10 @@ function installAntiCheat(roomId, stuId) {
     if (window.visualViewport && window.visualViewport.scale && window.visualViewport.scale !== 1) return;
     const sw = screen.availWidth || screen.width || window.innerWidth;
     const sh = screen.availHeight || screen.height || window.innerHeight;
-    if (window.innerWidth < sw * 0.68 || window.innerHeight < sh * 0.68) onCheat();
+    if (window.innerWidth < sw * 0.68 || window.innerHeight < sh * 0.68) onCheat('split');
   }
 
-  async function onCheat() {
+  async function onCheat(reason) {
     if (studentAutoSubmitted) return;
     // Before exam starts: block/notify but DO NOT count as cheat
     if (!cheatArmed) {
@@ -2008,15 +2080,36 @@ function installAntiCheat(roomId, stuId) {
       return;
     }
 
-    studentWarnings++;
-    const wEl = document.getElementById('warnCount');
-    if (wEl) wEl.textContent = String(studentWarnings);
-    await dbRef(`activeRooms/${roomId}/students/${stuId}/cheatCount`).transaction(v => (Number(v||0) + 1));
+    // Debounce (Safari fires multiple events quickly)
+    const now = Date.now();
+    if (now - lastCheatAt < 1200) return;
+    lastCheatAt = now;
 
-    // Only warnings (max 6), no auto-submit
-    if (studentWarnings <= 6) {
-      // Lock the exam view for a few seconds so they cannot read/use tools during cheat.
-      lockExam(6000, 'Сэрэмжлүүлэг', `Cheat илэрлээ. Сануулга: ${studentWarnings} / 6`);
+    // AI/Translate rule:
+    // 1st time -> warning, 2nd time -> end exam.
+    if (reason === 'ai_translate') {
+      aiTranslateStrikes++;
+      if (aiTranslateStrikes === 1) {
+        lockExam(3500, 'Сэрэмжлүүлэг', 'AI / Google Translate ашиглах оролдлого илэрлээ. Дахин давтагдвал шалгалт дуусна.');
+        return;
+      }
+      // second strike -> end exam (auto submit current answers)
+      lockExam(2500, 'Шалгалт дууслаа', 'AI / Google Translate 2 удаа илэрсэн тул шалгалтыг дуусгалаа.');
+      await studentSubmit(true);
+      return;
+    }
+
+    // General cheats (tab switch / split screen)
+    if (reason === 'tab' || reason === 'split') {
+      totalCheat++;
+      const wEl = document.getElementById('warnCount');
+      if (wEl) wEl.textContent = String(totalCheat);
+      await dbRef(`activeRooms/${roomId}/students/${stuId}/cheatCount`).transaction(v => (Number(v||0) + 1));
+
+      if (!warnedTotalCheat && totalCheat > 3) {
+        warnedTotalCheat = true;
+        lockExam(2500, 'Сэрэмжлүүлэг', 'Анхаар: Tab/апп солих, split хийх зэрэг нийт cheat 3-аас давлаа.');
+      }
     }
   }
 
