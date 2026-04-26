@@ -3,159 +3,121 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Flashcard (AI + Firebase)</title>
+    <title>Education — Flashcards · Tests · QR Class</title>
     <style>
       :root {
         color-scheme: light dark;
         --bg: #0b1020;
         --panel: rgba(255, 255, 255, 0.06);
+        --panel2: rgba(255, 255, 255, 0.045);
         --text: #e9eefc;
-        --muted: rgba(233, 238, 252, 0.7);
-        --border: rgba(233, 238, 252, 0.15);
+        --muted: rgba(233, 238, 252, 0.72);
+        --border: rgba(233, 238, 252, 0.14);
         --accent: #7c5cff;
+        --accent2: #34c8ff;
         --danger: #ff4d4d;
         --ok: #30d158;
+        --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+        --radius: 16px;
       }
       @media (prefers-color-scheme: light) {
         :root {
           --bg: #f6f7fb;
           --panel: rgba(10, 15, 30, 0.05);
+          --panel2: rgba(10, 15, 30, 0.04);
           --text: #0a0f1e;
-          --muted: rgba(10, 15, 30, 0.65);
+          --muted: rgba(10, 15, 30, 0.62);
           --border: rgba(10, 15, 30, 0.12);
           --accent: #4c33ff;
+          --accent2: #0a84ff;
           --danger: #d70015;
           --ok: #248a3d;
+          --shadow: 0 18px 55px rgba(10, 15, 30, 0.12);
         }
+      }
+      * {
+        box-sizing: border-box;
       }
       body {
         margin: 0;
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue",
           sans-serif;
-        background: radial-gradient(1200px 700px at 15% 10%, rgba(124, 92, 255, 0.25), transparent 60%),
-          radial-gradient(900px 600px at 85% 15%, rgba(48, 209, 88, 0.18), transparent 55%),
-          radial-gradient(900px 700px at 40% 95%, rgba(255, 77, 77, 0.14), transparent 60%), var(--bg);
+        background: radial-gradient(1200px 700px at 15% 10%, rgba(124, 92, 255, 0.24), transparent 60%),
+          radial-gradient(900px 600px at 85% 15%, rgba(52, 200, 255, 0.16), transparent 55%),
+          radial-gradient(900px 700px at 40% 95%, rgba(48, 209, 88, 0.12), transparent 60%), var(--bg);
         color: var(--text);
+      }
+      a {
+        color: rgba(124, 92, 255, 0.95);
       }
       .wrap {
-        max-width: 1080px;
+        max-width: 1100px;
         margin: 0 auto;
-        padding: 28px 18px 48px;
+        padding: 22px 16px 44px;
       }
-      header {
+
+      /* Top bar */
+      .top {
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px 14px;
-        align-items: baseline;
+        gap: 12px;
+        align-items: center;
         justify-content: space-between;
-        margin-bottom: 18px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
       }
-      h1 {
-        font-size: 18px;
+      .brand {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+      }
+      .brand h1 {
         margin: 0;
+        font-size: 15px;
         letter-spacing: 0.2px;
       }
-      .sub {
+      .brand .sub {
         margin: 0;
-        color: var(--muted);
-        font-size: 12.5px;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: 1.2fr 0.8fr;
-        gap: 14px;
-      }
-      @media (max-width: 980px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
-      }
-      .card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 14px;
-        backdrop-filter: blur(10px);
-      }
-      .row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-      @media (max-width: 560px) {
-        .row {
-          grid-template-columns: 1fr;
-        }
-      }
-      label {
-        display: block;
         font-size: 12px;
         color: var(--muted);
-        margin-bottom: 6px;
       }
-      input[type="text"],
-      input[type="password"],
-      input[type="url"],
-      textarea,
-      select {
-        width: 100%;
-        box-sizing: border-box;
-        border-radius: 12px;
+      .seg {
+        display: inline-flex;
         border: 1px solid var(--border);
-        background: rgba(0, 0, 0, 0.15);
-        color: var(--text);
-        padding: 10px 11px;
-        outline: none;
-      }
-      textarea {
-        min-height: 220px;
-        resize: vertical;
-        line-height: 1.35;
-      }
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+        background: var(--panel2);
+        border-radius: 999px;
+        padding: 4px;
+        gap: 4px;
         align-items: center;
-        margin-top: 10px;
       }
-      button {
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--text);
-        padding: 10px 12px;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: 600;
-      }
-      button.primary {
-        border-color: rgba(124, 92, 255, 0.55);
-        background: linear-gradient(135deg, rgba(124, 92, 255, 0.85), rgba(124, 92, 255, 0.35));
-      }
-      button.danger {
-        border-color: rgba(255, 77, 77, 0.55);
-        background: linear-gradient(135deg, rgba(255, 77, 77, 0.75), rgba(255, 77, 77, 0.28));
-      }
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .status {
-        font-size: 12px;
+      .seg button {
+        appearance: none;
+        border: 0;
+        background: transparent;
         color: var(--muted);
+        font-weight: 700;
+        padding: 8px 12px;
+        border-radius: 999px;
+        cursor: pointer;
       }
-      .status strong {
+      .seg button.active {
         color: var(--text);
+        background: linear-gradient(135deg, rgba(124, 92, 255, 0.88), rgba(52, 200, 255, 0.22));
+        box-shadow: 0 8px 24px rgba(124, 92, 255, 0.25);
       }
       .pill {
-        font-size: 11px;
-        padding: 3px 8px;
+        font-size: 11.5px;
+        padding: 6px 10px;
         border-radius: 999px;
         border: 1px solid var(--border);
+        background: var(--panel2);
         color: var(--muted);
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .pill strong {
+        color: var(--text);
       }
       .pill.ok {
         border-color: rgba(48, 209, 88, 0.35);
@@ -165,38 +127,132 @@
         border-color: rgba(255, 77, 77, 0.35);
         color: rgba(255, 77, 77, 0.95);
       }
-      .flashcards {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
-      .fc {
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.04);
-      }
-      .fc h3 {
-        margin: 0 0 8px;
-        font-size: 13.5px;
-        letter-spacing: 0.1px;
-      }
-      .fc .back {
-        color: var(--muted);
-        font-size: 12.5px;
-        white-space: pre-wrap;
-      }
-      .meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 10px;
-      }
       .mono {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 11.5px;
       }
-      .small {
+
+      /* Layout */
+      .shell {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .panel {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: var(--radius);
+        padding: 14px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+      .panelHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .panelHeader h2 {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.1px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 12px 0 6px;
+      }
+      .tabBtn {
+        border: 1px solid var(--border);
+        background: var(--panel2);
+        color: var(--muted);
+        padding: 8px 10px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 12px;
+      }
+      .tabBtn.active {
+        color: var(--text);
+        border-color: rgba(124, 92, 255, 0.42);
+        background: linear-gradient(135deg, rgba(124, 92, 255, 0.55), rgba(52, 200, 255, 0.12));
+      }
+      .tab {
+        display: none;
+      }
+      .tab.active {
+        display: block;
+      }
+
+      /* Form */
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input[type="text"],
+      input[type="number"],
+      textarea,
+      select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.14);
+        color: var(--text);
+        padding: 10px 11px;
+        outline: none;
+      }
+      textarea {
+        min-height: 160px;
+        resize: vertical;
+        line-height: 1.35;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      @media (max-width: 720px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 10px;
+      }
+      button.btn {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 12px;
+      }
+      button.btn.primary {
+        border-color: rgba(124, 92, 255, 0.55);
+        background: linear-gradient(135deg, rgba(124, 92, 255, 0.86), rgba(124, 92, 255, 0.26));
+      }
+      button.btn.ghost {
+        background: transparent;
+      }
+      button.btn.danger {
+        border-color: rgba(255, 77, 77, 0.55);
+        background: linear-gradient(135deg, rgba(255, 77, 77, 0.78), rgba(255, 77, 77, 0.22));
+      }
+      button.btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .status {
         font-size: 12px;
         color: var(--muted);
       }
@@ -205,402 +261,974 @@
         padding: 10px 11px;
         border-radius: 12px;
         border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
         color: var(--muted);
         font-size: 12px;
       }
-      a {
-        color: rgba(124, 92, 255, 0.95);
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 12px 0;
+      }
+
+      /* Flashcards (student) */
+      .fcGrid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      @media (max-width: 980px) {
+        .fcGrid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 620px) {
+        .fcGrid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .flip {
+        perspective: 1000px;
+        cursor: pointer;
+      }
+      .flipInner {
+        position: relative;
+        width: 100%;
+        min-height: 140px;
+        transform-style: preserve-3d;
+        transition: transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .flip.flipped .flipInner {
+        transform: rotateY(180deg);
+      }
+      .side {
+        position: absolute;
+        inset: 0;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 12px;
+        backface-visibility: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .side h3 {
+        margin: 0;
+        font-size: 13px;
+      }
+      .side p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--muted);
+        white-space: pre-wrap;
+        line-height: 1.35;
+      }
+      .back {
+        transform: rotateY(180deg);
+      }
+      .tagRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        font-size: 11px;
+        border: 1px solid var(--border);
+        padding: 3px 8px;
+        border-radius: 999px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      /* Tests */
+      .q {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        margin-bottom: 10px;
+      }
+      .q h3 {
+        margin: 0 0 8px;
+        font-size: 13px;
+      }
+      .opt {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0);
+        border-radius: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .opt:hover {
+        border-color: var(--border);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .opt input {
+        margin-top: 2px;
+      }
+      .score {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* Class */
+      .classBox {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+      @media (max-width: 920px) {
+        .classBox {
+          grid-template-columns: 1fr;
+        }
+      }
+      .qrWrap {
+        border: 1px dashed var(--border);
+        border-radius: 16px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        display: grid;
+        gap: 10px;
+        justify-items: start;
+      }
+      .list {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .list h3 {
+        margin: 0 0 10px;
+        font-size: 13px;
+      }
+      .studentItem {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 12px;
+      }
+      .studentItem:nth-child(odd) {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
       }
     </style>
+
+    <!-- qrcode.js (CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Firebase v8 CDN (Realtime Database) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   </head>
   <body>
     <div class="wrap">
-      <header>
-        <div>
-          <h1>Flashcard Generator (Groq AI + Firebase)</h1>
-          <p class="sub">Урт кейс/текст оруулаад → “хамгийн чухал 2 баримт/нотолгоо”-нд суурилсан flashcard-ууд гаргана.</p>
+      <div class="top">
+        <div class="brand">
+          <h1>Боловсролын вэб</h1>
+          <p class="sub">Flashcards · Tests · QR & Анги (AI зөвхөн Багш)</p>
         </div>
-        <div class="pill" id="pill">
-          <span>Firebase:</span>
-          <strong id="fbState">…</strong>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap">
+          <div class="seg" role="tablist" aria-label="Role select">
+            <button id="roleTeacher" class="active" type="button">Багш</button>
+            <button id="roleStudent" type="button">Сурагч</button>
+          </div>
+          <span id="fbPill" class="pill"><span>Firebase</span> <strong id="fbState">…</strong></span>
+          <span id="classPill" class="pill"><span>Анги PIN</span> <strong id="classPin">—</strong></span>
         </div>
-      </header>
+      </div>
 
-      <div class="grid">
-        <section class="card">
+      <div class="panel">
+        <div class="panelHeader">
+          <h2 id="screenTitle">Багшийн дэлгэц</h2>
+          <span class="pill"><span>Realtime</span> <strong id="rtState">idle</strong></span>
+        </div>
+
+        <div class="tabs">
+          <button class="tabBtn active" data-tab="flash">1. Flashcards</button>
+          <button class="tabBtn" data-tab="tests">2. Tests</button>
+          <button class="tabBtn" data-tab="class">3. QR & Анги</button>
+        </div>
+
+        <!-- TEACHER: FLASH -->
+        <div id="teacher_flash" class="tab active">
           <div class="row">
             <div>
-              <label for="groqKey">Groq API Key (browser дээр хадгалахгүй бол хоосон орхиод Paste хийж хэрэглэ)</label>
-              <input id="groqKey" type="password" placeholder="gsk_..." autocomplete="off" />
+              <label for="t_flash_input">Урт текст / кейс</label>
+              <textarea id="t_flash_input" placeholder="Энд урт текстээ paste хийгээд “Карт үүсгэх” дар..."></textarea>
             </div>
             <div>
-              <label for="model">Model</label>
-              <select id="model">
-                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
-                <option value="llama-3.1-70b-versatile">llama-3.1-70b-versatile</option>
-                <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top: 10px">
-            <div>
-              <label for="language">Гарах хэл</label>
-              <select id="language">
-                <option value="mn" selected>Монгол</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-            <div>
-              <label for="count">Flashcard тоо</label>
-              <select id="count">
+              <label>Хадгалах байршил</label>
+              <div class="hint">
+                Энэ анги дээрх картууд Firebase Realtime DB-д хадгалагдана:
+                <div style="margin-top: 6px" class="mono" id="t_flash_path">/classes/{PIN}/flashcards</div>
+                <div class="small" style="margin-top: 6px">Сурагч хэсэгт fetch огт байхгүй. Сурагч зөвхөн Firebase-ээс уншина.</div>
+              </div>
+              <div class="divider"></div>
+              <label for="t_flash_count">Картын тоо</label>
+              <select id="t_flash_count">
                 <option value="6">6</option>
                 <option value="10" selected>10</option>
                 <option value="15">15</option>
               </select>
+              <div class="actions" style="margin-top: 12px">
+                <button class="btn primary" id="t_flash_gen" type="button">Карт үүсгэх</button>
+                <button class="btn ghost" id="t_flash_clear" type="button">Цэвэрлэх</button>
+                <span class="status" id="t_flash_status">Бэлэн.</span>
+              </div>
             </div>
           </div>
-
-          <div style="margin-top: 10px">
-            <label for="sourceText">Урт текст / кейс</label>
-            <textarea id="sourceText" placeholder="Энд кейсээ paste хий..."></textarea>
+          <div class="hint" style="margin-top: 12px">
+            <strong>Багш AI руу явуулах POST payload:</strong>
+            <span class="mono">{ action: "flashcard", inputText: "..." }</span>
           </div>
+        </div>
 
-          <div class="actions">
-            <button class="primary" id="btnGenerate">AI → Flashcards</button>
-            <button id="btnSave" disabled>Save to Firebase</button>
-            <button class="danger" id="btnClear">Clear</button>
-            <span class="status" id="status">Бэлэн.</span>
-          </div>
-
-          <div class="hint">
-            <div><strong>Google Apps Script URL чинь</strong> одоогоор “Script function not found: doGet” гэж байна.</div>
-            <div class="small">
-              Энэ нь deploy хийсэн Script дээр чинь <span class="mono">doGet(e)</span> (эсвэл web app-аа POST-р ашиглах бол
-              <span class="mono">doPost(e)</span>) функц байхгүй гэсэн үг. Доор би ажиллах жишээ кодыг бас өгнө.
+        <!-- TEACHER: TESTS -->
+        <div id="teacher_tests" class="tab">
+          <div class="row">
+            <div>
+              <label for="t_test_input">Урт текст / кейс</label>
+              <textarea id="t_test_input" placeholder="Энд урт текстээ paste хийгээд “Тест үүсгэх” дар..."></textarea>
+            </div>
+            <div>
+              <label>Хадгалах байршил</label>
+              <div class="hint">
+                Firebase Realtime DB:
+                <div style="margin-top: 6px" class="mono" id="t_test_path">/classes/{PIN}/tests</div>
+              </div>
+              <div class="divider"></div>
+              <label for="t_test_count">Асуултын тоо</label>
+              <select id="t_test_count">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+              </select>
+              <div class="actions" style="margin-top: 12px">
+                <button class="btn primary" id="t_test_gen" type="button">Тест үүсгэх</button>
+                <button class="btn ghost" id="t_test_clear" type="button">Цэвэрлэх</button>
+                <span class="status" id="t_test_status">Бэлэн.</span>
+              </div>
             </div>
           </div>
-        </section>
-
-        <aside class="card">
-          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px">
-            <h2 style="margin: 0; font-size: 14px">Гарсан Flashcards</h2>
-            <span class="pill" id="aiPill"><span>AI:</span> <strong id="aiState">idle</strong></span>
+          <div class="hint" style="margin-top: 12px">
+            <strong>Багш AI руу явуулах POST payload:</strong>
+            <span class="mono">{ action: "test", inputText: "..." }</span>
           </div>
+        </div>
 
-          <div class="meta">
-            <span class="pill"><span>Cards:</span> <strong id="cardCount">0</strong></span>
-            <span class="pill"><span>Source chars:</span> <strong id="srcChars">0</strong></span>
+        <!-- TEACHER: CLASS -->
+        <div id="teacher_class" class="tab">
+          <div class="classBox">
+            <div class="qrWrap">
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap">
+                <button class="btn primary" id="t_class_create" type="button">Анги үүсгэх</button>
+                <button class="btn ghost" id="t_class_reset" type="button">PIN солих</button>
+                <span class="status" id="t_class_status">Бэлэн.</span>
+              </div>
+              <div class="hint">
+                <div><strong>PIN:</strong> <span class="mono" id="t_class_pin">—</span></div>
+                <div class="small" style="margin-top: 6px">
+                  QR нь PIN-г кодолж гаргана. Сурагч талдаа “QR‑аас уншсан текст” (paste) оруулах боломжтой.
+                </div>
+              </div>
+              <div id="qr" style="background: white; padding: 10px; border-radius: 12px"></div>
+              <div class="small">QR агуулга: <span class="mono" id="qrText">—</span></div>
+            </div>
+
+            <div class="list">
+              <h3>Холбогдсон сурагчид (Realtime)</h3>
+              <div id="t_student_list" class="small">Одоогоор хоосон.</div>
+            </div>
           </div>
+        </div>
 
-          <div style="margin-top: 12px" class="flashcards" id="flashcards"></div>
-
-          <div style="margin-top: 12px" class="small">
-            Хадгалахад Firestore collection: <span class="mono">flashcards</span>, document-д <span class="mono">cards[]</span> хэлбэрээр орно.
-          </div>
-        </aside>
+        <!-- STUDENT: FLASH -->
+        <div id="student_flash" class="tab" style="display: none"></div>
+        <!-- STUDENT: TESTS -->
+        <div id="student_tests" class="tab" style="display: none"></div>
+        <!-- STUDENT: CLASS -->
+        <div id="student_class" class="tab" style="display: none"></div>
       </div>
     </div>
 
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js";
-      import {
-        getFirestore,
-        addDoc,
-        collection,
-        serverTimestamp,
-      } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    <script>
+      /********************************************************************
+       * ТОХИРГОО (ХАМГИЙН ДЭЭД ТАЛД — ХООСОН ҮЛДЭЭ)
+       ********************************************************************/
+      const SCRIPT_URL = ""; // <-- энд Apps Script Web App URL-аа тавина
+      const firebaseConfig = {}; // <-- энд Firebase config-оо тавина
 
-      const firebaseConfig = {
-        apiKey: "AIzaSyANAj5ys_RlIewVbRBKchzhH64-BZ4bhDc",
-        authDomain: "flashcard-60ecb.firebaseapp.com",
-        projectId: "flashcard-60ecb",
-        storageBucket: "flashcard-60ecb.firebasestorage.app",
-        messagingSenderId: "245589035739",
-        appId: "1:245589035739:web:f1e6166b79c216ecd91afe",
-        measurementId: "G-1S12JQ6XKL",
-      };
-
-      const GOOGLE_APPS_SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycbw4oMaDbE06FRtwVoC0mnCssCsb9cEvR1pi9Aa2ngg19EWyPjlJUYCReVtDqFrP2twdxw/exec";
-
+      /********************************************************************
+       * Firebase v8 init (Realtime Database)
+       ********************************************************************/
       const $ = (id) => document.getElementById(id);
-      const pill = $("pill");
+      const fbPill = $("fbPill");
       const fbState = $("fbState");
-      const aiPill = $("aiPill");
-      const aiState = $("aiState");
-      const status = $("status");
-      const sourceText = $("sourceText");
-      const srcChars = $("srcChars");
-      const cardCount = $("cardCount");
-      const flashcardsEl = $("flashcards");
-      const btnGenerate = $("btnGenerate");
-      const btnSave = $("btnSave");
-      const btnClear = $("btnClear");
-      const groqKeyInput = $("groqKey");
-      const modelSelect = $("model");
-      const languageSelect = $("language");
-      const countSelect = $("count");
+      const rtState = $("rtState");
+      const classPinEl = $("classPin");
 
-      /** @type {{front:string, back:string, tags?:string[], evidence?:string[]}[]} */
-      let cards = [];
-
-      function setFb(ok, msg) {
-        fbState.textContent = msg;
+      function setPill(pill, ok, text) {
         pill.classList.toggle("ok", ok);
         pill.classList.toggle("bad", !ok);
+        pill.querySelector("strong").textContent = text;
       }
 
-      function setAI(state) {
-        aiState.textContent = state;
-        aiPill.classList.toggle("ok", state === "done");
-        aiPill.classList.toggle("bad", state === "error");
+      let db = null;
+      try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        setPill(fbPill, true, "connected");
+      } catch (e) {
+        console.error(e);
+        setPill(fbPill, false, "config?");
       }
 
-      function setStatus(text, kind = "info") {
-        status.textContent = text;
-        status.style.color =
-          kind === "error"
-            ? "var(--danger)"
-            : kind === "ok"
-              ? "var(--ok)"
-              : "var(--muted)";
+      /********************************************************************
+       * Global state
+       ********************************************************************/
+      const LS = {
+        role: "edu_role",
+        pin: "edu_pin",
+        name: "edu_name",
+      };
+
+      const state = {
+        role: localStorage.getItem(LS.role) || "teacher",
+        pin: localStorage.getItem(LS.pin) || "",
+        studentName: localStorage.getItem(LS.name) || "",
+        listeners: [],
+      };
+
+      function setRt(text) {
+        rtState.textContent = text;
       }
 
-      function render() {
-        srcChars.textContent = String(sourceText.value.length);
-        cardCount.textContent = String(cards.length);
-        flashcardsEl.innerHTML = "";
-        for (const c of cards) {
-          const div = document.createElement("div");
-          div.className = "fc";
-          const h = document.createElement("h3");
-          h.textContent = c.front ?? "";
-          const b = document.createElement("div");
-          b.className = "back";
-          const evidence = Array.isArray(c.evidence) && c.evidence.length ? `\n\nНотолгоо:\n- ${c.evidence.join("\n- ")}` : "";
-          const tags = Array.isArray(c.tags) && c.tags.length ? `\n\nТаг: ${c.tags.join(", ")}` : "";
-          b.textContent = `${c.back ?? ""}${evidence}${tags}`.trim();
-          div.appendChild(h);
-          div.appendChild(b);
-          flashcardsEl.appendChild(div);
-        }
-        btnSave.disabled = cards.length === 0;
+      function sanitizePin(pin) {
+        const p = String(pin || "").trim().replace(/\D/g, "");
+        return p.slice(0, 4);
       }
 
-      function safeJsonParse(maybeJson) {
-        try {
-          return JSON.parse(maybeJson);
-        } catch {
-          const m = maybeJson.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-          if (!m) return null;
+      function ensurePin() {
+        if (!state.pin) state.pin = "0000";
+        state.pin = sanitizePin(state.pin) || "0000";
+        localStorage.setItem(LS.pin, state.pin);
+        classPinEl.textContent = state.pin;
+        $("t_class_pin").textContent = state.pin;
+        $("t_flash_path").textContent = `/classes/${state.pin}/flashcards`;
+        $("t_test_path").textContent = `/classes/${state.pin}/tests`;
+      }
+
+      ensurePin();
+
+      function detachAll() {
+        for (const { ref, event, fn } of state.listeners) {
           try {
-            return JSON.parse(m[0]);
-          } catch {
-            return null;
+            ref.off(event, fn);
+          } catch {}
+        }
+        state.listeners = [];
+      }
+
+      function on(ref, event, fn) {
+        ref.on(event, fn);
+        state.listeners.push({ ref, event, fn });
+      }
+
+      function refPath(path) {
+        if (!db) throw new Error("Firebase is not initialized.");
+        return db.ref(path);
+      }
+
+      function classRoot() {
+        ensurePin();
+        return `classes/${state.pin}`;
+      }
+
+      /********************************************************************
+       * Tabs UI
+       ********************************************************************/
+      const tabButtons = Array.from(document.querySelectorAll(".tabBtn"));
+      function setTab(tabKey) {
+        tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === tabKey));
+
+        const isTeacher = state.role === "teacher";
+        const t = (k) => $(`teacher_${k}`);
+        const s = (k) => $(`student_${k}`);
+
+        ["flash", "tests", "class"].forEach((k) => {
+          const el = isTeacher ? t(k) : s(k);
+          const other = isTeacher ? s(k) : t(k);
+          el.classList.toggle("active", k === tabKey);
+          other.classList.remove("active");
+        });
+      }
+      tabButtons.forEach((b) =>
+        b.addEventListener("click", () => {
+          setTab(b.dataset.tab);
+        }),
+      );
+
+      /********************************************************************
+       * Role switch
+       ********************************************************************/
+      const roleTeacherBtn = $("roleTeacher");
+      const roleStudentBtn = $("roleStudent");
+      const screenTitle = $("screenTitle");
+
+      function renderRoleUI() {
+        const isTeacher = state.role === "teacher";
+        roleTeacherBtn.classList.toggle("active", isTeacher);
+        roleStudentBtn.classList.toggle("active", !isTeacher);
+        screenTitle.textContent = isTeacher ? "Багшийн дэлгэц" : "Сурагчийн дэлгэц";
+
+        // Show/hide appropriate tab contents (we keep same tab buttons)
+        const showTeacher = (key) => {
+          $(`teacher_${key}`).style.display = isTeacher ? "" : "none";
+          $(`student_${key}`).style.display = isTeacher ? "none" : "";
+        };
+        ["flash", "tests", "class"].forEach(showTeacher);
+      }
+
+      function setRole(role) {
+        state.role = role;
+        localStorage.setItem(LS.role, role);
+        detachAll();
+        renderRoleUI();
+        mountRealtime();
+        setTab("flash");
+      }
+
+      roleTeacherBtn.addEventListener("click", () => setRole("teacher"));
+      roleStudentBtn.addEventListener("click", () => setRole("student"));
+
+      /********************************************************************
+       * STUDENT SCREENS (no fetch allowed here)
+       ********************************************************************/
+      function mountStudentFlash() {
+        const root = $("student_flash");
+        root.innerHTML = `
+          <div class="panelHeader" style="margin-top: 6px">
+            <h2>Flashcards (Цээжлэх)</h2>
+            <span class="pill"><span>Source</span> <strong class="mono">Firebase</strong></span>
+          </div>
+          <div class="small">Карт дээр дарвал эргэж хариу гарна.</div>
+          <div class="divider"></div>
+          <div id="s_fc_grid" class="fcGrid"></div>
+          <div id="s_fc_empty" class="hint" style="display:none">Одоогоор карт алга. Багш карт үүсгээд хадгалсны дараа энд realtime орж ирнэ.</div>
+        `;
+
+        const grid = $("s_fc_grid");
+        const empty = $("s_fc_empty");
+
+        const r = refPath(`${classRoot()}/flashcards`);
+        setRt("listening flashcards…");
+        on(r, "value", (snap) => {
+          const val = snap.val() || null;
+          const items = val && typeof val === "object" ? Object.values(val) : [];
+          const cards = items
+            .flatMap((x) => (Array.isArray(x?.cards) ? x.cards : []))
+            .filter((c) => c && typeof c.front === "string" && typeof c.back === "string");
+
+          grid.innerHTML = "";
+          if (!cards.length) {
+            empty.style.display = "";
+            setRt("no cards");
+            return;
           }
-        }
-      }
+          empty.style.display = "none";
+          setRt(`cards: ${cards.length}`);
 
-      function buildPrompt({ text, language, count }) {
-        const langLine = language === "en" ? "Write in English." : "Монгол хэлээр бич.";
-        return [
-          "You are an expert study coach.",
-          "Task: Turn the provided long case/text into high-quality flashcards for quick memorization.",
-          "Hard requirements:",
-          "- Extract ONLY the most important facts / claims that are needed to recall the case quickly.",
-          "- For each flashcard, include exactly 2 key evidence points (proof / justification) taken from the text.",
-          "- If evidence is not explicit, infer cautiously and mark the evidence as 'inferred'.",
-          "- Avoid fluff. Be concrete.",
-          `- Generate ${count} flashcards.`,
-          langLine,
-          "",
-          "Return STRICT JSON only (no markdown, no extra text) with this shape:",
-          "{",
-          '  "cards": [',
-          "    {",
-          '      "front": "question or cue",',
-          '      "back": "short answer",',
-          '      "evidence": ["evidence point 1", "evidence point 2"],',
-          '      "tags": ["optional", "tags"]',
-          "    }",
-          "  ]",
-          "}",
-          "",
-          "TEXT:",
-          text,
-        ].join("\n");
-      }
-
-      async function groqChatJson({ apiKey, model, prompt }) {
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            temperature: 0.2,
-            response_format: { type: "json_object" },
-            messages: [
-              {
-                role: "system",
-                content: "Return valid JSON only. No markdown. No code fences.",
-              },
-              { role: "user", content: prompt },
-            ],
-          }),
+          for (const c of cards) {
+            const flip = document.createElement("div");
+            flip.className = "flip";
+            flip.innerHTML = `
+              <div class="flipInner">
+                <div class="side front">
+                  <div>
+                    <h3>${escapeHtml(c.front)}</h3>
+                  </div>
+                  <div class="tagRow">${renderTags(c.tags)}</div>
+                </div>
+                <div class="side back">
+                  <div>
+                    <h3>Хариу</h3>
+                    <p>${escapeHtml(c.back)}</p>
+                    ${renderEvidence(c.evidence)}
+                  </div>
+                  <div class="tagRow">${renderTags(c.tags)}</div>
+                </div>
+              </div>
+            `;
+            flip.addEventListener("click", () => flip.classList.toggle("flipped"));
+            grid.appendChild(flip);
+          }
         });
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`Groq error ${res.status}: ${text.slice(0, 400)}`);
-        }
-        const data = await res.json();
-        const content = data?.choices?.[0]?.message?.content ?? "";
-        const parsed = safeJsonParse(content);
-        if (!parsed) throw new Error("AI output JSON parse failed.");
-        return parsed;
       }
 
-      async function saveToFirestore({ db, source, cards, meta }) {
-        const docRef = await addDoc(collection(db, "flashcards"), {
-          source,
-          cards,
-          meta,
-          createdAt: serverTimestamp(),
+      function mountStudentTests() {
+        const root = $("student_tests");
+        root.innerHTML = `
+          <div class="panelHeader" style="margin-top: 6px">
+            <h2>Tests (Шалгалт)</h2>
+            <span class="pill"><span>Source</span> <strong class="mono">Firebase</strong></span>
+          </div>
+          <div class="small">Тестийг бөглөөд “Дуусгах” дарвал оноо гарна.</div>
+          <div class="divider"></div>
+          <div id="s_test_wrap"></div>
+          <div id="s_test_empty" class="hint" style="display:none">Одоогоор тест алга. Багш тест үүсгээд хадгалсны дараа энд realtime орж ирнэ.</div>
+        `;
+
+        const wrap = $("s_test_wrap");
+        const empty = $("s_test_empty");
+
+        const r = refPath(`${classRoot()}/tests`);
+        setRt("listening tests…");
+        on(r, "value", (snap) => {
+          const val = snap.val() || null;
+          const items = val && typeof val === "object" ? Object.values(val) : [];
+          const latest = items.sort((a, b) => (b?.createdAt || 0) - (a?.createdAt || 0))[0] || null;
+          const questions = Array.isArray(latest?.questions) ? latest.questions : [];
+
+          wrap.innerHTML = "";
+          if (!questions.length) {
+            empty.style.display = "";
+            setRt("no tests");
+            return;
+          }
+          empty.style.display = "none";
+          setRt(`questions: ${questions.length}`);
+
+          const answers = new Array(questions.length).fill(null);
+
+          questions.forEach((q, qi) => {
+            const el = document.createElement("div");
+            el.className = "q";
+            el.innerHTML = `
+              <h3>${qi + 1}. ${escapeHtml(q.prompt || "")}</h3>
+              <div>
+                ${(q.options || [])
+                  .map(
+                    (opt, oi) => `
+                      <label class="opt">
+                        <input type="radio" name="q_${qi}" value="${oi}">
+                        <div>${escapeHtml(String(opt))}</div>
+                      </label>
+                    `,
+                  )
+                  .join("")}
+              </div>
+            `;
+            el.querySelectorAll(`input[name="q_${qi}"]`).forEach((inp) => {
+              inp.addEventListener("change", () => {
+                answers[qi] = Number(inp.value);
+              });
+            });
+            wrap.appendChild(el);
+          });
+
+          const footer = document.createElement("div");
+          footer.className = "actions";
+          footer.innerHTML = `
+            <button class="btn primary" type="button" id="s_test_finish">Дуусгах</button>
+            <span class="score" id="s_test_score" style="display:none"></span>
+          `;
+          wrap.appendChild(footer);
+
+          $("s_test_finish").addEventListener("click", () => {
+            let correct = 0;
+            for (let i = 0; i < questions.length; i++) {
+              const ans = answers[i];
+              const key = Number(questions[i].answerIndex);
+              if (Number.isInteger(ans) && ans === key) correct++;
+            }
+            const scoreEl = $("s_test_score");
+            scoreEl.style.display = "";
+            scoreEl.innerHTML = `<strong>Оноо:</strong> ${correct} / ${questions.length}`;
+          });
         });
-        return docRef.id;
       }
 
-      // Optional: save to Google Apps Script (requires you implement doPost)
-      async function postToAppsScript(payload) {
-        const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+      function mountStudentClass() {
+        const root = $("student_class");
+        root.innerHTML = `
+          <div class="panelHeader" style="margin-top: 6px">
+            <h2>QR & Анги (Нэвтрэх)</h2>
+            <span class="pill"><span>Source</span> <strong class="mono">Firebase</strong></span>
+          </div>
+          <div class="row">
+            <div>
+              <label for="s_name">Нэр</label>
+              <input id="s_name" type="text" placeholder="Ж: Бат-Эрдэнэ" />
+            </div>
+            <div>
+              <label for="s_pin">PIN (4 оронтой)</label>
+              <input id="s_pin" type="text" inputmode="numeric" placeholder="Ж: 1234" />
+            </div>
+          </div>
+          <div style="margin-top: 10px">
+            <label for="s_qr_text">QR‑аас уншсан текст (сонголтоор)</label>
+            <input id="s_qr_text" type="text" placeholder="Ж: edu://class?pin=1234 (эсвэл 1234)" />
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="s_join" type="button">Анги руу орох</button>
+            <button class="btn ghost" id="s_leave" type="button">Гарах</button>
+            <span class="status" id="s_status">Бэлэн.</span>
+          </div>
+          <div class="hint">
+            Ороход таны нэр Firebase дээр realtime нэмэгдэнэ:
+            <div style="margin-top: 6px" class="mono">/classes/{PIN}/students</div>
+          </div>
+        `;
+
+        const nameEl = $("s_name");
+        const pinEl = $("s_pin");
+        const qrTextEl = $("s_qr_text");
+        const statusEl = $("s_status");
+
+        nameEl.value = state.studentName || "";
+        pinEl.value = state.pin || "";
+
+        function setStatus(msg, kind) {
+          statusEl.textContent = msg;
+          statusEl.style.color = kind === "error" ? "var(--danger)" : kind === "ok" ? "var(--ok)" : "var(--muted)";
+        }
+
+        $("s_join").addEventListener("click", async () => {
+          const nm = String(nameEl.value || "").trim();
+          let pin = sanitizePin(pinEl.value);
+
+          const qrRaw = String(qrTextEl.value || "").trim();
+          if (qrRaw) {
+            const p = parsePinFromQrText(qrRaw);
+            if (p) pin = p;
+          }
+
+          if (!nm) return setStatus("Нэрээ бичээрэй.", "error");
+          if (!pin) return setStatus("PIN-ээ бичээрэй.", "error");
+
+          state.studentName = nm;
+          localStorage.setItem(LS.name, nm);
+          state.pin = pin;
+          ensurePin();
+
+          try {
+            // Student writes ONLY to Firebase (no fetch)
+            const studentRef = refPath(`${classRoot()}/students`).push();
+            await studentRef.set({
+              name: nm,
+              joinedAt: firebase.database.ServerValue.TIMESTAMP,
+            });
+            setStatus(`Амжилттай орлоо. PIN: ${pin}`, "ok");
+
+            // After join, mount realtime content for student (flash/tests)
+            detachAll();
+            mountRealtime();
+            setTab("flash");
+          } catch (e) {
+            console.error(e);
+            setStatus("Нэвтрэх үед алдаа гарлаа (Firebase rules/config шалга).", "error");
+          }
+        });
+
+        $("s_leave").addEventListener("click", () => {
+          setStatus("Гарлаа (локал).", "ok");
+        });
+      }
+
+      /********************************************************************
+       * TEACHER SCREENS (AI fetch only here)
+       ********************************************************************/
+      function setTeacherStatus(id, msg, kind) {
+        const el = $(id);
+        el.textContent = msg;
+        el.style.color = kind === "error" ? "var(--danger)" : kind === "ok" ? "var(--ok)" : "var(--muted)";
+      }
+
+      function normalizeFlashcardsResponse(data) {
+        // Accept shapes:
+        // { cards: [{front, back, evidence?, tags?}, ...] }
+        // { flashcards: [...] }
+        // [ {front, back, ...}, ... ]
+        let cards = [];
+        if (Array.isArray(data)) cards = data;
+        else if (data && Array.isArray(data.cards)) cards = data.cards;
+        else if (data && Array.isArray(data.flashcards)) cards = data.flashcards;
+
+        return cards
+          .filter((c) => c && typeof c.front === "string" && typeof c.back === "string")
+          .map((c) => ({
+            front: String(c.front).trim(),
+            back: String(c.back).trim(),
+            evidence: Array.isArray(c.evidence) ? c.evidence.slice(0, 2).map((x) => String(x)) : undefined,
+            tags: Array.isArray(c.tags) ? c.tags.slice(0, 8).map((x) => String(x)) : undefined,
+          }));
+      }
+
+      function normalizeTestResponse(data) {
+        // Expected shape examples:
+        // { questions: [{prompt, options:[...], answerIndex:0}, ...] }
+        // { test: { questions: [...] } }
+        // [ {prompt, options, answerIndex}, ... ]
+        let qs = [];
+        if (Array.isArray(data)) qs = data;
+        else if (data && Array.isArray(data.questions)) qs = data.questions;
+        else if (data && data.test && Array.isArray(data.test.questions)) qs = data.test.questions;
+
+        return qs
+          .filter((q) => q && typeof q.prompt === "string" && Array.isArray(q.options) && q.options.length >= 2)
+          .map((q) => ({
+            prompt: String(q.prompt).trim(),
+            options: q.options.slice(0, 6).map((x) => String(x)),
+            answerIndex: Number(q.answerIndex),
+          }))
+          .filter((q) => Number.isInteger(q.answerIndex) && q.answerIndex >= 0 && q.answerIndex < q.options.length);
+      }
+
+      async function teacherPost(action, inputText, extra) {
+        if (!SCRIPT_URL) throw new Error("SCRIPT_URL хоосон байна. Тохиргоонд URL-аа тавина.");
+        const payload = Object.assign({ action, inputText }, extra || {});
+
+        // FETCH зөвхөн БАГШ талд байна (дүрэм!)
+        const res = await fetch(SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`Apps Script error ${res.status}: ${text.slice(0, 400)}`);
+          const t = await res.text().catch(() => "");
+          throw new Error(`SCRIPT_URL error ${res.status}: ${t.slice(0, 300)}`);
         }
-        return await res.json().catch(async () => ({ ok: true, text: await res.text().catch(() => "") }));
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) return await res.json();
+        const txt = await res.text();
+        try {
+          return JSON.parse(txt);
+        } catch {
+          return { raw: txt };
+        }
       }
 
-      // Init Firebase
-      let app, analytics, db;
-      try {
-        app = initializeApp(firebaseConfig);
-        analytics = getAnalytics(app);
-        db = getFirestore(app);
-        setFb(true, "connected");
-      } catch (e) {
-        setFb(false, "error");
-        console.error(e);
+      function mountTeacherFlash() {
+        $("t_flash_gen").addEventListener("click", async () => {
+          const txt = String($("t_flash_input").value || "").trim();
+          const count = Number($("t_flash_count").value);
+          if (!txt) return setTeacherStatus("t_flash_status", "Урт текст оруул.", "error");
+          if (!db) return setTeacherStatus("t_flash_status", "Firebase тохиргоо алга.", "error");
+
+          setTeacherStatus("t_flash_status", "AI боловсруулж байна…", "info");
+          $("t_flash_gen").disabled = true;
+          try {
+            const out = await teacherPost("flashcard", txt, { count });
+            const cards = normalizeFlashcardsResponse(out);
+            if (!cards.length) throw new Error("Картын хариу хоосон байна (Script output format шалга).");
+
+            const saveRef = refPath(`${classRoot()}/flashcards`).push();
+            await saveRef.set({
+              cards,
+              createdAt: Date.now(),
+              sourceChars: txt.length,
+            });
+            setTeacherStatus("t_flash_status", `Хадгаллаа: ${cards.length} карт.`, "ok");
+          } catch (e) {
+            console.error(e);
+            setTeacherStatus("t_flash_status", e.message || "Алдаа.", "error");
+          } finally {
+            $("t_flash_gen").disabled = false;
+          }
+        });
+
+        $("t_flash_clear").addEventListener("click", () => {
+          $("t_flash_input").value = "";
+          setTeacherStatus("t_flash_status", "Цэвэрлэгдлээ.", "ok");
+        });
       }
 
-      // Persist Groq key locally (optional)
-      const LS_KEY = "flashcard_groq_api_key";
-      groqKeyInput.value = localStorage.getItem(LS_KEY) || "";
-      groqKeyInput.addEventListener("change", () => {
-        const v = groqKeyInput.value.trim();
-        if (v) localStorage.setItem(LS_KEY, v);
-      });
+      function mountTeacherTests() {
+        $("t_test_gen").addEventListener("click", async () => {
+          const txt = String($("t_test_input").value || "").trim();
+          const count = Number($("t_test_count").value);
+          if (!txt) return setTeacherStatus("t_test_status", "Урт текст оруул.", "error");
+          if (!db) return setTeacherStatus("t_test_status", "Firebase тохиргоо алга.", "error");
 
-      sourceText.addEventListener("input", render);
+          setTeacherStatus("t_test_status", "AI боловсруулж байна…", "info");
+          $("t_test_gen").disabled = true;
+          try {
+            const out = await teacherPost("test", txt, { count });
+            const questions = normalizeTestResponse(out);
+            if (!questions.length) throw new Error("Тестийн хариу хоосон байна (Script output format шалга).");
 
-      btnClear.addEventListener("click", () => {
-        sourceText.value = "";
-        cards = [];
-        setAI("idle");
-        setStatus("Цэвэрлэгдлээ.", "ok");
-        render();
-      });
+            const saveRef = refPath(`${classRoot()}/tests`).push();
+            await saveRef.set({
+              questions,
+              createdAt: Date.now(),
+              sourceChars: txt.length,
+            });
+            setTeacherStatus("t_test_status", `Хадгаллаа: ${questions.length} асуулт.`, "ok");
+          } catch (e) {
+            console.error(e);
+            setTeacherStatus("t_test_status", e.message || "Алдаа.", "error");
+          } finally {
+            $("t_test_gen").disabled = false;
+          }
+        });
 
-      btnGenerate.addEventListener("click", async () => {
-        const text = sourceText.value.trim();
-        const apiKey = groqKeyInput.value.trim();
-        const model = modelSelect.value;
-        const language = languageSelect.value;
-        const count = Number(countSelect.value);
+        $("t_test_clear").addEventListener("click", () => {
+          $("t_test_input").value = "";
+          setTeacherStatus("t_test_status", "Цэвэрлэгдлээ.", "ok");
+        });
+      }
 
-        if (!text) {
-          setStatus("Урт текст/кейс оруулаарай.", "error");
-          return;
-        }
-        if (!apiKey) {
-          setStatus("Groq API key хэрэгтэй. `gsk_...` түлхүүрээ оруул.", "error");
-          return;
-        }
+      function mountTeacherClass() {
+        const qrEl = $("qr");
+        let qr = null;
 
-        btnGenerate.disabled = true;
-        btnSave.disabled = true;
-        setAI("working");
-        setStatus("AI боловсруулж байна…");
-
-        try {
-          const prompt = buildPrompt({ text, language, count });
-          const out = await groqChatJson({ apiKey, model, prompt });
-          const outCards = Array.isArray(out?.cards) ? out.cards : [];
-
-          cards = outCards
-            .filter((c) => c && typeof c.front === "string" && typeof c.back === "string")
-            .map((c) => ({
-              front: c.front.trim(),
-              back: c.back.trim(),
-              evidence: Array.isArray(c.evidence) ? c.evidence.slice(0, 2).map((x) => String(x)) : undefined,
-              tags: Array.isArray(c.tags) ? c.tags.slice(0, 6).map((x) => String(x)) : undefined,
-            }))
-            .slice(0, count);
-
-          if (cards.length === 0) throw new Error("AI-с карт гарсангүй. Текстээ өөрөөр оруулж үз.");
-
-          setAI("done");
-          setStatus(`Бэлэн: ${cards.length} flashcard үүсгэлээ.`, "ok");
-          render();
-        } catch (e) {
-          console.error(e);
-          setAI("error");
-          setStatus(e?.message || "AI алдаа гарлаа.", "error");
-          render();
-        } finally {
-          btnGenerate.disabled = false;
-        }
-      });
-
-      btnSave.addEventListener("click", async () => {
-        if (!db) {
-          setStatus("Firebase холбогдоогүй байна.", "error");
-          return;
-        }
-        if (!cards.length) {
-          setStatus("Хадгалах flashcard алга.", "error");
-          return;
+        function makePin() {
+          return String(Math.floor(1000 + Math.random() * 9000));
         }
 
-        btnSave.disabled = true;
-        setStatus("Firebase руу хадгалж байна…");
-        try {
-          const meta = {
-            model: modelSelect.value,
-            language: languageSelect.value,
-            requestedCount: Number(countSelect.value),
-            sourceChars: sourceText.value.length,
-          };
-          const id = await saveToFirestore({ db, source: sourceText.value, cards, meta });
-          setStatus(`Хадгаллаа. Doc ID: ${id}`, "ok");
-
-          // Хэрвээ чи Google Sheet рүү бас бичихийг хүсвэл энэ мөрийг uncomment хийгээрэй.
-          // await postToAppsScript({ source: sourceText.value, cards, meta });
-        } catch (e) {
-          console.error(e);
-          setStatus(e?.message || "Хадгалах үед алдаа гарлаа.", "error");
-          btnSave.disabled = false;
+        function renderQr(pin) {
+          const qrText = `edu://class?pin=${pin}`;
+          $("qrText").textContent = qrText;
+          qrEl.innerHTML = "";
+          qr = new QRCode(qrEl, {
+            text: qrText,
+            width: 180,
+            height: 180,
+            correctLevel: QRCode.CorrectLevel.M,
+          });
         }
-      });
 
-      render();
+        $("t_class_create").addEventListener("click", async () => {
+          const pin = makePin();
+          state.pin = pin;
+          ensurePin();
+          renderQr(pin);
+          setTeacherStatus("t_class_status", `Анги үүсгэлээ. PIN: ${pin}`, "ok");
+
+          // Create class root for visibility
+          try {
+            await refPath(`${classRoot()}/meta`).set({
+              createdAt: firebase.database.ServerValue.TIMESTAMP,
+            });
+          } catch {}
+
+          detachAll();
+          mountRealtime();
+        });
+
+        $("t_class_reset").addEventListener("click", () => {
+          const pin = makePin();
+          state.pin = pin;
+          ensurePin();
+          renderQr(pin);
+          setTeacherStatus("t_class_status", `PIN шинэчлэгдлээ: ${pin}`, "ok");
+          detachAll();
+          mountRealtime();
+        });
+
+        // Realtime student list
+        const listEl = $("t_student_list");
+        const r = refPath(`${classRoot()}/students`);
+        setRt("listening students…");
+        on(r, "value", (snap) => {
+          const val = snap.val() || null;
+          const items = val && typeof val === "object" ? Object.entries(val).map(([k, v]) => ({ id: k, ...v })) : [];
+          if (!items.length) {
+            listEl.innerHTML = "Одоогоор хоосон.";
+            return;
+          }
+          listEl.innerHTML = items
+            .sort((a, b) => (b.joinedAt || 0) - (a.joinedAt || 0))
+            .map(
+              (s) => `
+                <div class="studentItem">
+                  <div><strong>${escapeHtml(s.name || "—")}</strong></div>
+                  <div class="small mono">${new Date(s.joinedAt || Date.now()).toLocaleTimeString()}</div>
+                </div>
+              `,
+            )
+            .join("");
+        });
+
+        // Initial QR render if pin exists
+        renderQr(state.pin || "0000");
+      }
+
+      /********************************************************************
+       * Helpers
+       ********************************************************************/
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function renderTags(tags) {
+        if (!Array.isArray(tags) || !tags.length) return "";
+        return tags
+          .slice(0, 6)
+          .map((t) => `<span class="tag">${escapeHtml(String(t))}</span>`)
+          .join("");
+      }
+
+      function renderEvidence(evidence) {
+        if (!Array.isArray(evidence) || evidence.length === 0) return "";
+        const ev = evidence.slice(0, 2).map((e) => `- ${escapeHtml(String(e))}`).join("\n");
+        return `<div class="hint" style="margin-top:10px"><strong>Нотолгоо (2):</strong><p style="margin:6px 0 0; white-space:pre-wrap">${ev}</p></div>`;
+      }
+
+      function parsePinFromQrText(text) {
+        const t = String(text || "").trim();
+        const m1 = t.match(/pin=(\d{4})/i);
+        if (m1) return m1[1];
+        const m2 = t.match(/\b(\d{4})\b/);
+        return m2 ? m2[1] : "";
+      }
+
+      /********************************************************************
+       * Mount realtime per role
+       ********************************************************************/
+      function mountRealtime() {
+        if (!db) return;
+        ensurePin();
+        setRt("mounting…");
+
+        if (state.role === "teacher") {
+          setRt("teacher mode");
+          mountTeacherClass();
+          mountTeacherFlash();
+          mountTeacherTests();
+        } else {
+          setRt("student mode");
+          mountStudentClass();
+          mountStudentFlash();
+          mountStudentTests();
+        }
+      }
+
+      renderRoleUI();
+      mountRealtime();
+      setTab("flash");
     </script>
   </body>
 </html>
