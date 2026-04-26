@@ -1,2633 +1,606 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="mn">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Флаш Карт</title>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg:       #0c0c14;
-  --surface:  #13131e;
-  --card:     #1a1a28;
-  --border:   #252538;
-  --accent:   #7c6af7;
-  --accent2:  #4ecdc4;
-  --accent3:  #f9a84d;
-  --know:     #3ddc97;
-  --unknow:   #f05e5e;
-  --text:     #e4e2f2;
-  --muted:    #64607e;
-  --radius:   14px;
-}
-
-*{box-sizing:border-box;margin:0;padding:0}
-
-body{
-  font-family:'Sora',sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  min-height:100vh;
-  padding:24px 20px 80px;
-}
-
-/* ─── LOGIN ─── */
-#loginGate{
-  display:flex;align-items:center;justify-content:center;
-  min-height:100vh;position:fixed;inset:0;
-  background:var(--bg);z-index:200;padding:20px;
-}
-.login-box{
-  background:var(--card);border:1px solid var(--border);
-  border-radius:24px;padding:44px 38px;
-  width:100%;max-width:380px;
-  box-shadow:0 24px 64px rgba(0,0,0,.7);
-  animation:fadeUp .4s ease both;
-}
-.login-logo{
-  width:58px;height:58px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  border-radius:16px;display:grid;place-items:center;
-  font-size:28px;margin:0 auto 22px;
-  box-shadow:0 8px 24px rgba(124,106,247,.35);
-}
-.login-box h2{text-align:center;font-size:1.35rem;font-weight:800;margin-bottom:6px;letter-spacing:-.5px}
-.login-box p{text-align:center;color:var(--muted);font-size:.82rem;margin-bottom:30px;font-weight:300}
-.login-field-label{font-size:.75rem;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
-.login-input{
-  width:100%;padding:13px 16px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);color:var(--text);
-  font-family:'Sora',sans-serif;font-size:.95rem;
-  outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:20px;
-}
-.login-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,247,.15)}
-.login-btn{
-  width:100%;padding:13px;
-  background:linear-gradient(135deg,var(--accent),#5a4dcc);
-  color:#fff;border:none;border-radius:var(--radius);
-  font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700;
-  cursor:pointer;transition:all .2s;
-  box-shadow:0 4px 16px rgba(124,106,247,.4);
-}
-.login-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(124,106,247,.55)}
-.login-error{
-  margin-top:14px;padding:10px 14px;
-  background:rgba(240,94,94,.1);border:1px solid rgba(240,94,94,.3);
-  border-radius:10px;color:var(--unknow);font-size:.82rem;
-  text-align:center;display:none;
-}
-.login-error.visible{display:block}
-
-/* ─── MAIN ─── */
-#mainApp{display:none}
-
-header{display:flex;align-items:center;gap:14px;margin-bottom:32px}
-.logo{
-  width:42px;height:42px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  border-radius:12px;display:grid;place-items:center;
-  font-size:20px;flex-shrink:0;
-  box-shadow:0 4px 14px rgba(124,106,247,.3);
-}
-header h1{font-size:1.35rem;font-weight:800;letter-spacing:-.5px}
-header span{color:var(--muted);font-size:.78rem;font-weight:300}
-.header-user{margin-left:auto;display:flex;align-items:center;gap:10px}
-.user-badge{
-  padding:5px 12px;background:var(--surface);
-  border:1px solid var(--border);border-radius:20px;
-  font-size:.78rem;color:var(--accent2);font-weight:600;
-}
-.logout-btn{
-  padding:5px 10px;background:transparent;
-  border:1px solid var(--border);border-radius:8px;
-  color:var(--muted);font-size:.75rem;cursor:pointer;
-  font-family:'Sora',sans-serif;transition:all .2s;
-}
-.logout-btn:hover{border-color:var(--unknow);color:var(--unknow)}
-
-/* ─── TABS ─── */
-.tabs{
-  display:flex;gap:5px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:5px;margin-bottom:24px;
-}
-.tab{
-  flex:1;padding:9px 6px;border:none;border-radius:10px;
-  background:transparent;color:var(--muted);
-  font-family:'Sora',sans-serif;font-size:.76rem;font-weight:600;
-  cursor:pointer;transition:all .2s;white-space:nowrap;
-}
-.tab.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.4)}
-
-/* ─── PANELS ─── */
-.panel{display:none}.panel.active{display:block}
-
-/* ─── GENERATE ─── */
-.input-wrap{position:relative;margin-bottom:14px}
-textarea{
-  width:100%;height:160px;padding:16px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);color:var(--text);
-  font-family:'Sora',sans-serif;font-size:.9rem;
-  resize:vertical;transition:border-color .2s;outline:none;
-}
-textarea:focus{border-color:var(--accent)}
-.char-count{position:absolute;bottom:10px;right:14px;font-size:.72rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
-
-.btn{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:11px 22px;border:none;border-radius:10px;
-  font-family:'Sora',sans-serif;font-size:.88rem;font-weight:600;
-  cursor:pointer;transition:all .2s;
-}
-.btn-primary{background:linear-gradient(135deg,var(--accent),#5a4dcc);color:#fff;box-shadow:0 4px 16px rgba(124,106,247,.35)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,106,247,.5)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-sm{padding:7px 14px;font-size:.78rem;background:var(--surface);color:var(--muted);border:1px solid var(--border)}
-.btn-sm:hover{color:var(--text);border-color:var(--accent)}
-.btn-danger{color:var(--unknow)!important}
-.btn-danger:hover{border-color:var(--unknow)!important}
-
-.status-bar{
-  margin-top:12px;padding:12px 16px;
-  background:var(--surface);border-radius:10px;
-  font-size:.82rem;color:var(--muted);
-  border-left:3px solid var(--accent);display:none;
-}
-.status-bar.visible{display:block}
-.status-bar.error{border-color:var(--unknow);color:var(--unknow)}
-
-/* ─── STATS ─── */
-.stats-strip{display:flex;gap:10px;margin-bottom:20px}
-.stat-pill{flex:1;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;text-align:center}
-.stat-pill .num{font-size:1.4rem;font-weight:700;font-family:'JetBrains Mono',monospace}
-.stat-pill .lbl{font-size:.7rem;color:var(--muted);margin-top:2px}
-.stat-pill.know .num{color:var(--know)}
-.stat-pill.unknow .num{color:var(--unknow)}
-
-/* ─── CARDS ─── */
-.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
-.toolbar-left{display:flex;gap:8px;flex-wrap:wrap}
-.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-
-.flip-wrap{height:180px;perspective:900px;cursor:pointer;animation:fadeUp .3s ease both}
-.flip-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.4,0,.2,1)}
-.flip-wrap.flipped .flip-inner{transform:rotateY(180deg)}
-
-.flip-front,.flip-back{
-  position:absolute;inset:0;backface-visibility:hidden;
-  border-radius:var(--radius);padding:20px;
-  display:flex;flex-direction:column;border:1px solid var(--border);
-}
-.flip-front{background:var(--card);background-image:radial-gradient(circle at 80% 20%,rgba(124,106,247,.08),transparent 60%)}
-.flip-back{background:var(--surface);background-image:radial-gradient(circle at 20% 80%,rgba(78,205,196,.08),transparent 60%);transform:rotateY(180deg)}
-
-.card-badge{font-size:.62rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace;margin-bottom:10px}
-.flip-back .card-badge{color:var(--accent2)}
-.card-text{flex:1;font-size:.9rem;line-height:1.55;overflow:auto}
-.card-actions{display:flex;gap:6px;margin-top:10px;opacity:0;transition:opacity .2s}
-.flip-wrap:hover .card-actions{opacity:1}
-.card-tag{width:8px;height:8px;border-radius:50%;margin-left:auto;align-self:flex-start;background:var(--border);transition:background .2s}
-.card-tag.know{background:var(--know)}.card-tag.unknow{background:var(--unknow)}
-
-/* ─── MODAL ─── */
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:100;place-items:center}
-.modal-bg.open{display:grid}
-.modal{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;width:90%;max-width:480px}
-.modal h3{font-size:1.1rem;margin-bottom:18px}
-.field-label{font-size:.78rem;color:var(--muted);margin-bottom:6px}
-.modal textarea{height:90px;margin-bottom:14px;font-size:.88rem}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end}
-
-/* ─── STUDY ─── */
-.study-wrap{display:flex;flex-direction:column;align-items:center;min-height:60vh;padding:10px 0}
-.prog-wrap{width:100%;max-width:520px;margin-bottom:20px}
-.prog-track{height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:8px}
-.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease}
-.prog-label{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
-
-.study-card-wrap{width:100%;max-width:520px;height:280px;perspective:1000px;cursor:pointer;margin-bottom:24px}
-.study-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.4,0,.2,1)}
-.study-card-wrap.flipped .study-inner{transform:rotateY(180deg)}
-.study-front,.study-back{
-  position:absolute;inset:0;backface-visibility:hidden;border-radius:20px;padding:32px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid var(--border);
-}
-.study-front{background:linear-gradient(135deg,var(--card),#181828);box-shadow:0 8px 32px rgba(0,0,0,.4)}
-.study-back{background:linear-gradient(135deg,#131d24,var(--surface));box-shadow:0 8px 32px rgba(0,0,0,.4);transform:rotateY(180deg)}
-.study-badge{font-size:.7rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace;margin-bottom:14px}
-.study-back .study-badge{color:var(--accent2)}
-.study-q{font-size:1.1rem;line-height:1.6;font-weight:500}
-.study-hint{font-size:.75rem;color:var(--muted);margin-top:16px}
-
-.study-btns{display:flex;gap:14px;opacity:0;pointer-events:none;transition:opacity .3s}
-.study-btns.visible{opacity:1;pointer-events:all}
-.btn-know{padding:13px 32px;background:rgba(61,220,151,.12);border:1.5px solid var(--know);color:var(--know);font-family:'Sora',sans-serif;font-weight:700;font-size:.9rem;border-radius:12px;cursor:pointer;transition:all .2s}
-.btn-know:hover{background:rgba(61,220,151,.25);transform:translateY(-1px)}
-.btn-unknow{padding:13px 32px;background:rgba(240,94,94,.12);border:1.5px solid var(--unknow);color:var(--unknow);font-family:'Sora',sans-serif;font-weight:700;font-size:.9rem;border-radius:12px;cursor:pointer;transition:all .2s}
-.btn-unknow:hover{background:rgba(240,94,94,.25);transform:translateY(-1px)}
-
-.done-box{display:none;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 30px;width:100%;max-width:520px}
-.done-box h2{font-size:1.6rem;margin-bottom:10px}
-.done-box p{color:var(--muted);font-size:.9rem;margin-bottom:24px}
-.done-score{font-size:3rem;font-weight:800;margin:20px 0;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-
-/* ─── QUIZ / TEST MODULE ─── */
-.quiz-wrap{display:flex;flex-direction:column;align-items:center;padding:10px 0;min-height:60vh}
-
-/* Input state */
-.quiz-input-box{width:100%;max-width:560px}
-.quiz-input-header{
-  display:flex;align-items:center;gap:14px;
-  background:var(--card);border:1px solid var(--border);
-  border-radius:18px 18px 0 0;padding:22px 24px;
-  border-bottom:none;
-}
-.quiz-icon{
-  width:44px;height:44px;border-radius:12px;
-  background:linear-gradient(135deg,var(--accent3),#e07d20);
-  display:grid;place-items:center;font-size:20px;flex-shrink:0;
-  box-shadow:0 4px 14px rgba(249,168,77,.3);
-}
-.quiz-input-header h2{font-size:1.1rem;font-weight:700}
-.quiz-input-header p{color:var(--muted);font-size:.8rem;margin-top:2px}
-.quiz-input-body{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:0 0 18px 18px;padding:20px 24px;
-}
-.quiz-input-body textarea{height:180px;border-radius:10px;font-size:.88rem}
-.quiz-input-body textarea:focus{border-color:var(--accent3)}
-.quiz-meta{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.quiz-meta-pill{
-  padding:5px 12px;background:var(--card);
-  border:1px solid var(--border);border-radius:20px;
-  font-size:.73rem;color:var(--muted);font-family:'JetBrains Mono',monospace;
-}
-.quiz-meta-pill span{color:var(--accent3)}
-.btn-quiz{
-  width:100%;padding:13px;
-  background:linear-gradient(135deg,var(--accent3),#e07d20);
-  color:#fff;border:none;border-radius:10px;
-  font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700;
-  cursor:pointer;transition:all .2s;
-  box-shadow:0 4px 16px rgba(249,168,77,.35);
-  display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.btn-quiz:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 22px rgba(249,168,77,.5)}
-.btn-quiz:disabled{opacity:.5;cursor:not-allowed;transform:none}
-
-/* Quiz playing state */
-.quiz-prog-wrap{width:100%;max-width:560px;margin-bottom:18px}
-.quiz-score-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.quiz-score-badge{
-  padding:5px 14px;border-radius:20px;
-  font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;
-}
-.quiz-score-badge.score{background:rgba(249,168,77,.15);border:1px solid rgba(249,168,77,.3);color:var(--accent3)}
-.quiz-score-badge.prog{background:var(--surface);border:1px solid var(--border);color:var(--muted)}
-
-.quiz-q-card{
-  width:100%;max-width:560px;
-  background:linear-gradient(135deg,var(--card) 0%,#16162a 100%);
-  border:1px solid var(--border);border-radius:20px;
-  padding:28px 32px;margin-bottom:16px;
-  box-shadow:0 8px 32px rgba(0,0,0,.35);
-  min-height:130px;display:flex;flex-direction:column;
-}
-.quiz-q-num{font-size:.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent3);font-family:'JetBrains Mono',monospace;margin-bottom:12px}
-.quiz-q-text{font-size:1.08rem;line-height:1.65;font-weight:500;flex:1}
-
-.quiz-options-grid{
-  width:100%;max-width:560px;
-  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;
-}
-@media(max-width:480px){.quiz-options-grid{grid-template-columns:1fr}}
-
-.quiz-opt{
-  padding:14px 16px;
-  background:var(--surface);border:1.5px solid var(--border);
-  border-radius:12px;color:var(--text);
-  font-family:'Sora',sans-serif;font-size:.85rem;font-weight:500;
-  line-height:1.5;text-align:left;cursor:pointer;
-  transition:border-color .15s,background .15s,transform .1s;
-  display:flex;align-items:flex-start;gap:10px;
-}
-.quiz-opt:hover:not(:disabled){
-  border-color:var(--accent3);
-  background:rgba(249,168,77,.06);
-  transform:translateY(-1px);
-}
-.quiz-opt:disabled{cursor:not-allowed}
-.quiz-opt.correct{border-color:var(--know)!important;background:rgba(61,220,151,.13)!important;color:var(--know)!important;font-weight:600}
-.quiz-opt.wrong{border-color:var(--unknow)!important;background:rgba(240,94,94,.13)!important;color:var(--unknow)!important}
-.quiz-opt.reveal{border-color:rgba(61,220,151,.4)!important;background:rgba(61,220,151,.06)!important}
-.opt-key{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:24px;height:24px;min-width:24px;
-  background:var(--border);border-radius:6px;
-  font-size:.7rem;font-weight:700;
-  font-family:'JetBrains Mono',monospace;
-  transition:background .15s;flex-shrink:0;
-  margin-top:1px;
-}
-.quiz-opt.correct .opt-key{background:rgba(61,220,151,.3)}
-.quiz-opt.wrong .opt-key{background:rgba(240,94,94,.3)}
-.quiz-opt.reveal .opt-key{background:rgba(61,220,151,.2)}
-
-.quiz-feedback-bar{
-  width:100%;max-width:560px;
-  padding:11px 18px;border-radius:10px;
-  font-size:.84rem;font-weight:600;
-  margin-bottom:14px;display:none;
-}
-.quiz-feedback-bar.ok{background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.25);color:var(--know);display:flex;align-items:center;gap:8px}
-.quiz-feedback-bar.no{background:rgba(240,94,94,.1);border:1px solid rgba(240,94,94,.25);color:var(--unknow);display:flex;align-items:center;gap:8px}
-
-/* Done state */
-.quiz-done-box{
-  display:none;text-align:center;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:20px;padding:44px 32px;
-  width:100%;max-width:560px;
-}
-.quiz-done-box h2{font-size:1.5rem;font-weight:800;margin-bottom:6px}
-.quiz-done-score{
-  font-size:4rem;font-weight:800;margin:22px 0 4px;
-  background:linear-gradient(135deg,var(--accent3),var(--accent));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  font-family:'JetBrains Mono',monospace;
-}
-.quiz-done-sub{font-size:.85rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:20px}
-.quiz-done-pills{display:flex;gap:10px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
-.done-pill{padding:8px 18px;border-radius:20px;font-size:.82rem;font-weight:700;font-family:'JetBrains Mono',monospace}
-.done-pill.good{background:rgba(61,220,151,.12);border:1px solid rgba(61,220,151,.3);color:var(--know)}
-.done-pill.bad{background:rgba(240,94,94,.12);border:1px solid rgba(240,94,94,.3);color:var(--unknow)}
-.done-pill.neutral{background:var(--card);border:1px solid var(--border);color:var(--muted)}
-.quiz-done-msg{color:var(--muted);font-size:.88rem;line-height:1.6;margin-bottom:24px}
-.quiz-done-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-
-/* Empty / Loading */
-.empty-state{text-align:center;padding:60px 20px;color:var(--muted);font-size:.9rem}
-.empty-state .emoji{font-size:3rem;margin-bottom:12px}
-
-.loading-dots{display:inline-flex;gap:5px;align-items:center}
-.loading-dots span{
-  width:7px;height:7px;border-radius:50%;
-  background:var(--accent3);
-  animation:bounce 1.1s infinite ease-in-out;
-}
-.loading-dots span:nth-child(2){animation-delay:.18s}
-.loading-dots span:nth-child(3){animation-delay:.36s}
-@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
-
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
-.flip-wrap{animation:fadeUp .3s ease both}
-.quiz-q-card{animation:slideIn .25s ease both}
-.quiz-options-grid{animation:slideIn .3s ease both}
-
-/* ─── EXAM ROOM BUTTON ─── */
-.exam-room-btn{
-  padding:7px 14px;
-  background:linear-gradient(135deg,#e85d75,#c2185b);
-  border:none;border-radius:10px;
-  color:#fff;font-family:'Sora',sans-serif;
-  font-size:.78rem;font-weight:700;
-  cursor:pointer;transition:all .2s;
-  box-shadow:0 3px 12px rgba(232,93,117,.4);
-  display:flex;align-items:center;gap:6px;
-  white-space:nowrap;
-}
-.exam-room-btn:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(232,93,117,.55)}
-
-/* ─── EXAM OVERLAY ─── */
-#examOverlay{
-  display:none;position:fixed;inset:0;
-  background:rgba(0,0,0,.85);backdrop-filter:blur(6px);
-  z-index:300;overflow-y:auto;padding:20px;
-}
-#examOverlay.open{display:flex;align-items:flex-start;justify-content:center;padding-top:40px}
-.exam-modal{
-  background:var(--card);border:1px solid var(--border);
-  border-radius:24px;width:100%;max-width:560px;
-  box-shadow:0 24px 64px rgba(0,0,0,.7);
-  animation:fadeUp .35s ease both;
-  overflow:hidden;margin-bottom:40px;
-}
-.exam-modal.dash-wide{max-width:980px}
-
-/* Teacher dashboard readability */
-#examTeacherDashboard .exam-title{font-size:1.25rem;font-weight:900}
-#examTeacherDashboard .exam-subtitle{font-size:.92rem}
-#examTeacherDashboard .exam-label{font-size:.78rem}
-#examTeacherDashboard #dashDetail{font-size:.92rem}
-#examTeacherDashboard .dash-card-title{font-size:.95rem;font-weight:900;margin-bottom:10px}
-@media(max-width:900px){
-  .exam-modal.dash-wide{max-width:720px}
-}
-@media(max-width:640px){
-  .exam-modal.dash-wide{max-width:560px}
-}
-.exam-modal-header{
-  background:linear-gradient(135deg,#c2185b,#880e4f);
-  padding:24px 28px;
-  display:flex;align-items:center;gap:14px;
-}
-.exam-modal-header .exam-icon-lg{
-  width:48px;height:48px;border-radius:14px;
-  background:rgba(255,255,255,.18);
-  display:grid;place-items:center;font-size:22px;flex-shrink:0;
-}
-.exam-modal-header h2{font-size:1.2rem;font-weight:800;color:#fff;margin-bottom:2px}
-.exam-modal-header p{font-size:.78rem;color:rgba(255,255,255,.7)}
-.exam-modal-close{
-  margin-left:auto;background:rgba(255,255,255,.15);
-  border:none;border-radius:8px;color:#fff;
-  width:32px;height:32px;cursor:pointer;
-  font-size:1rem;display:grid;place-items:center;
-  transition:background .2s;flex-shrink:0;
-}
-.exam-modal-close:hover{background:rgba(255,255,255,.3)}
-
-/* Steps */
-.exam-steps{display:flex;gap:0;padding:0 28px;background:var(--surface);border-bottom:1px solid var(--border)}
-.exam-step-dot{
-  flex:1;padding:12px 4px;text-align:center;
-  font-size:.68rem;font-weight:700;color:var(--muted);
-  border-bottom:2px solid transparent;transition:all .2s;
-  font-family:'JetBrains Mono',monospace;
-}
-.exam-step-dot.active{color:#e85d75;border-bottom-color:#e85d75}
-.exam-step-dot.done{color:var(--know);border-bottom-color:var(--know)}
-
-.exam-body{padding:28px}
-.exam-step{display:none}.exam-step.active{display:block}
-
-@media(max-width:520px){
-  #examTeacherLobby .exam-body > div[style*="grid-template-columns"]{
-    grid-template-columns:1fr !important;
-  }
-}
-
-.exam-label{
-  font-size:.75rem;font-weight:700;color:var(--muted);
-  letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;
-}
-.exam-title{font-size:1.05rem;font-weight:700;margin-bottom:6px}
-.exam-subtitle{font-size:.82rem;color:var(--muted);margin-bottom:20px;line-height:1.5}
-
-.exam-input{
-  width:100%;padding:13px 16px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);color:var(--text);
-  font-family:'Sora',sans-serif;font-size:.95rem;
-  outline:none;transition:border-color .2s,box-shadow .2s;
-}
-.exam-input:focus{border-color:#e85d75;box-shadow:0 0 0 3px rgba(232,93,117,.15)}
-
-/* Choice buttons */
-.exam-choices{display:flex;flex-direction:column;gap:10px}
-.exam-choice{
-  padding:14px 18px;
-  background:var(--surface);border:1.5px solid var(--border);
-  border-radius:12px;color:var(--text);
-  font-family:'Sora',sans-serif;font-size:.9rem;font-weight:500;
-  cursor:pointer;transition:all .15s;text-align:left;
-  display:flex;align-items:center;gap:12px;
-}
-.exam-choice:hover{border-color:#e85d75;background:rgba(232,93,117,.06)}
-.exam-choice.selected{border-color:#e85d75;background:rgba(232,93,117,.12);color:#e85d75;font-weight:700}
-.exam-choice .ch-icon{font-size:1.2rem;width:28px;text-align:center;flex-shrink:0}
-.exam-choice .ch-desc{font-size:.75rem;color:var(--muted);font-weight:400;margin-top:2px}
-
-/* Difficulty row */
-.diff-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.diff-btn{
-  padding:16px 8px;border:1.5px solid var(--border);
-  border-radius:12px;background:var(--surface);
-  cursor:pointer;text-align:center;transition:all .15s;
-  font-family:'Sora',sans-serif;
-}
-.diff-btn .diff-emoji{font-size:1.6rem;margin-bottom:6px}
-.diff-btn .diff-label{font-size:.82rem;font-weight:700;color:var(--muted)}
-.diff-btn:hover{border-color:#e85d75}
-.diff-btn.selected-easy{border-color:var(--know);background:rgba(61,220,151,.1)}
-.diff-btn.selected-easy .diff-label{color:var(--know)}
-.diff-btn.selected-medium{border-color:var(--accent3);background:rgba(249,168,77,.1)}
-.diff-btn.selected-medium .diff-label{color:var(--accent3)}
-.diff-btn.selected-hard{border-color:var(--unknow);background:rgba(240,94,94,.1)}
-.diff-btn.selected-hard .diff-label{color:var(--unknow)}
-
-/* Question count */
-.count-row{display:flex;align-items:center;gap:14px;margin-top:4px}
-.count-minus,.count-plus{
-  width:40px;height:40px;border-radius:10px;
-  background:var(--surface);border:1.5px solid var(--border);
-  color:var(--text);font-size:1.2rem;cursor:pointer;
-  display:grid;place-items:center;transition:all .15s;
-  font-family:'Sora',sans-serif;
-}
-.count-minus:hover,.count-plus:hover{border-color:#e85d75;color:#e85d75}
-.count-display{
-  flex:1;text-align:center;
-  font-family:'JetBrains Mono',monospace;
-  font-size:2rem;font-weight:700;color:#e85d75;
-}
-.count-label{font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px}
-
-/* Yes/No toggle */
-.yn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
-.yn-btn{
-  padding:18px;border:1.5px solid var(--border);
-  border-radius:14px;background:var(--surface);
-  cursor:pointer;text-align:center;transition:all .15s;
-  font-family:'Sora',sans-serif;
-}
-.yn-btn .yn-emoji{font-size:2rem;margin-bottom:8px}
-.yn-btn .yn-label{font-size:.95rem;font-weight:700;color:var(--muted)}
-.yn-btn .yn-desc{font-size:.75rem;color:var(--muted);margin-top:4px;font-weight:400}
-.yn-btn.selected-yes{border-color:var(--know);background:rgba(61,220,151,.1)}
-.yn-btn.selected-yes .yn-label{color:var(--know)}
-.yn-btn.selected-no{border-color:#e85d75;background:rgba(232,93,117,.1)}
-.yn-btn.selected-no .yn-label{color:#e85d75}
-
-/* Teacher input textarea */
-.teacher-input-area{
-  width:100%;min-height:200px;padding:14px 16px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);color:var(--text);
-  font-family:'JetBrains Mono',monospace;font-size:.82rem;
-  line-height:1.7;resize:vertical;outline:none;
-  transition:border-color .2s;
-}
-.teacher-input-area:focus{border-color:#e85d75;box-shadow:0 0 0 3px rgba(232,93,117,.12)}
-.teacher-format-hint{
-  margin-top:10px;padding:10px 14px;
-  background:rgba(249,168,77,.08);
-  border:1px solid rgba(249,168,77,.25);
-  border-radius:8px;font-size:.75rem;color:var(--accent3);
-  line-height:1.6;font-family:'JetBrains Mono',monospace;
-}
-
-/* Exam nav buttons */
-.exam-nav{display:flex;gap:10px;margin-top:24px;justify-content:flex-end}
-.exam-back-btn{
-  padding:10px 20px;background:transparent;
-  border:1px solid var(--border);border-radius:10px;
-  color:var(--muted);font-family:'Sora',sans-serif;
-  font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s;
-}
-.exam-back-btn:hover{border-color:var(--text);color:var(--text)}
-.exam-next-btn{
-  padding:10px 24px;
-  background:linear-gradient(135deg,#e85d75,#c2185b);
-  border:none;border-radius:10px;color:#fff;
-  font-family:'Sora',sans-serif;font-size:.88rem;font-weight:700;
-  cursor:pointer;transition:all .2s;
-  box-shadow:0 3px 12px rgba(232,93,117,.35);
-}
-.exam-next-btn:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(232,93,117,.5)}
-.exam-next-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-
-/* Exam status */
-.exam-status{
-  margin-top:12px;padding:11px 14px;
-  background:var(--surface);border-radius:10px;
-  font-size:.82rem;color:var(--muted);
-  border-left:3px solid #e85d75;display:none;
-}
-.exam-status.visible{display:block}
-.exam-status.error{border-color:var(--unknow);color:var(--unknow)}
-
-/* Exam playing — reuse quiz styles but override accent */
-#examWrap{display:flex;flex-direction:column;align-items:center;padding:10px 0;min-height:60vh}
-.exam-prog-wrap{width:100%;max-width:560px;margin-bottom:18px}
-.exam-score-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.exam-badge{
-  padding:5px 14px;border-radius:20px;
-  font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;
-}
-.exam-badge.score{background:rgba(232,93,117,.15);border:1px solid rgba(232,93,117,.3);color:#e85d75}
-.exam-badge.prog{background:var(--surface);border:1px solid var(--border);color:var(--muted)}
-.exam-badge.info{background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:.72rem}
-
-.exam-q-card{
-  width:100%;max-width:560px;
-  background:linear-gradient(135deg,var(--card) 0%,#1e1228 100%);
-  border:1px solid rgba(232,93,117,.25);border-radius:20px;
-  padding:28px 32px;margin-bottom:16px;
-  box-shadow:0 8px 32px rgba(0,0,0,.35);
-  min-height:130px;display:flex;flex-direction:column;
-  animation:slideIn .25s ease both;
-}
-.exam-q-num{font-size:.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#e85d75;font-family:'JetBrains Mono',monospace;margin-bottom:12px}
-.exam-q-text{font-size:1.08rem;line-height:1.65;font-weight:500;flex:1}
-
-.exam-opts-grid{
-  width:100%;max-width:560px;
-  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;
-  animation:slideIn .3s ease both;
-}
-@media(max-width:480px){.exam-opts-grid{grid-template-columns:1fr}}
-
-.exam-opt{
-  padding:14px 16px;
-  background:var(--surface);border:1.5px solid var(--border);
-  border-radius:12px;color:var(--text);
-  font-family:'Sora',sans-serif;font-size:.85rem;font-weight:500;
-  line-height:1.5;text-align:left;cursor:pointer;
-  transition:border-color .15s,background .15s,transform .1s;
-  display:flex;align-items:flex-start;gap:10px;
-}
-.exam-opt:hover:not(:disabled){border-color:#e85d75;background:rgba(232,93,117,.06);transform:translateY(-1px)}
-.exam-opt:disabled{cursor:not-allowed}
-.exam-opt.correct{border-color:var(--know)!important;background:rgba(61,220,151,.13)!important;color:var(--know)!important;font-weight:600}
-.exam-opt.wrong{border-color:var(--unknow)!important;background:rgba(240,94,94,.13)!important;color:var(--unknow)!important}
-.exam-opt.reveal{border-color:rgba(61,220,151,.4)!important;background:rgba(61,220,151,.06)!important}
-.exam-opt .opt-key{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:24px;height:24px;min-width:24px;
-  background:var(--border);border-radius:6px;
-  font-size:.7rem;font-weight:700;font-family:'JetBrains Mono',monospace;
-  transition:background .15s;flex-shrink:0;margin-top:1px;
-}
-.exam-opt.correct .opt-key{background:rgba(61,220,151,.3)}
-.exam-opt.wrong .opt-key{background:rgba(240,94,94,.3)}
-.exam-opt.reveal .opt-key{background:rgba(61,220,151,.2)}
-
-.exam-feedback{
-  width:100%;max-width:560px;
-  padding:11px 18px;border-radius:10px;
-  font-size:.84rem;font-weight:600;
-  margin-bottom:14px;display:none;
-}
-.exam-feedback.ok{background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.25);color:var(--know);display:flex;align-items:center;gap:8px}
-.exam-feedback.no{background:rgba(240,94,94,.1);border:1px solid rgba(240,94,94,.25);color:var(--unknow);display:flex;align-items:center;gap:8px}
-
-.exam-done-box{
-  display:none;text-align:center;
-  background:var(--surface);border:1px solid rgba(232,93,117,.3);
-  border-radius:20px;padding:44px 32px;
-  width:100%;max-width:560px;
-}
-.exam-done-box h2{font-size:1.5rem;font-weight:800;margin-bottom:6px}
-.exam-done-score{
-  font-size:4rem;font-weight:800;margin:22px 0 4px;
-  background:linear-gradient(135deg,#e85d75,var(--accent));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  font-family:'JetBrains Mono',monospace;
-}
-.exam-done-sub{font-size:.85rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:20px}
-.exam-done-pills{display:flex;gap:10px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
-.exam-done-msg{color:var(--muted);font-size:.88rem;line-height:1.6;margin-bottom:24px}
-.exam-done-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-
-/* exam prog fill override */
-.exam-prog-fill{
-  height:100%;border-radius:99px;
-  background:linear-gradient(90deg,#e85d75,#c2185b);
-  transition:width .4s ease;
-}
-.exam-info-strip{
-  width:100%;max-width:560px;
-  display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;
-}
-</style>
-</head>
-<body>
-
-<!-- LOGIN -->
-<div id="loginGate">
-  <div class="login-box">
-    <div class="login-logo">🧠</div>
-    <h2>AI Флаш Карт</h2>
-    <p>Нэрээ оруулаад нэвтрэнэ үү</p>
-    <div class="login-field-label">Таны нэр</div>
-    <input type="text" id="loginNameInput" class="login-input" placeholder="Нэрээ оруулна уу…"
-      onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off"/>
-    <button class="login-btn" onclick="doLogin()">✦ Нэвтрэх</button>
-    <div class="login-error" id="loginError"></div>
-  </div>
-</div>
-
-<!-- MAIN -->
-<div id="mainApp">
-
-<header>
-  <div class="logo">🧠</div>
-  <div>
-    <h1>AI Флаш Карт</h1>
-    <span>Groq · llama-3.3-70b</span>
-  </div>
-  <div class="header-user">
-    <button class="exam-room-btn" onclick="openExamRoom()">🎓 Шалгалтийн өрөө</button>
-    <span class="user-badge" id="userBadge"></span>
-    <button class="logout-btn" onclick="doLogout()">Гарах</button>
-  </div>
-</header>
-
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('gen')">✨ Үүсгэх</button>
-  <button class="tab" onclick="switchTab('cards')" id="tab-cards">🃏 Картууд</button>
-  <button class="tab" onclick="switchTab('quiz')" id="tab-quiz">🧪 Тест</button>
-  <button class="tab" onclick="switchTab('study')" id="tab-study">📚 Судлах</button>
-</div>
-
-<!-- GENERATE -->
-<div class="panel active" id="panel-gen">
-  <div class="input-wrap">
-    <textarea id="inputText" placeholder="Флаш карт болгох текстээ энд буулгана уу…" oninput="updateChar()"></textarea>
-    <span class="char-count" id="charCount">0 тэмдэгт</span>
-  </div>
-  <button class="btn btn-primary" id="genBtn" onclick="generateFlashcards()">
-    <span>✦</span> Флаш карт үүсгэх
-  </button>
-  <div class="status-bar" id="statusBar"></div>
-</div>
-
-<!-- CARDS -->
-<div class="panel" id="panel-cards">
-  <div class="stats-strip">
-    <div class="stat-pill"><div class="num" id="totalCount">0</div><div class="lbl">Нийт карт</div></div>
-    <div class="stat-pill know"><div class="num" id="knowCount">0</div><div class="lbl">Мэддэг</div></div>
-    <div class="stat-pill unknow"><div class="num" id="unknowCount">0</div><div class="lbl">Давтах</div></div>
-  </div>
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <button class="btn btn-sm" onclick="exportJSON()">⬇ JSON</button>
-      <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
-      <button class="btn btn-sm btn-danger" onclick="clearAll()">🗑 Бүгдийг устгах</button>
-    </div>
-    <button class="btn btn-sm" onclick="resetStatus()">↺ Төлөв арилгах</button>
-  </div>
-  <div class="cards-grid" id="cardsGrid">
-    <div class="empty-state"><div class="emoji">📭</div><p>Одоохондоо карт байхгүй байна.<br>«Үүсгэх» таб дээр текст оруулна уу.</p></div>
-  </div>
-</div>
-
-<!-- QUIZ / TEST -->
-<div class="panel" id="panel-quiz">
-  <div class="quiz-wrap" id="quizWrap"></div>
-</div>
-
-<!-- STUDY -->
-<div class="panel" id="panel-study">
-  <div class="study-wrap" id="studyWrap">
-    <div class="empty-state"><div class="emoji">📚</div><p>Эхлэхийн тулд карт үүсгэнэ үү.</p></div>
-  </div>
-</div>
-
-<!-- EDIT MODAL -->
-<div class="modal-bg" id="editModal">
-  <div class="modal">
-    <h3>✏️ Карт засах</h3>
-    <div class="field-label">Асуулт</div>
-    <textarea id="editQ"></textarea>
-    <div class="field-label">Хариулт</div>
-    <textarea id="editA"></textarea>
-    <div class="modal-actions">
-      <button class="btn btn-sm" onclick="closeModal()">Цуцлах</button>
-      <button class="btn btn-primary" onclick="saveEdit()">Хадгалах</button>
-    </div>
-  </div>
-</div>
-
-</div><!-- /mainApp -->
-
-<!-- ═══ EXAM ROOM OVERLAY ═══ -->
-<div id="examOverlay">
-  <!-- SETUP WIZARD -->
-  <div class="exam-modal" id="examSetupModal">
-    <div class="exam-modal-header">
-      <div class="exam-icon-lg">🎓</div>
-      <div>
-        <h2>Шалгалтийн өрөө</h2>
-        <p>Тохиргоогоо хийгээд шалгалт эхлүүлнэ үү</p>
-      </div>
-      <button class="exam-modal-close" onclick="closeExamRoom()">✕</button>
-    </div>
-
-    <!-- Step indicators -->
-    <div class="exam-steps">
-      <div class="exam-step-dot active" id="estep0">1 · Хичээл</div>
-      <div class="exam-step-dot" id="estep1">2 · Түвшин</div>
-      <div class="exam-step-dot" id="estep2">3 · Төрөл</div>
-      <div class="exam-step-dot" id="estep3">4 · Тоо</div>
-      <div class="exam-step-dot" id="estep4">5 · Эх</div>
-    </div>
-
-    <div class="exam-body">
-
-      <!-- STEP 1: Subject -->
-      <div class="exam-step active" id="estep-body-0">
-        <div class="exam-label">Алхам 1 / 5</div>
-        <div class="exam-title">Ямар хичээлийн шалгалт авах вэ?</div>
-        <div class="exam-subtitle">Шалгалт авах хичээлийн нэрийг оруулна уу</div>
-        <input class="exam-input" id="examSubject" type="text" placeholder="Жишээ нь: Англи хэл, Математик, Химийн бодис…"
-          onkeydown="if(event.key==='Enter')examNext()" autocomplete="off"/>
-        <div class="exam-nav">
-          <button class="exam-next-btn" onclick="examNext()">Дараах →</button>
-        </div>
-      </div>
-
-      <!-- STEP 2: Difficulty -->
-      <div class="exam-step" id="estep-body-1">
-        <div class="exam-label">Алхам 2 / 5</div>
-        <div class="exam-title">Шалгалтийн түвшин</div>
-        <div class="exam-subtitle">Хэрэглэгчдэд тохирох хүндрэлийн зэргийг сонгоно уу</div>
-        <div class="diff-row">
-          <button class="diff-btn" id="diff-easy" onclick="selectDiff('easy')">
-            <div class="diff-emoji">😊</div>
-            <div class="diff-label">Амархан</div>
-          </button>
-          <button class="diff-btn" id="diff-medium" onclick="selectDiff('medium')">
-            <div class="diff-emoji">🤔</div>
-            <div class="diff-label">Дунд</div>
-          </button>
-          <button class="diff-btn" id="diff-hard" onclick="selectDiff('hard')">
-            <div class="diff-emoji">🔥</div>
-            <div class="diff-label">Хэцүү</div>
-          </button>
-        </div>
-        <div class="exam-nav">
-          <button class="exam-back-btn" onclick="examBack()">← Буцах</button>
-          <button class="exam-next-btn" onclick="examNext()">Дараах →</button>
-        </div>
-      </div>
-
-      <!-- STEP 3: Exam type -->
-      <div class="exam-step" id="estep-body-2">
-        <div class="exam-label">Алхам 3 / 5</div>
-        <div class="exam-title">Шалгалтийн төрөл / сэдэв</div>
-        <div class="exam-subtitle">Шалгалт яг ямар төрлийнх, ямар сэдвийн талаар байх вэ?<br>Жишээ нь: Present Simple, Квадрат тэгшитгэл, Молийн масс…</div>
-        <input class="exam-input" id="examType" type="text" placeholder="Шалгалтийн сэдэв / төрлийг оруулна уу…"
-          onkeydown="if(event.key==='Enter')examNext()" autocomplete="off"/>
-        <div class="exam-nav">
-          <button class="exam-back-btn" onclick="examBack()">← Буцах</button>
-          <button class="exam-next-btn" onclick="examNext()">Дараах →</button>
-        </div>
-      </div>
-
-      <!-- STEP 4: Question count -->
-      <div class="exam-step" id="estep-body-3">
-        <div class="exam-label">Алхам 4 / 5</div>
-        <div class="exam-title">Асуултын тоо</div>
-        <div class="exam-subtitle">Шалгалтад хэдэн асуулт байхыг хүсэж байна вэ?</div>
-        <div class="count-row">
-          <button class="count-minus" onclick="changeCount(-1)">−</button>
-          <div>
-            <div class="count-display" id="examCountDisplay">10</div>
-            <div class="count-label">асуулт</div>
-          </div>
-          <button class="count-plus" onclick="changeCount(1)">+</button>
-        </div>
-        <div class="exam-nav">
-          <button class="exam-back-btn" onclick="examBack()">← Буцах</button>
-          <button class="exam-next-btn" onclick="examNext()">Дараах →</button>
-        </div>
-      </div>
-
-      <!-- STEP 5: Teacher input or AI -->
-      <div class="exam-step" id="estep-body-4">
-        <div class="exam-label">Алхам 5 / 5</div>
-        <div class="exam-title">Шалгалтийн тест хаанаас авах вэ?</div>
-        <div class="exam-subtitle">Та өөрийн бэлтгэсэн тест оруулах уу, эсвэл AI тест зохиох уу?</div>
-        <div class="yn-row">
-          <button class="yn-btn" id="yn-yes" onclick="selectSource('teacher')">
-            <div class="yn-emoji">✍️</div>
-            <div class="yn-label">Тийм</div>
-            <div class="yn-desc">Багш өөрийн тестийг оруулна</div>
-          </button>
-          <button class="yn-btn" id="yn-no" onclick="selectSource('ai')">
-            <div class="yn-emoji">🤖</div>
-            <div class="yn-label">Үгүй</div>
-            <div class="yn-desc">AI автоматаар тест зохионо</div>
-          </button>
-        </div>
-
-        <!-- Teacher input (conditionally shown) -->
-        <div id="teacherInputWrap" style="display:none;margin-top:20px">
-          <div class="exam-label" style="margin-bottom:8px">Тестийн асуулт оруулах</div>
-          <textarea class="teacher-input-area" id="teacherTestTA"
-            placeholder="Асуулт бүрийг дараах форматаар оруулна уу:&#10;&#10;Асуулт: Энд асуулт бичнэ?&#10;A) Хариулт нэг&#10;B) Хариулт хоёр&#10;C) Хариулт гурав&#10;D) Хариулт дөрөв&#10;Зөв: A&#10;&#10;Асуулт: Дараагийн асуулт?&#10;A) ..."></textarea>
-          <div class="teacher-format-hint">
-            💡 Формат: Асуулт → A B C D сонголтууд → Зөв: [үсэг]<br>
-            Зөв хариулт үсгийг ЗААВАЛ тэмдэглэнэ — Зөв: A эсвэл Зөв: B гэх мэт
-          </div>
-        </div>
-
-        <div class="exam-status" id="examSetupStatus"></div>
-        <div class="exam-nav">
-          <button class="exam-back-btn" onclick="examBack()">← Буцах</button>
-          <button class="exam-next-btn" id="examStartBtn" onclick="startExamRoom()">📌 Өрөө үүсгэх (QR)</button>
-        </div>
-      </div>
-
-    </div><!-- /exam-body -->
-  </div><!-- /exam-modal -->
-
-  <!-- TEACHER LOBBY (QR + students) -->
-  <div class="exam-modal" id="examTeacherLobby" style="display:none">
-    <div class="exam-modal-header">
-      <div class="exam-icon-lg">📌</div>
-      <div>
-        <h2>Өрөө үүссэн</h2>
-        <p>QR-ийг тараагаад сурагчдыг нэмнэ</p>
-      </div>
-      <button class="exam-modal-close" onclick="closeExamRoom()">✕</button>
-    </div>
-    <div class="exam-body">
-      <div class="exam-title" style="margin-bottom:6px" id="lobbyTitle"></div>
-      <div class="exam-subtitle" style="margin-bottom:16px" id="lobbySubtitle"></div>
-
-      <div style="display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:start">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;display:grid;place-items:center;min-height:190px">
-          <div id="lobbyQR"></div>
-        </div>
-        <div>
-          <div class="exam-label" style="margin-bottom:8px">Сурагчдад өгөх холбоос</div>
-          <input class="exam-input" id="lobbyLink" readonly onclick="this.select()" />
-          <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-            <button class="exam-next-btn" style="padding:10px 18px" onclick="copyLobbyLink()">📋 Линк хуулах</button>
-            <button class="exam-next-btn" style="padding:10px 18px;background:linear-gradient(135deg,var(--know),#1aa96a)" onclick="teacherStartRoomNow()">✅ Шалгалт эхлүүлэх</button>
-            <button class="exam-next-btn" id="openDashBtn" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent2),#178a84);opacity:.55;cursor:not-allowed" onclick="openTeacherDashboard()">
-              📊 Хяналтын самбар
-            </button>
-            <button class="exam-back-btn" onclick="resetExamRoomToSetup()">↺ Дахин тохируулах</button>
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-top:20px">
-        <div class="exam-label" style="margin-bottom:10px">Нэгдсэн сурагчид</div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px">
-          <div id="lobbyStudentsEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">
-            Одоогоор сурагч нэгдээгүй байна. QR уншуулмагц энд нэр нь харагдана.
-          </div>
-          <div id="lobbyStudentsList" style="display:none"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- STUDENT JOIN -->
-  <div class="exam-modal" id="examStudentJoin" style="display:none">
-    <div class="exam-modal-header">
-      <div class="exam-icon-lg">🧑‍🎓</div>
-      <div>
-        <h2>Шалгалтын өрөө рүү нэгдэх</h2>
-        <p>Нэрээ бичээд нэгдэнэ</p>
-      </div>
-      <button class="exam-modal-close" onclick="closeStudentJoin()">✕</button>
-    </div>
-    <div class="exam-body">
-      <div class="exam-label">Өрөө</div>
-      <div class="exam-title" id="joinRoomInfo" style="margin-bottom:14px"></div>
-      <div class="exam-label">Таны нэр</div>
-      <input class="exam-input" id="joinStudentName" type="text" placeholder="Нэрээ оруулна уу…" autocomplete="off"
-        onkeydown="if(event.key==='Enter')joinRoomNow()"/>
-      <div class="exam-status" id="joinStatus"></div>
-      <div id="studentWaitWrap" style="display:none;margin-top:14px">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px">
-          <div style="font-size:.78rem;color:var(--muted);line-height:1.6" id="studentWaitText">
-            Багш шалгалтыг эхлүүлэхийг хүлээнэ үү…
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-            <button class="exam-next-btn" id="studentStartBtn" style="padding:10px 18px;display:none" onclick="studentGenerateAndStartExam()">
-              🧪 Тест боловсруулж харуулах
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="exam-nav" style="justify-content:space-between">
-        <button class="exam-back-btn" onclick="closeStudentJoin()">Цуцлах</button>
-        <button class="exam-next-btn" onclick="joinRoomNow()">Нэгдэх</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TEACHER DASHBOARD (4 sections) -->
-  <div class="exam-modal dash-wide" id="examTeacherDashboard" style="display:none">
-    <div class="exam-modal-header">
-      <div class="exam-icon-lg">📊</div>
-      <div>
-        <h2>Хяналтын самбар</h2>
-        <p>Realtime явц · cheat · дүн · дэлгэрэнгүй</p>
-      </div>
-      <button class="exam-modal-close" onclick="closeTeacherDashboard()">✕</button>
-    </div>
-    <div class="exam-body">
-      <div class="exam-title" style="margin-bottom:6px" id="dashTitle"></div>
-      <div class="exam-subtitle" style="margin-bottom:18px" id="dashSubtitle"></div>
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <div style="padding:8px 12px;border-radius:999px;background:rgba(61,220,151,.10);border:1px solid rgba(61,220,151,.25);font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--know);font-weight:700">
-          🟠 Явж байна: <span id="dashCountActive">0</span>
-        </div>
-        <div style="padding:8px 12px;border-radius:999px;background:rgba(232,93,117,.10);border:1px solid rgba(232,93,117,.25);font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#e85d75;font-weight:700">
-          ⚠ Cheat: <span id="dashCountCheat">0</span>
-        </div>
-        <div style="padding:8px 12px;border-radius:999px;background:rgba(124,106,247,.10);border:1px solid rgba(124,106,247,.25);font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--accent);font-weight:700">
-          ✅ Дууссан: <span id="dashCountDone">0</span>
-        </div>
-      </div>
-
-      <div style="display:grid;gap:14px">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
-          <div class="dash-card-title">1) Шалгалт өгч байгаа сурагчид</div>
-          <div id="dashActiveEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Одоогоор идэвхтэй шалгалт өгч буй сурагч алга.</div>
-          <div id="dashActiveList" style="display:none"></div>
-        </div>
-
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
-          <div class="dash-card-title">2) Cheat хийсэн сурагчид (давтамж · цаг · нэр)</div>
-          <div id="dashCheatEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Cheat сэжиг илрээгүй байна.</div>
-          <div id="dashCheatList" style="display:none"></div>
-        </div>
-
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
-          <div class="dash-card-title">3) Дүн</div>
-          <div id="dashScoreEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Одоогоор дүн ирээгүй байна.</div>
-          <div id="dashScoreList" style="display:none"></div>
-        </div>
-
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px">
-          <div class="dash-card-title">4) Realtime явц (сурагч дээр дарж дэлгэрэнгүй)</div>
-          <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:12px">
-            <div style="border:1px solid var(--border);border-radius:14px;padding:10px">
-              <div id="dashRealtimeEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Сурагчдын жагсаалт энд гарна.</div>
-              <div id="dashRealtimeList" style="display:none"></div>
-            </div>
-            <div style="border:1px solid var(--border);border-radius:14px;padding:12px;min-height:120px">
-              <div id="dashDetailEmpty" style="color:var(--muted);font-size:.85rem;line-height:1.6">Дэлгэрэнгүй харах сурагч сонгоно уу.</div>
-              <div id="dashDetail" style="display:none"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="exam-nav" style="justify-content:flex-end">
-        <button class="exam-back-btn" onclick="closeTeacherDashboard()">Буцах</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- EXAM PLAYING AREA (replaces setup modal) -->
-  <div id="examPlayArea" style="display:none;width:100%;max-width:600px;margin:0 auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div>
-        <div style="font-size:.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#e85d75;font-family:'JetBrains Mono',monospace" id="examPlayTitle">ШАЛГАЛТ</div>
-        <div style="font-size:1rem;font-weight:700;margin-top:2px" id="examPlaySubtitle"></div>
-      </div>
-      <button class="exam-modal-close" style="background:rgba(232,93,117,.15);color:#e85d75;border:1px solid rgba(232,93,117,.3)" onclick="closeExamRoom()">✕</button>
-    </div>
-
-    <div id="examWrap">
-      <!-- injected by JS -->
-    </div>
-  </div>
-
-</div><!-- /examOverlay -->
-
-<!-- QR Code generator (no build step) -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
-<!-- Firebase (Realtime Database) - compat build for simple <script> usage -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script>
-// ══════════════════════════
-// CONFIG
-// ══════════════════════════
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw27PhqlrB8dNs4MFWXGS9YQHyqIfTkfaXEHcgsRpTknkMR_eXiakWTRHdn52xvuqxRaw/exec";
-
-// Firebase config (Realtime Database)
-const firebaseConfig = {
-  apiKey: "AIzaSyAddchhmnHEXDvpT9QzOICOW8xJL1gHZYw",
-  authDomain: "flashcard-security.firebaseapp.com",
-  databaseURL: "https://flashcard-security-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "flashcard-security",
-  storageBucket: "flashcard-security.firebasestorage.app",
-  messagingSenderId: "666100969765",
-  appId: "1:666100969765:web:b2a5a7b17b12222db5aacc",
-  measurementId: "G-PE2G3EGPV8"
-};
-
-let firebaseApp = null;
-let rtdb = null;
-function initFirebaseOnce(){
-  if(rtdb) return;
-  if(!window.firebase || !firebase?.initializeApp) throw new Error('Firebase script ачаалж чадсангүй.');
-  firebaseApp = firebase.initializeApp(firebaseConfig);
-  rtdb = firebase.database();
-}
-
-// ══════════════════════════
-// STATE
-// ══════════════════════════
-let cards        = JSON.parse(localStorage.getItem('fc_cards') || '[]');
-let userName     = '';
-let editIdx      = null;
-let studyDeck    = [], studyIdx = 0, studyFlipped = false;
-
-// Quiz state
-let quizQuestions = []; // [{q, correct, wrong:[w1,w2,w3]}]
-let quizIdx       = 0;
-let quizScore     = 0;
-let quizWrong     = 0;
-let quizAnswered  = false;
-let quizInputText = '';
-
-// ══════════════════════════
-// LOGIN
-// ══════════════════════════
-function doLogin() {
-  const n = document.getElementById('loginNameInput').value.trim();
-  const err = document.getElementById('loginError');
-  if (!n) { err.textContent='⚠️ Нэрээ оруулна уу!'; err.classList.add('visible'); return; }
-  err.classList.remove('visible');
-  userName = n;
-  document.getElementById('userBadge').textContent = '👤 '+userName;
-  document.getElementById('loginGate').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
-  updateStats();
-  renderQuizInput(); // prime quiz
-}
-function doLogout() {
-  userName = '';
-  document.getElementById('loginNameInput').value = '';
-  document.getElementById('loginError').classList.remove('visible');
-  document.getElementById('mainApp').style.display = 'none';
-  document.getElementById('loginGate').style.display = 'flex';
-}
-
-// ══════════════════════════
-// PERSIST / TABS
-// ══════════════════════════
-function save() { localStorage.setItem('fc_cards', JSON.stringify(cards)); updateStats(); }
-
-const TABS   = ['gen','cards','quiz','study'];
-const PANELS = ['panel-gen','panel-cards','panel-quiz','panel-study'];
-function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active', TABS[i]===t));
-  document.querySelectorAll('.panel').forEach((el,i)=>el.classList.toggle('active', PANELS[i]==='panel-'+t));
-  if(t==='cards') renderCards();
-  if(t==='quiz')  { if(!quizQuestions.length) renderQuizInput(); }
-  if(t==='study') initStudy();
-}
-function updateChar() {
-  document.getElementById('charCount').textContent = document.getElementById('inputText').value.length.toLocaleString()+' тэмдэгт';
-}
-
-// ══════════════════════════
-// FLASHCARD GENERATE
-// ══════════════════════════
-async function generateFlashcards() {
-  const inputText = document.getElementById('inputText').value.trim();
-  const sb = document.getElementById('statusBar'), btn = document.getElementById('genBtn');
-  if(!inputText){alert('Текстээ оруулна уу!');return;}
-  btn.disabled=true; sb.className='status-bar visible'; sb.textContent='⏳ AI бодож байна… түр хүлээнэ үү.';
-  try {
-    const res = await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'flashcard',userName,inputText})});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    if(data.error){sb.className='status-bar visible error';sb.textContent='❌ '+data.error;return;}
-    let parsed=[];
-    if(Array.isArray(data.cards)&&data.cards.length){
-      parsed=data.cards.map(c=>({q:(c.q||c.question||'').trim(),a:(c.a||c.answer||'').trim()})).filter(c=>c.q&&c.a&&c.q!==c.a);
-    }
-    if(!parsed.length){
-      const raw=typeof data==='string'?data:(data.result||data.output||data.text||'');
-      if(raw)parsed=parseRawText(raw);
-    }
-    if(!parsed.length) throw new Error('Карт задлах боломжгүй.');
-    const newCards=parsed.map(c=>({q:c.q,a:c.a,status:'none'}));
-    cards.push(...newCards); save();
-    sb.className='status-bar visible'; sb.textContent=`✅ ${newCards.length} карт амжилттай үүслээ!`;
-    document.getElementById('inputText').value=''; updateChar();
-    setTimeout(()=>switchTab('cards'),800);
-  } catch(e){sb.className='status-bar visible error';sb.textContent='❌ Алдаа: '+e.message;}
-  finally{btn.disabled=false;}
-}
-
-function parseRawText(raw) {
-  let p=[];
-  try{const m=raw.match(/\[[\s\S]*?\]/);if(m){const a=JSON.parse(m[0]);if(Array.isArray(a)&&a.length)p=a;}}catch{}
-  if(!p.length){
-    const blocks=raw.split(/\n\s*\n/);
-    for(const b of blocks){const qm=b.match(/(?:Асуулт|Q)\s*[:\-]\s*(.+)/i),am=b.match(/(?:Хариулт|A)\s*[:\-]\s*([\s\S]+)/i);if(qm&&am)p.push({q:qm[1].trim(),a:am[1].trim().split('\n')[0].trim()});}
-  }
-  if(!p.length){const lines=raw.split('\n');let c={};for(const l of lines){const t=l.trim(),qm=t.match(/^(?:Асуулт|Q)\s*[:\-]\s*(.+)/i),am=t.match(/^(?:Хариулт|A)\s*[:\-]\s*(.+)/i);if(qm)c.q=qm[1].trim();else if(am&&c.q){c.a=am[1].trim();p.push({...c});c={};}}}
-  return p.map(c=>({q:c.q||'',a:c.a||''})).filter(c=>c.q&&c.a&&c.q!==c.a);
-}
-
-// ══════════════════════════
-// CARDS
-// ══════════════════════════
-function renderCards() {
-  const grid=document.getElementById('cardsGrid');
-  if(!cards.length){grid.innerHTML=`<div class="empty-state"><div class="emoji">📭</div><p>Одоохондоо карт байхгүй байна.<br>«Үүсгэх» таб дээр текст оруулна уу.</p></div>`;return;}
-  grid.innerHTML=cards.map((c,i)=>`
-    <div class="flip-wrap ${c.flipped?'flipped':''}" onclick="flipCard(event,${i})" style="animation-delay:${i*.04}s">
-      <div class="flip-inner">
-        <div class="flip-front">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div class="card-badge">Асуулт · ${i+1}</div>
-            <div class="card-tag ${c.status==='know'?'know':c.status==='unknow'?'unknow':''}"></div>
-          </div>
-          <div class="card-text">${esc(c.q)}</div>
-          <div class="card-actions">
-            <button class="btn btn-sm" onclick="openEdit(event,${i})">✏️ Засах</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteCard(event,${i})">🗑</button>
-          </div>
-        </div>
-        <div class="flip-back">
-          <div class="card-badge">Хариулт</div>
-          <div class="card-text">${esc(c.a)}</div>
-        </div>
-      </div>
-    </div>`).join('');
-  updateStats();
-}
-function flipCard(e,i){if(e.target.closest('button'))return;cards[i].flipped=!cards[i].flipped;document.querySelectorAll('.flip-wrap')[i].classList.toggle('flipped',cards[i].flipped);}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function updateStats(){
-  document.getElementById('totalCount').textContent=cards.length;
-  document.getElementById('knowCount').textContent=cards.filter(c=>c.status==='know').length;
-  document.getElementById('unknowCount').textContent=cards.filter(c=>c.status==='unknow').length;
-  document.getElementById('tab-cards').textContent=cards.length?`🃏 Картууд (${cards.length})`:'🃏 Картууд';
-}
-function openEdit(e,i){e.stopPropagation();editIdx=i;document.getElementById('editQ').value=cards[i].q;document.getElementById('editA').value=cards[i].a;document.getElementById('editModal').classList.add('open');}
-function closeModal(){document.getElementById('editModal').classList.remove('open');}
-function saveEdit(){cards[editIdx].q=document.getElementById('editQ').value.trim();cards[editIdx].a=document.getElementById('editA').value.trim();save();closeModal();renderCards();}
-function deleteCard(e,i){e.stopPropagation();if(!confirm('Энэ картыг устгах уу?'))return;cards.splice(i,1);save();renderCards();}
-function clearAll(){if(!cards.length)return;if(!confirm('Бүх картыг устгах уу?'))return;cards=[];save();renderCards();}
-function resetStatus(){cards.forEach(c=>{c.status='none';c.flipped=false;});save();renderCards();}
-function exportJSON(){const b=new Blob([JSON.stringify(cards.map(c=>({question:c.q,answer:c.a})),null,2)],{type:'application/json'});dl(b,'flashcards.json');}
-function exportCSV(){const rows=[['Асуулт','Хариулт'],...cards.map(c=>[`"${c.q.replace(/"/g,'""')}"`,`"${c.a.replace(/"/g,'""')}"`])];const b=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8'});dl(b,'flashcards.csv');}
-function dl(b,n){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click();}
-
-// ══════════════════════════════════════════════════
-// QUIZ / TEST  — AI-powered from own text input
-// ══════════════════════════════════════════════════
-function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-
-function renderQuizInput() {
-  quizQuestions=[];quizIdx=0;quizScore=0;quizWrong=0;
-  document.getElementById('quizWrap').innerHTML=`
-    <div class="quiz-input-box">
-      <div class="quiz-input-header">
-        <div class="quiz-icon">🧪</div>
-        <div>
-          <h2>AI Тест үүсгэгч</h2>
-          <p>Текстээ оруулахад AI тест зохионо</p>
-        </div>
-      </div>
-      <div class="quiz-input-body">
-        <div class="quiz-meta">
-          <span class="quiz-meta-pill">🤖 <span>llama-3.3-70b</span></span>
-          <span class="quiz-meta-pill">✦ <span>4 сонголт</span></span>
-          <span class="quiz-meta-pill">📋 <span>8–15 асуулт</span></span>
-        </div>
-        <div class="input-wrap" style="margin-bottom:14px">
-          <textarea id="quizInputTA" placeholder="Тест болгох текстээ энд буулгана уу…\n\nЖишээ нь: хичээлийн тэмдэглэл, ном, нийтлэл, лекц…" oninput="updateQuizChar()"></textarea>
-          <span class="char-count" id="quizCharCount">0 тэмдэгт</span>
-        </div>
-        <button class="btn-quiz" id="quizGenBtn" onclick="generateTest()">
-          <span>🧪</span> Тест үүсгэх
-        </button>
-        <div class="status-bar" id="quizStatusBar" style="margin-top:14px"></div>
-      </div>
-    </div>`;
-}
-
-function updateQuizChar() {
-  const v=document.getElementById('quizInputTA')?.value.length||0;
-  const el=document.getElementById('quizCharCount');
-  if(el) el.textContent=v.toLocaleString()+' тэмдэгт';
-}
-
-async function generateTest() {
-  const ta=document.getElementById('quizInputTA');
-  const inputText=(ta?.value||'').trim();
-  const sb=document.getElementById('quizStatusBar');
-  const btn=document.getElementById('quizGenBtn');
-  if(!inputText){alert('Текстээ оруулна уу!');return;}
-
-  quizInputText=inputText;
-  btn.disabled=true;
-  sb.className='status-bar visible';
-  sb.innerHTML=`⏳ AI тест боловсруулж байна… <span class="loading-dots"><span></span><span></span><span></span></span>`;
-
-  try {
-    const res=await fetch(SCRIPT_URL,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'test',userName,inputText})
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
-    if(data.error){sb.className='status-bar visible error';sb.textContent='❌ '+data.error;btn.disabled=false;return;}
-
-    let questions=[];
-    if(Array.isArray(data.questions)&&data.questions.length){
-      questions=data.questions.filter(q=>q.q&&q.correct&&Array.isArray(q.wrong)&&q.wrong.length>=1);
-    }
-    if(!questions.length) throw new Error('Тест үүсгэж чадсангүй. Текстийн агуулгаа шалгана уу.');
-
-    quizQuestions=shuffle(questions);
-    startQuiz();
-  } catch(e){
-    sb.className='status-bar visible error';
-    sb.textContent='❌ Алдаа: '+e.message;
-    btn.disabled=false;
-  }
-}
-
-function startQuiz() {
-  quizIdx=0;quizScore=0;quizWrong=0;quizAnswered=false;
-  const wrap=document.getElementById('quizWrap');
-  wrap.innerHTML=`
-    <div class="quiz-prog-wrap">
-      <div class="quiz-score-row">
-        <span class="quiz-score-badge prog" id="qProgLabel">1 / ${quizQuestions.length}</span>
-        <span class="quiz-score-badge score" id="qScoreLabel">⭐ 0</span>
-      </div>
-      <div class="prog-track"><div class="prog-fill" id="qFill" style="width:0%"></div></div>
-    </div>
-    <div id="qCard"></div>
-    <div class="quiz-feedback-bar" id="qFeedback"></div>
-    <div id="qOpts"></div>
-    <div class="quiz-done-box" id="qDone">
-      <div style="font-size:3rem;margin-bottom:8px">🏆</div>
-      <h2>Тест дууслаа!</h2>
-      <div class="quiz-done-score" id="qDoneScore"></div>
-      <div class="quiz-done-sub" id="qDoneSub"></div>
-      <div class="quiz-done-pills">
-        <span class="done-pill good" id="qDoneGood"></span>
-        <span class="done-pill bad" id="qDoneBad"></span>
-        <span class="done-pill neutral" id="qDoneTotal"></span>
-      </div>
-      <p class="quiz-done-msg" id="qDoneMsg"></p>
-      <div class="quiz-done-actions">
-        <button class="btn-quiz" style="width:auto;padding:11px 24px" onclick="startQuiz()">↺ Дахин тест</button>
-        <button class="btn btn-sm" onclick="renderQuizInput()">✦ Шинэ текст</button>
-        <button class="btn btn-sm" onclick="switchTab('study')">📚 Судлах</button>
-      </div>
-    </div>`;
-  renderQuestion();
-}
-
-function renderQuestion() {
-  if(quizIdx>=quizQuestions.length){showQuizDone();return;}
-  quizAnswered=false;
-
-  const q=quizQuestions[quizIdx];
-  const pct=Math.round(quizIdx/quizQuestions.length*100);
-  document.getElementById('qFill').style.width=pct+'%';
-  document.getElementById('qProgLabel').textContent=`${quizIdx+1} / ${quizQuestions.length}`;
-  document.getElementById('qScoreLabel').textContent=`⭐ ${quizScore}`;
-
-  // Clear feedback
-  const fb=document.getElementById('qFeedback');
-  fb.className='quiz-feedback-bar';fb.innerHTML='';
-
-  // Question card
-  document.getElementById('qCard').innerHTML=`
-    <div class="quiz-q-card">
-      <div class="quiz-q-num">АСУУЛТ ${quizIdx+1}</div>
-      <div class="quiz-q-text">${esc(q.q)}</div>
-    </div>`;
-
-  // Build options: 1 correct + up to 3 wrong, shuffled
-  const KEYS=['A','B','C','D'];
-  const wrongs=(q.wrong||[]).slice(0,3);
-  // Pad if AI returned fewer wrong answers
-  while(wrongs.length<3) wrongs.push('—');
-  const opts=shuffle([
-    {text:q.correct,ok:true},
-    ...wrongs.map(w=>({text:w,ok:false}))
-  ]);
-
-  document.getElementById('qOpts').innerHTML=`
-    <div class="quiz-options-grid">
-      ${opts.map((o,i)=>`
-        <button class="quiz-opt" onclick="answerQ(this,${o.ok},'${escQ(q.correct)}')" data-ok="${o.ok}">
-          <span class="opt-key">${KEYS[i]}</span>
-          <span>${esc(o.text)}</span>
-        </button>`).join('')}
-    </div>`;
-}
-
-function escQ(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-
-function answerQ(btn, isOk, correctText) {
-  if(quizAnswered)return;
-  quizAnswered=true;
-
-  // Disable all, reveal correct
-  document.querySelectorAll('.quiz-opt').forEach(b=>{
-    b.disabled=true;b.style.pointerEvents='none';
-    if(b.dataset.ok==='true') b.classList.add(isOk?'correct':'reveal');
-  });
-
-  const fb=document.getElementById('qFeedback');
-  if(isOk){
-    quizScore++;
-    document.getElementById('qScoreLabel').textContent=`⭐ ${quizScore}`;
-    btn.classList.add('correct');
-    fb.className='quiz-feedback-bar ok';
-    fb.innerHTML='<span>✓</span> Зөв! Маш сайн.';
-  } else {
-    quizWrong++;
-    btn.classList.add('wrong');
-    fb.className='quiz-feedback-bar no';
-    fb.innerHTML=`<span>✕</span> Буруу. Зөв хариулт: <strong>${esc(correctText)}</strong>`;
-  }
-
-  setTimeout(()=>{quizIdx++;renderQuestion();},1500);
-}
-
-function showQuizDone() {
-  document.getElementById('qCard').style.display='none';
-  document.getElementById('qOpts').style.display='none';
-  document.getElementById('qFeedback').style.display='none';
-  const total=quizQuestions.length;
-  const pct=Math.round(quizScore/total*100);
-  document.getElementById('qFill').style.width='100%';
-  document.getElementById('qProgLabel').textContent=`${total} / ${total}`;
-  document.getElementById('qDoneScore').textContent=pct+'%';
-  document.getElementById('qDoneSub').textContent=`${quizScore} зөв · ${total} асуултаас`;
-  document.getElementById('qDoneGood').textContent=`✓ ${quizScore} зөв`;
-  document.getElementById('qDoneBad').textContent=`✕ ${quizWrong} буруу`;
-  document.getElementById('qDoneTotal').textContent=`📋 ${total} нийт`;
-  const msgs=[
-    [100,'🎉 Гайхалтай! Бүх асуултыг зөв хариуллаа. Та сэдвийг бүрэн эзэмшжээ!'],
-    [80, '👏 Маш сайн үр дүн! Материалыг сайн мэдэж байна.'],
-    [60, '📖 Дунд зэргийн үр дүн. Буруу хариулсан хэсгүүдийг давтаарай.'],
-    [40, '💪 Суулгах шаардлагатай. Текстийг дахин уншаад туршаарай.'],
-    [0,  '🔁 Ойлгоогүй зүйл их байна. Дахин сурч тест өг!'],
-  ];
-  const msg=msgs.find(m=>pct>=m[0]);
-  document.getElementById('qDoneMsg').textContent=msg?msg[1]:'';
-  document.getElementById('qDone').style.display='block';
-}
-
-// ══════════════════════════
-// STUDY MODE
-// ══════════════════════════
-function initStudy(){
-  const wrap=document.getElementById('studyWrap');
-  if(!cards.length){wrap.innerHTML=`<div class="empty-state"><div class="emoji">📚</div><p>Эхлэхийн тулд карт үүсгэнэ үү.</p></div>`;return;}
-  studyDeck=[...cards.map((c,i)=>({...c,_i:i}))].filter(c=>c.status!=='know');
-  if(!studyDeck.length)studyDeck=cards.map((c,i)=>({...c,_i:i}));
-  for(let i=studyDeck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[studyDeck[i],studyDeck[j]]=[studyDeck[j],studyDeck[i]];}
-  studyIdx=0;studyFlipped=false;
-  wrap.innerHTML=`
-    <div class="prog-wrap">
-      <div class="prog-track"><div class="prog-fill" id="sFill" style="width:0%"></div></div>
-      <div class="prog-label"><span id="sTxt">1 / ${studyDeck.length}</span><span id="sPct">0%</span></div>
-    </div>
-    <div class="study-card-wrap" id="sCard" onclick="flipStudy()">
-      <div class="study-inner">
-        <div class="study-front"><div class="study-badge">Асуулт</div><div class="study-q" id="sQ"></div><div class="study-hint">Дарж хариултыг харна уу</div></div>
-        <div class="study-back"><div class="study-badge">Хариулт</div><div class="study-q" id="sA"></div></div>
-      </div>
-    </div>
-    <div class="study-btns" id="sBtns">
-      <button class="btn-unknow" onclick="markStudy('unknow')">✕ Мэдэхгүй</button>
-      <button class="btn-know" onclick="markStudy('know')">✓ Мэдлээ</button>
-    </div>
-    <div class="done-box" id="sDone">
-      <div>🎉</div><h2>Дууслаа!</h2>
-      <div class="done-score" id="sDoneScore"></div>
-      <p id="sDoneTxt"></p>
-      <button class="btn btn-primary" onclick="initStudy()" style="margin-top:10px">↺ Дахин эхлэх</button>
-    </div>`;
-  showStudyCard();
-}
-function showStudyCard(){
-  if(studyIdx>=studyDeck.length){showStudyDone();return;}
-  const c=studyDeck[studyIdx];
-  document.getElementById('sQ').textContent=c.q;
-  document.getElementById('sA').textContent=c.a;
-  document.getElementById('sCard').classList.remove('flipped');
-  document.getElementById('sBtns').classList.remove('visible');
-  studyFlipped=false;
-  const pct=Math.round(studyIdx/studyDeck.length*100);
-  document.getElementById('sFill').style.width=pct+'%';
-  document.getElementById('sTxt').textContent=`${studyIdx+1} / ${studyDeck.length}`;
-  document.getElementById('sPct').textContent=pct+'%';
-}
-function flipStudy(){if(studyFlipped)return;studyFlipped=true;document.getElementById('sCard').classList.add('flipped');setTimeout(()=>document.getElementById('sBtns').classList.add('visible'),350);}
-function markStudy(status){const c=studyDeck[studyIdx];cards[c._i].status=status;save();studyIdx++;setTimeout(showStudyCard,150);}
-function showStudyDone(){
-  document.getElementById('sCard').style.display='none';document.getElementById('sBtns').style.display='none';
-  const know=studyDeck.filter(c=>cards[c._i].status==='know').length;
-  const pct=Math.round(know/studyDeck.length*100);
-  document.getElementById('sDoneScore').textContent=pct+'%';
-  document.getElementById('sDoneTxt').textContent=`${studyDeck.length} картаас ${know}-г мэдэж байна.`;
-  document.getElementById('sDone').style.display='block';
-  document.getElementById('sFill').style.width='100%';
-}
-
-// Prime quiz on load (so it's ready when user clicks tab)
-renderQuizInput();
-
-// ══════════════════════════════════════════════════
-// ШАЛГАЛТИЙН ӨРӨӨ
-// ══════════════════════════════════════════════════
-let examStep = 0;
-let examConfig = { subject:'', difficulty:'', type:'', count:10, source:'', teacherText:'' };
-let examQs = [], examIdx = 0, examScore = 0, examWrong = 0, examAnswered = false;
-
-// Exam Room (QR lobby) state
-let activeRoomId = null;
-let activeRoomChannel = null;
-let activeRoomRole = null; // 'teacher' | 'student'
-let activeRoomStatusUnsub = null;
-let activeRoomCached = null;
-let teacherDashUnsubs = [];
-let teacherDashAttemptsCache = {};
-let teacherDashCheatsCache = {};
-let teacherSelectedStudentKey = null;
-
-// Student exam session tracking (for dashboard)
-let studentExamRoomId = null;
-let studentExamKey = null; // normalized name key
-let studentExamName = null;
-
-function randId(len=8){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let out='';
-  crypto.getRandomValues(new Uint8Array(len)).forEach(v=>out+=chars[v%chars.length]);
-  return out;
-}
-function nowIso(){ return new Date().toISOString(); }
-function getBaseUrl(){
-  const u = new URL(window.location.href);
-  u.search = '';
-  u.hash = '';
-  return u.toString();
-}
-function buildJoinUrl(roomId){
-  const u = new URL(getBaseUrl());
-  u.searchParams.set('joinRoom', roomId);
-  return u.toString();
-}
-function toKeyName(name){
-  return String(name||'')
-    .trim()
-    .toLowerCase()
-    .replace(/[.#$\[\]\/]/g,'_')
-    .replace(/\s+/g,'_')
-    .slice(0, 64);
-}
-
-function stopListenRoom(){
-  if(activeRoomChannel){
-    try{ activeRoomChannel(); }catch{}
-  }
-  activeRoomChannel = null;
-  if(activeRoomStatusUnsub){
-    try{ activeRoomStatusUnsub(); }catch{}
-  }
-  activeRoomStatusUnsub = null;
-}
-
-function dashClearUnsubs(){
-  teacherDashUnsubs.forEach(fn=>{ try{ fn(); }catch{} });
-  teacherDashUnsubs = [];
-  teacherDashAttemptsCache = {};
-  teacherDashCheatsCache = {};
-  teacherSelectedStudentKey = null;
-}
-
-function listenRoom(roomId){
-  stopListenRoom();
-  activeRoomId = roomId;
-  initFirebaseOnce();
-  const ref = rtdb.ref(`rooms/${roomId}/studentsByName`);
-  const handler = (snap) => {
-    const data = snap.val() || {};
-    renderLobbyStudentsFromMap(data);
-  };
-  ref.on('value', handler);
-  activeRoomChannel = () => ref.off('value', handler);
-}
-
-function listenRoomStatus(roomId, onStatus){
-  if(activeRoomStatusUnsub){ try{ activeRoomStatusUnsub(); }catch{} }
-  initFirebaseOnce();
-  const ref = rtdb.ref(`rooms/${roomId}/status`);
-  const handler = (snap) => onStatus(snap.val());
-  ref.on('value', handler);
-  activeRoomStatusUnsub = () => ref.off('value', handler);
-}
-
-function renderLobbyStudentsFromMap(map){
-  if(activeRoomRole !== 'teacher' || !activeRoomId) return;
-  const listWrap = document.getElementById('lobbyStudentsList');
-  const empty = document.getElementById('lobbyStudentsEmpty');
-  const arr = Object.values(map || {}).filter(Boolean);
-  if(!arr.length){
-    empty.style.display = 'block';
-    listWrap.style.display = 'none';
-    listWrap.innerHTML = '';
-    return;
-  }
-  empty.style.display = 'none';
-  listWrap.style.display = 'block';
-  arr.sort((a,b)=>Number(a.joinedAt||0)-Number(b.joinedAt||0));
-  const items = arr.map((s,i)=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <div style="width:28px;height:28px;border-radius:10px;background:rgba(78,205,196,.12);border:1px solid rgba(78,205,196,.25);display:grid;place-items:center;color:var(--accent2);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.78rem;flex-shrink:0">
-          ${i+1}
-        </div>
-        <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name||'')}</div>
-      </div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);flex-shrink:0">
-        ${fmtTimeTs(s.joinedAt)}
-      </div>
-    </div>
-  `).join('');
-  listWrap.innerHTML = `<div style="border-radius:12px;overflow:hidden">${items}</div>`;
-}
-
-function fmtTimeTs(ts){
-  try{
-    if(!ts) return '';
-    const d = new Date(Number(ts));
-    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  }catch{ return ''; }
-}
-
-async function fetchRoom(roomId){
-  initFirebaseOnce();
-  const snap = await rtdb.ref(`rooms/${roomId}`).get();
-  return snap.exists() ? snap.val() : null;
-}
-
-async function createRoomInDb(room){
-  initFirebaseOnce();
-  await rtdb.ref(`rooms/${room.roomId}`).set(room);
-}
-
-async function upsertStudent(roomId, name){
-  initFirebaseOnce();
-  const clean = String(name||'').trim();
-  if(!clean) return { ok:false, error:'Нэрээ оруулна уу.' };
-  const key = toKeyName(clean);
-  const ref = rtdb.ref(`rooms/${roomId}/studentsByName/${key}`);
-
-  try{
-    const roomSnap = await rtdb.ref(`rooms/${roomId}`).get();
-    if(!roomSnap.exists()) return { ok:false, error:'Өрөө олдсонгүй.' };
-
-    const snap = await ref.get();
-    if(!snap.exists()){
-      await ref.set({
-        name: clean,
-        joinedAt: firebase.database.ServerValue.TIMESTAMP
-      });
-    }
-    const room = roomSnap.val();
-    return { ok:true, room };
-  }catch{
-    return { ok:false, error:'Нэгдэхэд алдаа гарлаа. Интернетээ шалгаад дахин оролдоно уу.' };
-  }
-}
-
-function pushCheatEvent(type, meta={}){
-  if(!studentExamRoomId || !studentExamKey) return;
-  try{
-    initFirebaseOnce();
-    const ref = rtdb.ref(`rooms/${studentExamRoomId}/cheats/${studentExamKey}/events`).push();
-    ref.set({
-      type,
-      at: firebase.database.ServerValue.TIMESTAMP,
-      meta
-    });
-
-    // increment cheat counter and warn on 6th time
-    const countRef = rtdb.ref(`rooms/${studentExamRoomId}/cheats/${studentExamKey}/count`);
-    countRef.transaction((cur)=> (Number(cur||0) + 1)).then((res)=>{
-      const n = Number(res?.snapshot?.val() || 0);
-      if(n === 6){
-        // Show a clear warning to the student
-        const sb = document.getElementById('exFeedback') || document.getElementById('joinStatus');
-        if(sb){
-          sb.className = (sb.id==='exFeedback') ? 'exam-feedback no' : 'exam-status visible error';
-          sb.innerHTML = '⚠️ Анхааруулга: Та олон удаа өөр таб/app руу гарсан байна. Дахин давтагдвал багшид “cheat” гэж тэмдэглэгдэнэ.';
-        } else {
-          alert('⚠️ Анхааруулга: Олон удаа өөр таб/app руу гарсан байна.');
-        }
-        try{
-          rtdb.ref(`rooms/${studentExamRoomId}/cheats/${studentExamKey}/warnedAt`).set(firebase.database.ServerValue.TIMESTAMP);
-        }catch{}
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flashcard (AI + Firebase)</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0b1020;
+        --panel: rgba(255, 255, 255, 0.06);
+        --text: #e9eefc;
+        --muted: rgba(233, 238, 252, 0.7);
+        --border: rgba(233, 238, 252, 0.15);
+        --accent: #7c5cff;
+        --danger: #ff4d4d;
+        --ok: #30d158;
       }
-    }).catch(()=>{});
-  }catch{}
-}
-
-function writeAttemptPatch(patch){
-  if(!studentExamRoomId || !studentExamKey) return;
-  try{
-    initFirebaseOnce();
-    rtdb.ref(`rooms/${studentExamRoomId}/attempts/${studentExamKey}`).update(patch);
-  }catch{}
-}
-
-function toOpts(q){
-  const wrongs = (q.wrong||[]).slice(0,3);
-  while(wrongs.length<3) wrongs.push('—');
-  return shuffle([{text:q.correct,ok:true},...wrongs.map(w=>({text:w,ok:false}))]);
-}
-
-function recordAttemptStart(questions, cfg){
-  if(!studentExamRoomId || !studentExamKey) return;
-  try{
-    initFirebaseOnce();
-    const attemptRef = rtdb.ref(`rooms/${studentExamRoomId}/attempts/${studentExamKey}`);
-    const qs = (questions||[]).map(q=>({
-      q: String(q.q||''),
-      correct: String(q.correct||''),
-      wrong: Array.isArray(q.wrong) ? q.wrong.map(String) : []
-    }));
-    attemptRef.set({
-      name: studentExamName || 'Student',
-      key: studentExamKey,
-      startedAt: firebase.database.ServerValue.TIMESTAMP,
-      lastSeenAt: firebase.database.ServerValue.TIMESTAMP,
-      status: 'in_progress',
-      config: cfg || {},
-      currentIdx: 0,
-      score: 0,
-      wrongCount: 0,
-      answers: {},
-      questions: qs
-    });
-  }catch{}
-}
-
-function recordAttemptHeartbeat(){
-  writeAttemptPatch({ lastSeenAt: firebase.database.ServerValue.TIMESTAMP });
-}
-
-function recordAttemptAnswer(idx, pickedText, isOk){
-  if(!studentExamRoomId || !studentExamKey) return;
-  const patch = {
-    lastSeenAt: firebase.database.ServerValue.TIMESTAMP,
-    currentIdx: idx+1
-  };
-  patch[`answers/${idx}`] = {
-    picked: String(pickedText||''),
-    ok: !!isOk,
-    at: firebase.database.ServerValue.TIMESTAMP
-  };
-  writeAttemptPatch(patch);
-}
-
-function recordAttemptFinish(finalScore, finalWrong, total){
-  writeAttemptPatch({
-    status: 'completed',
-    completedAt: firebase.database.ServerValue.TIMESTAMP,
-    score: finalScore,
-    wrongCount: finalWrong,
-    total: total
-  });
-}
-function showTeacherLobby(roomId){
-  activeRoomRole = 'teacher';
-  activeRoomId = roomId;
-  activeRoomCached = null;
-  document.getElementById('examSetupModal').style.display = 'none';
-  document.getElementById('examPlayArea').style.display = 'none';
-  document.getElementById('examStudentJoin').style.display = 'none';
-  document.getElementById('examTeacherDashboard').style.display = 'none';
-  document.getElementById('examTeacherLobby').style.display = 'block';
-  document.getElementById('examOverlay').classList.add('open');
-
-  fetchRoom(roomId).then((room)=>{
-    activeRoomCached = room;
-    const diffLabel = examConfig.difficulty==='easy'?'😊 Амархан':examConfig.difficulty==='hard'?'🔥 Хэцүү':'🤔 Дунд';
-    document.getElementById('lobbyTitle').textContent = `${room?.config?.subject || examConfig.subject} · ${room?.config?.type || examConfig.type}`;
-    document.getElementById('lobbySubtitle').textContent = `${diffLabel} · Өрөөний код: ${roomId} · Багш: ${room?.teacherName || userName || ''}`;
-  }).catch(()=>{});
-
-  const joinUrl = buildJoinUrl(roomId);
-  document.getElementById('lobbyLink').value = joinUrl;
-
-  const qrWrap = document.getElementById('lobbyQR');
-  qrWrap.innerHTML = '';
-  if(window.QRCode){
-    new QRCode(qrWrap, {
-      text: joinUrl,
-      width: 160,
-      height: 160,
-      colorDark: "#e4e2f2",
-      colorLight: "#13131e",
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  } else {
-    qrWrap.textContent = 'QR ачаалж чадсангүй.';
-  }
-
-  listenRoom(roomId);
-
-  // Dashboard is only available after teacher starts
-  const dashBtn = document.getElementById('openDashBtn');
-  if(dashBtn){
-    dashBtn.disabled = true;
-    dashBtn.style.opacity = '.55';
-    dashBtn.style.cursor = 'not-allowed';
-    dashBtn.title = 'Эхлээд "Шалгалт эхлүүлэх" дарна уу';
-  }
-  listenRoomStatus(roomId, (status)=>{
-    const started = status?.state === 'started';
-    if(!dashBtn) return;
-    dashBtn.disabled = !started;
-    dashBtn.style.opacity = started ? '1' : '.55';
-    dashBtn.style.cursor = started ? 'pointer' : 'not-allowed';
-    dashBtn.title = started ? 'Хяналтын самбар нээх' : 'Эхлээд "Шалгалт эхлүүлэх" дарна уу';
-  });
-}
-
-function openTeacherDashboard(){
-  if(!activeRoomId) return;
-  document.getElementById('examTeacherLobby').style.display = 'none';
-  document.getElementById('examTeacherDashboard').style.display = 'block';
-  document.getElementById('examOverlay').classList.add('open');
-
-  fetchRoom(activeRoomId).then((room)=>{
-    document.getElementById('dashTitle').textContent = `${room?.config?.subject || ''} · ${room?.config?.type || ''}`;
-    const diffLabel = room?.config?.difficulty==='easy'?'😊 Амархан':room?.config?.difficulty==='hard'?'🔥 Хэцүү':'🤔 Дунд';
-    document.getElementById('dashSubtitle').textContent = `${diffLabel} · Өрөөний код: ${activeRoomId}`;
-  }).catch(()=>{});
-
-  dashClearUnsubs();
-  initFirebaseOnce();
-
-  const attemptsRef = rtdb.ref(`rooms/${activeRoomId}/attempts`);
-  const attemptsHandler = (snap)=>{
-    teacherDashAttemptsCache = snap.val() || {};
-    renderTeacherDashboard();
-  };
-  attemptsRef.on('value', attemptsHandler);
-  teacherDashUnsubs.push(()=>attemptsRef.off('value', attemptsHandler));
-
-  const cheatsRef = rtdb.ref(`rooms/${activeRoomId}/cheats`);
-  const cheatsHandler = (snap)=>{
-    teacherDashCheatsCache = snap.val() || {};
-    renderTeacherDashboard();
-  };
-  cheatsRef.on('value', cheatsHandler);
-  teacherDashUnsubs.push(()=>cheatsRef.off('value', cheatsHandler));
-
-  renderTeacherDashboard();
-}
-
-function closeTeacherDashboard(){
-  dashClearUnsubs();
-  document.getElementById('examTeacherDashboard').style.display = 'none';
-  document.getElementById('examTeacherLobby').style.display = 'block';
-}
-
-function renderTeacherDashboard(){
-  const attemptsMap = teacherDashAttemptsCache || {};
-  const attempts = Object.entries(attemptsMap).map(([k,v])=>({ key:k, ...(v||{}) }));
-  const now = Date.now();
-  const active = attempts.filter(a=>a.status==='in_progress');
-  const completed = attempts.filter(a=>a.status==='completed');
-
-  // Summary counts
-  const cheatAgg = aggregateCheats(teacherDashCheatsCache || {});
-  const elA = document.getElementById('dashCountActive');
-  const elC = document.getElementById('dashCountCheat');
-  const elD = document.getElementById('dashCountDone');
-  if(elA) elA.textContent = String(active.length);
-  if(elC) elC.textContent = String(cheatAgg.length);
-  if(elD) elD.textContent = String(completed.length);
-
-  // 1) Active students
-  const aEmpty = document.getElementById('dashActiveEmpty');
-  const aList  = document.getElementById('dashActiveList');
-  if(!active.length){
-    aEmpty.style.display='block'; aList.style.display='none'; aList.innerHTML='';
-  }else{
-    aEmpty.style.display='none'; aList.style.display='block';
-    active.sort((x,y)=>Number(y.lastSeenAt||0)-Number(x.lastSeenAt||0));
-    aList.innerHTML = active.map(s=>dashRow(s, { right: dashProgText(s), onClick:`selectDashStudent('${escAttr(s.key)}')` })).join('');
-  }
-
-  // 3) Scores
-  const sEmpty = document.getElementById('dashScoreEmpty');
-  const sList  = document.getElementById('dashScoreList');
-  if(!completed.length){
-    sEmpty.style.display='block'; sList.style.display='none'; sList.innerHTML='';
-  }else{
-    sEmpty.style.display='none'; sList.style.display='block';
-    completed.sort((x,y)=>Number(y.completedAt||0)-Number(x.completedAt||0));
-    sList.innerHTML = completed.map(s=>{
-      const total = Number(s.total || s.questions?.length || 0) || 0;
-      const pct = total ? Math.round((Number(s.score||0)/total)*100) : 0;
-      return dashRow(s, { right:`${pct}% · ${s.score||0}/${total}`, onClick:`selectDashStudent('${escAttr(s.key)}')` });
-    }).join('');
-  }
-
-  // 2) Cheats
-  const cEmpty = document.getElementById('dashCheatEmpty');
-  const cList  = document.getElementById('dashCheatList');
-  if(!cheatAgg.length){
-    cEmpty.style.display='block'; cList.style.display='none'; cList.innerHTML='';
-  }else{
-    cEmpty.style.display='none'; cList.style.display='block';
-    cList.innerHTML = cheatAgg.map(c=>{
-      const fakeAttempt = { key: c.key, name: c.name || c.key };
-      return dashRow(fakeAttempt, { right:`${c.count} удаа · ${fmtTimeTs(c.lastAt)}`, onClick:`selectDashStudent('${escAttr(c.key)}')` });
-    }).join('');
-  }
-
-  // 4) Realtime list (all)
-  const rEmpty = document.getElementById('dashRealtimeEmpty');
-  const rList  = document.getElementById('dashRealtimeList');
-  if(!attempts.length){
-    rEmpty.style.display='block'; rList.style.display='none'; rList.innerHTML='';
-  }else{
-    rEmpty.style.display='none'; rList.style.display='block';
-    attempts.sort((x,y)=>Number(y.lastSeenAt||0)-Number(x.lastSeenAt||0));
-    rList.innerHTML = attempts.map(s=>dashRow(s, { right: dashStatusText(s, now), onClick:`selectDashStudent('${escAttr(s.key)}')` })).join('');
-  }
-
-  // detail
-  if(teacherSelectedStudentKey && attemptsMap[teacherSelectedStudentKey]){
-    renderDashDetail(teacherSelectedStudentKey, attemptsMap[teacherSelectedStudentKey]);
-  }else{
-    document.getElementById('dashDetailEmpty').style.display='block';
-    document.getElementById('dashDetail').style.display='none';
-    document.getElementById('dashDetail').innerHTML='';
-  }
-}
-
-function dashRow(s, {right='', onClick='' }={}){
-  const name = esc(s.name || s.key || '');
-  const key = esc(s.key || '');
-  return `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="${onClick}">
-      <div style="min-width:0">
-        <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${key}</div>
-      </div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--muted);flex-shrink:0;text-align:right">${right}</div>
-    </div>
-  `;
-}
-
-function dashProgText(s){
-  const total = Number(s.total || s.questions?.length || 0) || 0;
-  const idx = Number(s.currentIdx||0) || 0;
-  return total ? `${idx}/${total}` : `${idx}`;
-}
-
-function dashStatusText(s, now){
-  const st = s.status==='completed' ? '✅ Дууссан' : s.status==='in_progress' ? '🟠 Явж байна' : '⏸';
-  const seen = Number(s.lastSeenAt||0) || 0;
-  const secs = seen ? Math.max(0, Math.round((now-seen)/1000)) : 0;
-  return `${st} · ${secs}s`;
-}
-
-function aggregateCheats(map){
-  const out = [];
-  Object.entries(map||{}).forEach(([key,val])=>{
-    const ev = val?.events || {};
-    const events = Object.values(ev).filter(Boolean);
-    if(!events.length) return;
-    const lastAt = events.reduce((m,e)=>Math.max(m, Number(e.at||0)||0), 0);
-    out.push({ key, count: events.length, lastAt, name: val?.name });
-  });
-  out.sort((a,b)=>b.count-a.count || b.lastAt-a.lastAt);
-  return out;
-}
-
-function escAttr(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
-
-function selectDashStudent(key){
-  teacherSelectedStudentKey = key;
-  const attempt = teacherDashAttemptsCache?.[key];
-  if(attempt) renderDashDetail(key, attempt);
-}
-
-function renderDashDetail(key, attempt){
-  const detailEmpty = document.getElementById('dashDetailEmpty');
-  const detail = document.getElementById('dashDetail');
-  detailEmpty.style.display='none';
-  detail.style.display='block';
-
-  const qs = Array.isArray(attempt.questions) ? attempt.questions : [];
-  const answers = attempt.answers || {};
-  const idx = Math.max(0, Math.min(Number(attempt.currentIdx||0), qs.length));
-  const cur = qs[Math.min(idx, qs.length-1)] || null;
-
-  const ansList = qs.slice(0, Math.min(qs.length, 6)).map((q,i)=>{
-    const a = answers?.[i];
-    const picked = a?.picked ? esc(a.picked) : '<span style="color:var(--muted)">—</span>';
-    const ok = a?.ok===true ? '✓' : a?.ok===false ? '✕' : '·';
-    return `<div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="width:18px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${i+1}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:.82rem;line-height:1.45">${esc(q.q||'')}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--muted);margin-top:4px">
-          ${ok} Хариулт: ${picked}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  detail.innerHTML = `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
-      <div style="min-width:0">
-        <div style="font-weight:900">${esc(attempt.name || key)}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted)">${esc(key)}</div>
-      </div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);text-align:right;flex-shrink:0">
-        ${attempt.status==='completed'?'✅ Дууссан':'🟠 Явж байна'}<br/>
-        ${dashProgText(attempt)}
-      </div>
-    </div>
-
-    ${cur ? `
-      <div style="background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.18);border-radius:12px;padding:10px;margin-bottom:10px">
-        <div style="font-size:.7rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace;margin-bottom:6px">Одоогийн асуулт</div>
-        <div style="font-size:.85rem;line-height:1.55">${esc(cur.q||'')}</div>
-      </div>
-    `:''}
-
-    <div style="font-size:.7rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:'JetBrains Mono',monospace;margin:12px 0 6px">
-      Сүүлийн хариултууд (эхний 6 асуулт)
-    </div>
-    <div style="max-height:340px;overflow:auto;padding-right:4px">${ansList || '<div style="color:var(--muted)">Одоогоор хариулт алга.</div>'}</div>
-  `;
-}
-
-async function teacherStartRoomNow(){
-  if(!activeRoomId) return;
-  try{
-    initFirebaseOnce();
-    await rtdb.ref(`rooms/${activeRoomId}/status`).set({
-      state: 'started',
-      startedAt: firebase.database.ServerValue.TIMESTAMP
-    });
-    // after starting, show the dashboard automatically
-    openTeacherDashboard();
-  }catch{}
-}
-function resetExamRoomToSetup(){
-  stopListenRoom();
-  activeRoomId = null;
-  activeRoomRole = null;
-  document.getElementById('examTeacherLobby').style.display = 'none';
-  document.getElementById('examStudentJoin').style.display = 'none';
-  document.getElementById('examSetupModal').style.display = 'block';
-  renderExamStep(0);
-}
-async function copyLobbyLink(){
-  const v = document.getElementById('lobbyLink').value;
-  try{
-    await navigator.clipboard.writeText(v);
-  }catch{
-    // fallback
-    const el = document.getElementById('lobbyLink');
-    el.focus(); el.select();
-    document.execCommand('copy');
-  }
-}
-function openStudentJoin(roomId){
-  activeRoomRole = 'student';
-  activeRoomId = roomId;
-  activeRoomCached = null;
-  document.getElementById('examSetupModal').style.display = 'none';
-  document.getElementById('examTeacherLobby').style.display = 'none';
-  document.getElementById('examPlayArea').style.display = 'none';
-  document.getElementById('examStudentJoin').style.display = 'block';
-  document.getElementById('examOverlay').classList.add('open');
-
-  fetchRoom(roomId).then((room)=>{
-    activeRoomCached = room;
-    document.getElementById('joinRoomInfo').textContent = room
-      ? `${room.config?.subject || 'Шалгалт'} · ${room.config?.type || ''} (Код: ${roomId})`
-      : `Код: ${roomId}`;
-  }).catch(()=>{ document.getElementById('joinRoomInfo').textContent = `Код: ${roomId}`; });
-  const sb = document.getElementById('joinStatus');
-  sb.className='exam-status';
-  sb.textContent='';
-  document.getElementById('studentWaitWrap').style.display = 'none';
-  document.getElementById('studentStartBtn').style.display = 'none';
-  document.getElementById('joinStudentName').value = '';
-  setTimeout(()=>document.getElementById('joinStudentName').focus(), 250);
-
-  // listen for teacher start
-  listenRoomStatus(roomId, (status)=>{
-    const wrap = document.getElementById('studentWaitWrap');
-    const txt  = document.getElementById('studentWaitText');
-    const btn  = document.getElementById('studentStartBtn');
-    wrap.style.display = 'block';
-    if(status?.state === 'started'){
-      txt.textContent = '✅ Багш шалгалтыг эхлүүллээ. Доорх товчоор тестээ үүсгээд эхлүүлнэ үү.';
-      btn.style.display = 'inline-flex';
-    }else{
-      txt.textContent = 'Багш шалгалтыг эхлүүлэхийг хүлээнэ үү…';
-      btn.style.display = 'none';
-    }
-  });
-}
-function closeStudentJoin(){
-  stopListenRoom();
-  activeRoomId = null;
-  activeRoomRole = null;
-  document.getElementById('examOverlay').classList.remove('open');
-  // clean query param if present
-  try{
-    const u = new URL(window.location.href);
-    u.searchParams.delete('joinRoom');
-    window.history.replaceState({}, document.title, u.toString());
-  }catch{}
-}
-function joinRoomNow(){
-  const name = document.getElementById('joinStudentName').value.trim();
-  const sb = document.getElementById('joinStatus');
-  if(!activeRoomId){
-    sb.className='exam-status visible error';
-    sb.textContent='❌ Өрөөний код олдсонгүй.';
-    return;
-  }
-  sb.className='exam-status visible';
-  sb.textContent='⏳ Нэгдэж байна…';
-  upsertStudent(activeRoomId, name).then((r)=>{
-    if(!r.ok){
-      sb.className='exam-status visible error';
-      sb.textContent='❌ ' + r.error;
-      return;
-    }
-    sb.className='exam-status visible';
-    sb.textContent='✅ Амжилттай нэгдлээ. Багш шалгалтыг эхлүүлэхийг хүлээнэ үү.';
-    document.getElementById('studentWaitWrap').style.display = 'block';
-  });
-}
-
-async function studentGenerateAndStartExam(){
-  if(!activeRoomId) return;
-  const sb = document.getElementById('joinStatus');
-  const btn = document.getElementById('studentStartBtn');
-  try{
-    btn.disabled = true;
-    sb.className='exam-status visible';
-    sb.innerHTML = `⏳ AI тест боловсруулж байна… <span class="loading-dots"><span></span><span></span><span></span></span>`;
-
-    const room = activeRoomCached || await fetchRoom(activeRoomId);
-    if(!room) throw new Error('Өрөө олдсонгүй.');
-
-    // bind this exam session to room + student (for teacher dashboard)
-    studentExamRoomId = activeRoomId;
-    studentExamName = document.getElementById('joinStudentName').value.trim() || 'Student';
-    studentExamKey = toKeyName(studentExamName);
-
-    // Enforce: one attempt only per student per room
-    try{
-      initFirebaseOnce();
-      const existingSnap = await rtdb.ref(`rooms/${studentExamRoomId}/attempts/${studentExamKey}`).get();
-      if(existingSnap.exists()){
-        const ex = existingSnap.val() || {};
-        const msg = ex.status === 'completed'
-          ? 'Энэ шалгалтыг та аль хэдийн өгсөн байна. Дахин өгөх боломжгүй.'
-          : 'Энэ шалгалтыг та аль хэдийн эхлүүлсэн байна. Үргэлжлүүлэх бол багшаасаа асууна уу.';
-        sb.className='exam-status visible error';
-        sb.textContent='❌ ' + msg;
-        btn.style.display = 'none';
-        btn.disabled = true;
-        return;
-      }
-    }catch{}
-
-    // Map difficulty to Mongolian label
-    const diff = room.config?.difficulty;
-    const diffMn = diff==='easy'?'Амархан':diff==='hard'?'Хэцүү':'Дунд';
-
-    const count = Number(room.config?.count || 20);
-    // Stronger prompt: prevent meta questions, ensure real content questions
-    const prompt =
-      `Та доорх шаардлагын дагуу зөвхөн бодит шалгалтын асуултууд зохио.\n`+
-      `Сэдэв: ${room.config?.subject || ''}\n`+
-      `Дэд сэдэв/төрөл: ${room.config?.type || ''}\n`+
-      `Түвшин: ${diffMn}\n`+
-      `Асуултын тоо: ${count}\n\n`+
-      `ХОРИГЛОХ: "энэ шалгалт хэдэн асуулттай вэ?", "ямар түвшний шалгалт вэ?" гэх мэт шалгалтын тухай (meta) асуулт БҮҮ гарга.\n`+
-      `ЗӨВХӨН сэдвийн мэдлэг шалгах асуулт гарга. Асуулт бүр 4 сонголттой (A/B/C/D) ба ганц зөв хариулттай байх.\n`+
-      `Асуултууд давтагдахгүй, нэг мөрөөр ойлгомжтой, эргэлзээтэй (гэхдээ нэг л зөв хариулттай) байхаар зохио.\n`+
-      `ЖИШЭЭ (English grammar): She usually ___ to school by bus.\n`;
-
-    const studentName = document.getElementById('joinStudentName').value.trim() || 'Student';
-    async function callAI(action){
-      const res = await fetch(SCRIPT_URL, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({
-          action,
-          userName: studentName,
-          inputText: prompt,
-          subject: room.config?.subject,
-          difficulty: diff,
-          examType: room.config?.type,
-          count
-        })
-      });
-      const rawText = await res.text();
-      let data = null;
-      try{ data = JSON.parse(rawText); }catch{ data = { _raw: rawText }; }
-      return { ok: res.ok, status: res.status, data };
-    }
-
-    function extractQuestions(payload){
-      // Supported shapes:
-      // - {questions:[...]}
-      // - [...]
-      // - {_raw:"...json..."}
-      let raw = payload;
-      if(raw && typeof raw === 'object' && typeof raw._raw === 'string') raw = raw._raw;
-
-      if(Array.isArray(raw)) return raw;
-      if(raw && Array.isArray(raw.questions)) return raw.questions;
-
-      if(typeof raw === 'string'){
-        // Try to recover JSON array from text
-        const m = raw.match(/\[[\s\S]*\]/);
-        if(m){
-          try{
-            const a = JSON.parse(m[0]);
-            if(Array.isArray(a)) return a;
-          }catch{}
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f7fb;
+          --panel: rgba(10, 15, 30, 0.05);
+          --text: #0a0f1e;
+          --muted: rgba(10, 15, 30, 0.65);
+          --border: rgba(10, 15, 30, 0.12);
+          --accent: #4c33ff;
+          --danger: #d70015;
+          --ok: #248a3d;
         }
       }
-      return [];
-    }
-    function normalizeQuestions(arr){
-      return (arr||[])
-        .filter(q=>q && q.q && q.correct && Array.isArray(q.wrong) && q.wrong.length>=1)
-        .map(q=>({ q:String(q.q), correct:String(q.correct), wrong:q.wrong.map(String) }));
-    }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue",
+          sans-serif;
+        background: radial-gradient(1200px 700px at 15% 10%, rgba(124, 92, 255, 0.25), transparent 60%),
+          radial-gradient(900px 600px at 85% 15%, rgba(48, 209, 88, 0.18), transparent 55%),
+          radial-gradient(900px 700px at 40% 95%, rgba(255, 77, 77, 0.14), transparent 60%), var(--bg);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 28px 18px 48px;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0;
+        letter-spacing: 0.2px;
+      }
+      .sub {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 14px;
+      }
+      @media (max-width: 980px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+        backdrop-filter: blur(10px);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      @media (max-width: 560px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input[type="text"],
+      input[type="password"],
+      input[type="url"],
+      textarea,
+      select {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.15);
+        color: var(--text);
+        padding: 10px 11px;
+        outline: none;
+      }
+      textarea {
+        min-height: 220px;
+        resize: vertical;
+        line-height: 1.35;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 10px;
+      }
+      button {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.primary {
+        border-color: rgba(124, 92, 255, 0.55);
+        background: linear-gradient(135deg, rgba(124, 92, 255, 0.85), rgba(124, 92, 255, 0.35));
+      }
+      button.danger {
+        border-color: rgba(255, 77, 77, 0.55);
+        background: linear-gradient(135deg, rgba(255, 77, 77, 0.75), rgba(255, 77, 77, 0.28));
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .status {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .status strong {
+        color: var(--text);
+      }
+      .pill {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .pill.ok {
+        border-color: rgba(48, 209, 88, 0.35);
+        color: rgba(48, 209, 88, 0.95);
+      }
+      .pill.bad {
+        border-color: rgba(255, 77, 77, 0.35);
+        color: rgba(255, 77, 77, 0.95);
+      }
+      .flashcards {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .fc {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .fc h3 {
+        margin: 0 0 8px;
+        font-size: 13.5px;
+        letter-spacing: 0.1px;
+      }
+      .fc .back {
+        color: var(--muted);
+        font-size: 12.5px;
+        white-space: pre-wrap;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 11.5px;
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .hint {
+        margin-top: 10px;
+        padding: 10px 11px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      a {
+        color: rgba(124, 92, 255, 0.95);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>Flashcard Generator (Groq AI + Firebase)</h1>
+          <p class="sub">Урт кейс/текст оруулаад → “хамгийн чухал 2 баримт/нотолгоо”-нд суурилсан flashcard-ууд гаргана.</p>
+        </div>
+        <div class="pill" id="pill">
+          <span>Firebase:</span>
+          <strong id="fbState">…</strong>
+        </div>
+      </header>
 
-    // Prefer test (known working). If not, fallback to examroom.
-    let r = await callAI('test');
-    let data = r.data;
-    let qs = normalizeQuestions(extractQuestions(data));
+      <div class="grid">
+        <section class="card">
+          <div class="row">
+            <div>
+              <label for="groqKey">Groq API Key (browser дээр хадгалахгүй бол хоосон орхиод Paste хийж хэрэглэ)</label>
+              <input id="groqKey" type="password" placeholder="gsk_..." autocomplete="off" />
+            </div>
+            <div>
+              <label for="model">Model</label>
+              <select id="model">
+                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+                <option value="llama-3.1-70b-versatile">llama-3.1-70b-versatile</option>
+                <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
+              </select>
+            </div>
+          </div>
 
-    if(!r.ok || data?.error || !qs.length){
-      r = await callAI('examroom');
-      data = r.data;
-      qs = normalizeQuestions(extractQuestions(data));
-    }
+          <div class="row" style="margin-top: 10px">
+            <div>
+              <label for="language">Гарах хэл</label>
+              <select id="language">
+                <option value="mn" selected>Монгол</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div>
+              <label for="count">Flashcard тоо</label>
+              <select id="count">
+                <option value="6">6</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+              </select>
+            </div>
+          </div>
 
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    if(data?.error) {
-      // If backend returns an error but includes recoverable questions, try to salvage
-      const salvaged = normalizeQuestions(extractQuestions(String(data.error)));
-      if(salvaged.length) qs = salvaged;
-      else throw new Error(data.error);
-    }
-    if(!qs.length) {
-      const hint = typeof data?._raw === 'string' ? data._raw.slice(0, 120) : '';
-      throw new Error('AI тест үүсгэж чадсангүй.' + (hint ? ` (${hint}…)` : ''));
-    }
+          <div style="margin-top: 10px">
+            <label for="sourceText">Урт текст / кейс</label>
+            <textarea id="sourceText" placeholder="Энд кейсээ paste хий..."></textarea>
+          </div>
 
-    // reuse existing exam UI
-    examConfig.subject = room.config?.subject || 'Шалгалт';
-    examConfig.type = room.config?.type || '';
-    examConfig.difficulty = room.config?.difficulty || 'medium';
-    examConfig.count = count;
-    examConfig.source = 'ai';
-    examQs = shuffle(qs).slice(0, count);
+          <div class="actions">
+            <button class="primary" id="btnGenerate">AI → Flashcards</button>
+            <button id="btnSave" disabled>Save to Firebase</button>
+            <button class="danger" id="btnClear">Clear</button>
+            <span class="status" id="status">Бэлэн.</span>
+          </div>
 
-    // write attempt start to DB (questions + metadata)
-    recordAttemptStart(examQs, room.config || {});
+          <div class="hint">
+            <div><strong>Google Apps Script URL чинь</strong> одоогоор “Script function not found: doGet” гэж байна.</div>
+            <div class="small">
+              Энэ нь deploy хийсэн Script дээр чинь <span class="mono">doGet(e)</span> (эсвэл web app-аа POST-р ашиглах бол
+              <span class="mono">doPost(e)</span>) функц байхгүй гэсэн үг. Доор би ажиллах жишээ кодыг бас өгнө.
+            </div>
+          </div>
+        </section>
 
-    document.getElementById('examStudentJoin').style.display = 'none';
-    document.getElementById('examPlayArea').style.display = 'block';
-    launchExam();
-  }catch(e){
-    sb.className='exam-status visible error';
-    sb.textContent='❌ ' + (e?.message || 'Алдаа гарлаа');
-  }finally{
-    btn.disabled = false;
-  }
-}
+        <aside class="card">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px">
+            <h2 style="margin: 0; font-size: 14px">Гарсан Flashcards</h2>
+            <span class="pill" id="aiPill"><span>AI:</span> <strong id="aiState">idle</strong></span>
+          </div>
 
-function openExamRoom() {
-  examStep = 0;
-  examConfig = { subject:'', difficulty:'', type:'', count:10, source:'', teacherText:'' };
-  document.getElementById('examSubject').value = '';
-  document.getElementById('examType').value = '';
-  document.getElementById('examCountDisplay').textContent = '10';
-  document.getElementById('teacherTestTA').value = '';
-  document.getElementById('teacherInputWrap').style.display = 'none';
-  document.getElementById('examSetupStatus').className = 'exam-status';
-  document.getElementById('examSetupModal').style.display = 'block';
-  document.getElementById('examPlayArea').style.display = 'none';
-  // Reset selections
-  ['easy','medium','hard'].forEach(d=>document.getElementById('diff-'+d).className='diff-btn');
-  ['yes','no'].forEach(n=>document.getElementById('yn-'+n).className='yn-btn');
-  renderExamStep(0);
-  document.getElementById('examOverlay').classList.add('open');
-  setTimeout(()=>document.getElementById('examSubject').focus(), 300);
-}
+          <div class="meta">
+            <span class="pill"><span>Cards:</span> <strong id="cardCount">0</strong></span>
+            <span class="pill"><span>Source chars:</span> <strong id="srcChars">0</strong></span>
+          </div>
 
-function closeExamRoom() {
-  document.getElementById('examOverlay').classList.remove('open');
-}
+          <div style="margin-top: 12px" class="flashcards" id="flashcards"></div>
 
-function renderExamStep(s) {
-  document.querySelectorAll('.exam-step').forEach((el,i)=>el.classList.toggle('active', i===s));
-  document.querySelectorAll('.exam-step-dot').forEach((el,i)=>{
-    el.classList.remove('active','done');
-    if(i===s) el.classList.add('active');
-    else if(i<s) el.classList.add('done');
-  });
-  examStep = s;
-}
+          <div style="margin-top: 12px" class="small">
+            Хадгалахад Firestore collection: <span class="mono">flashcards</span>, document-д <span class="mono">cards[]</span> хэлбэрээр орно.
+          </div>
+        </aside>
+      </div>
+    </div>
 
-function examNext() {
-  const s = examStep;
-  if(s===0) {
-    const v = document.getElementById('examSubject').value.trim();
-    if(!v) { document.getElementById('examSubject').focus(); shakeInput('examSubject'); return; }
-    examConfig.subject = v;
-  } else if(s===1) {
-    if(!examConfig.difficulty) { shakeEl('diff-easy'); return; }
-  } else if(s===2) {
-    const v = document.getElementById('examType').value.trim();
-    if(!v) { document.getElementById('examType').focus(); shakeInput('examType'); return; }
-    examConfig.type = v;
-  } else if(s===3) {
-    examConfig.count = parseInt(document.getElementById('examCountDisplay').textContent) || 10;
-  } else if(s===4) {
-    startExamRoom(); return;
-  }
-  renderExamStep(s+1);
-}
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js";
+      import {
+        getFirestore,
+        addDoc,
+        collection,
+        serverTimestamp,
+      } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-function examBack() { if(examStep>0) renderExamStep(examStep-1); }
-
-function selectDiff(d) {
-  examConfig.difficulty = d;
-  ['easy','medium','hard'].forEach(k=>{
-    document.getElementById('diff-'+k).className = 'diff-btn' + (k===d ? ' selected-'+k : '');
-  });
-}
-
-function changeCount(delta) {
-  const el = document.getElementById('examCountDisplay');
-  let n = parseInt(el.textContent) + delta;
-  n = Math.max(5, Math.min(30, n));
-  el.textContent = n;
-}
-
-function selectSource(src) {
-  examConfig.source = src;
-  document.getElementById('yn-yes').className = 'yn-btn' + (src==='teacher' ? ' selected-yes' : '');
-  document.getElementById('yn-no').className  = 'yn-btn' + (src==='ai'      ? ' selected-no'  : '');
-  document.getElementById('teacherInputWrap').style.display = src==='teacher' ? 'block' : 'none';
-}
-
-function shakeInput(id) {
-  const el = document.getElementById(id);
-  el.style.borderColor = 'var(--unknow)';
-  el.style.boxShadow = '0 0 0 3px rgba(240,94,94,.2)';
-  setTimeout(()=>{ el.style.borderColor=''; el.style.boxShadow=''; }, 1200);
-}
-function shakeEl(id) {
-  const el = document.getElementById(id);
-  el.style.borderColor = 'var(--unknow)';
-  setTimeout(()=>{ el.style.borderColor=''; }, 1200);
-}
-
-async function startExamRoom() {
-  // For now: ONLY create room + show QR + show joined students
-  if(!examConfig.source) { shakeEl('yn-yes'); return; }
-  examConfig.subject = document.getElementById('examSubject').value.trim();
-  examConfig.type = document.getElementById('examType').value.trim();
-  examConfig.count = parseInt(document.getElementById('examCountDisplay').textContent) || 10;
-  if(!examConfig.subject){ shakeInput('examSubject'); renderExamStep(0); return; }
-  if(!examConfig.difficulty){ renderExamStep(1); shakeEl('diff-easy'); return; }
-  if(!examConfig.type){ shakeInput('examType'); renderExamStep(2); return; }
-
-  const roomId = randId(8);
-  const room = {
-    roomId,
-    createdAt: firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
-    teacherName: userName || 'Багш',
-    config: {
-      subject: examConfig.subject,
-      difficulty: examConfig.difficulty,
-      type: examConfig.type,
-      count: examConfig.count,
-      source: examConfig.source
-    },
-    studentsByName: {}
-  };
-  const sb  = document.getElementById('examSetupStatus');
-  const btn = document.getElementById('examStartBtn');
-  try{
-    btn.disabled = true;
-    sb.className = 'exam-status visible';
-    sb.textContent = '⏳ Өрөө үүсгэж байна…';
-    initFirebaseOnce();
-    await createRoomInDb(room);
-    sb.className = 'exam-status';
-    sb.textContent = '';
-    showTeacherLobby(roomId);
-  }catch{
-    sb.className = 'exam-status visible error';
-    sb.textContent = '❌ Firebase руу холбогдож чадсангүй. (Database rules/интернетийг шалга)';
-  }finally{
-    btn.disabled = false;
-  }
-}
-
-function parseTeacherTest(raw) {
-  const blocks = raw.split(/\n\s*\n+/).filter(b=>b.trim());
-  const result = [];
-  for(const block of blocks) {
-    const lines = block.split('\n').map(l=>l.trim()).filter(Boolean);
-    let q='', opts={}, correct='';
-    for(const l of lines) {
-      const qm = l.match(/^(?:Асуулт|Q)\s*[:\.\)]\s*(.+)/i);
-      const am = l.match(/^([A-D])\s*[\)\.\-:]\s*(.+)/i);
-      const cm = l.match(/^(?:Зөв|Correct|Answer)\s*[:\.\)]\s*([A-D])/i);
-      if(qm) q = qm[1].trim();
-      else if(am) opts[am[1].toUpperCase()] = am[2].trim();
-      else if(cm) correct = cm[1].toUpperCase();
-    }
-    if(q && correct && opts[correct]) {
-      const wrong = Object.entries(opts).filter(([k])=>k!==correct).map(([,v])=>v);
-      if(wrong.length>=1) result.push({ q, correct: opts[correct], wrong });
-    }
-  }
-  return result;
-}
-
-function launchExam() {
-  examIdx=0; examScore=0; examWrong=0; examAnswered=false;
-  document.getElementById('examSetupModal').style.display = 'none';
-  document.getElementById('examPlayArea').style.display = 'block';
-  document.getElementById('examPlayTitle').textContent =
-    `${examConfig.subject.toUpperCase()} · ${examConfig.type.toUpperCase()}`;
-  const diffLabel = examConfig.difficulty==='easy'?'😊 Амархан':examConfig.difficulty==='hard'?'🔥 Хэцүү':'🤔 Дунд';
-  document.getElementById('examPlaySubtitle').textContent =
-    `${diffLabel} · ${examQs.length} асуулт · ${examConfig.source==='teacher'?'Багшийн тест':'AI тест'}`;
-  renderExamPlay();
-
-  // cheat signal hooks (student sessions only)
-  try{
-    if(studentExamRoomId && studentExamKey){
-      document.onvisibilitychange = () => {
-        if(document.visibilityState === 'hidden') pushCheatEvent('visibility_hidden');
+      const firebaseConfig = {
+        apiKey: "AIzaSyANAj5ys_RlIewVbRBKchzhH64-BZ4bhDc",
+        authDomain: "flashcard-60ecb.firebaseapp.com",
+        projectId: "flashcard-60ecb",
+        storageBucket: "flashcard-60ecb.firebasestorage.app",
+        messagingSenderId: "245589035739",
+        appId: "1:245589035739:web:f1e6166b79c216ecd91afe",
+        measurementId: "G-1S12JQ6XKL",
       };
-      window.onblur = () => pushCheatEvent('window_blur');
-      window.onresize = () => pushCheatEvent('window_resize', { w: window.innerWidth, h: window.innerHeight });
-    }
-  }catch{}
-}
 
-function renderExamPlay() {
-  const wrap = document.getElementById('examWrap');
-  wrap.innerHTML = `
-    <div class="exam-prog-wrap">
-      <div class="exam-score-row">
-        <span class="exam-badge prog" id="exProgLabel">1 / ${examQs.length}</span>
-        <span class="exam-badge score" id="exScoreLabel">⭐ 0</span>
-      </div>
-      <div class="prog-track"><div class="exam-prog-fill" id="exFill" style="width:0%"></div></div>
-    </div>
-    <div id="exCard"></div>
-    <div class="exam-feedback" id="exFeedback"></div>
-    <div id="exOpts"></div>
-    <div class="exam-done-box" id="exDone">
-      <div style="font-size:3rem;margin-bottom:8px">🎓</div>
-      <h2>Шалгалт дууслаа!</h2>
-      <div class="exam-done-score" id="exDoneScore"></div>
-      <div class="exam-done-sub" id="exDoneSub"></div>
-      <div class="exam-done-pills">
-        <span class="done-pill good" id="exDoneGood"></span>
-        <span class="done-pill bad"  id="exDoneBad"></span>
-        <span class="done-pill neutral" id="exDoneTotal"></span>
-      </div>
-      <p class="exam-done-msg" id="exDoneMsg"></p>
-      <div class="exam-done-actions">
-        <button class="exam-next-btn" style="padding:11px 24px" onclick="launchExam()">↺ Дахин шалгалт</button>
-        <button class="exam-back-btn" onclick="openExamRoom()">✦ Шинэ тохиргоо</button>
-        <button class="exam-back-btn" onclick="closeExamRoom()">Гарах</button>
-      </div>
-    </div>`;
-  showExamQ();
-}
+      const GOOGLE_APPS_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbw4oMaDbE06FRtwVoC0mnCssCsb9cEvR1pi9Aa2ngg19EWyPjlJUYCReVtDqFrP2twdxw/exec";
 
-function showExamQ() {
-  if(examIdx >= examQs.length) { finishExam(); return; }
-  examAnswered = false;
-  const q = examQs[examIdx];
-  const pct = Math.round(examIdx/examQs.length*100);
-  document.getElementById('exFill').style.width = pct+'%';
-  document.getElementById('exProgLabel').textContent = `${examIdx+1} / ${examQs.length}`;
-  document.getElementById('exScoreLabel').textContent = `⭐ ${examScore}`;
+      const $ = (id) => document.getElementById(id);
+      const pill = $("pill");
+      const fbState = $("fbState");
+      const aiPill = $("aiPill");
+      const aiState = $("aiState");
+      const status = $("status");
+      const sourceText = $("sourceText");
+      const srcChars = $("srcChars");
+      const cardCount = $("cardCount");
+      const flashcardsEl = $("flashcards");
+      const btnGenerate = $("btnGenerate");
+      const btnSave = $("btnSave");
+      const btnClear = $("btnClear");
+      const groqKeyInput = $("groqKey");
+      const modelSelect = $("model");
+      const languageSelect = $("language");
+      const countSelect = $("count");
 
-  const fb = document.getElementById('exFeedback');
-  fb.className='exam-feedback'; fb.innerHTML='';
+      /** @type {{front:string, back:string, tags?:string[], evidence?:string[]}[]} */
+      let cards = [];
 
-  document.getElementById('exCard').innerHTML=`
-    <div class="exam-q-card">
-      <div class="exam-q-num">АСУУЛТ ${examIdx+1}</div>
-      <div class="exam-q-text">${esc(q.q)}</div>
-    </div>`;
+      function setFb(ok, msg) {
+        fbState.textContent = msg;
+        pill.classList.toggle("ok", ok);
+        pill.classList.toggle("bad", !ok);
+      }
 
-  const KEYS=['A','B','C','D'];
-  const wrongs=(q.wrong||[]).slice(0,3);
-  while(wrongs.length<3) wrongs.push('—');
-  const opts=shuffle([{text:q.correct,ok:true},...wrongs.map(w=>({text:w,ok:false}))]);
+      function setAI(state) {
+        aiState.textContent = state;
+        aiPill.classList.toggle("ok", state === "done");
+        aiPill.classList.toggle("bad", state === "error");
+      }
 
-  // If this is a student session, heartbeat + keep current index
-  recordAttemptHeartbeat();
-  if(studentExamRoomId && studentExamKey){
-    writeAttemptPatch({ currentIdx: examIdx });
-  }
+      function setStatus(text, kind = "info") {
+        status.textContent = text;
+        status.style.color =
+          kind === "error"
+            ? "var(--danger)"
+            : kind === "ok"
+              ? "var(--ok)"
+              : "var(--muted)";
+      }
 
-  document.getElementById('exOpts').innerHTML=`
-    <div class="exam-opts-grid">
-      ${opts.map((o,i)=>`
-        <button class="exam-opt" onclick="answerExam(this,${o.ok},'${escQ(q.correct)}')" data-ok="${o.ok}">
-          <span class="opt-key">${KEYS[i]}</span>
-          <span>${esc(o.text)}</span>
-        </button>`).join('')}
-    </div>`;
-}
+      function render() {
+        srcChars.textContent = String(sourceText.value.length);
+        cardCount.textContent = String(cards.length);
+        flashcardsEl.innerHTML = "";
+        for (const c of cards) {
+          const div = document.createElement("div");
+          div.className = "fc";
+          const h = document.createElement("h3");
+          h.textContent = c.front ?? "";
+          const b = document.createElement("div");
+          b.className = "back";
+          const evidence = Array.isArray(c.evidence) && c.evidence.length ? `\n\nНотолгоо:\n- ${c.evidence.join("\n- ")}` : "";
+          const tags = Array.isArray(c.tags) && c.tags.length ? `\n\nТаг: ${c.tags.join(", ")}` : "";
+          b.textContent = `${c.back ?? ""}${evidence}${tags}`.trim();
+          div.appendChild(h);
+          div.appendChild(b);
+          flashcardsEl.appendChild(div);
+        }
+        btnSave.disabled = cards.length === 0;
+      }
 
-function answerExam(btn, isOk, correctText) {
-  if(examAnswered) return;
-  examAnswered = true;
-  // record picked answer text for dashboard
-  const pickedText = btn?.innerText ? btn.innerText.replace(/^[A-D]\s*/,'').trim() : '';
-  recordAttemptAnswer(examIdx, pickedText, isOk);
-  document.querySelectorAll('.exam-opt').forEach(b=>{
-    b.disabled=true; b.style.pointerEvents='none';
-    if(b.dataset.ok==='true') b.classList.add(isOk?'correct':'reveal');
-  });
-  const fb = document.getElementById('exFeedback');
-  if(isOk) {
-    examScore++;
-    document.getElementById('exScoreLabel').textContent=`⭐ ${examScore}`;
-    btn.classList.add('correct');
-    fb.className='exam-feedback ok'; fb.innerHTML='<span>✓</span> Зөв! Маш сайн.';
-  } else {
-    examWrong++;
-    btn.classList.add('wrong');
-    fb.className='exam-feedback no';
-    fb.innerHTML=`<span>✕</span> Буруу. Зөв хариулт: <strong>${esc(correctText)}</strong>`;
-  }
-  setTimeout(()=>{ examIdx++; showExamQ(); }, 1500);
-}
+      function safeJsonParse(maybeJson) {
+        try {
+          return JSON.parse(maybeJson);
+        } catch {
+          const m = maybeJson.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (!m) return null;
+          try {
+            return JSON.parse(m[0]);
+          } catch {
+            return null;
+          }
+        }
+      }
 
-function finishExam() {
-  document.getElementById('exCard').style.display='none';
-  document.getElementById('exOpts').style.display='none';
-  document.getElementById('exFeedback').style.display='none';
-  const total=examQs.length, pct=Math.round(examScore/total*100);
-  document.getElementById('exFill').style.width='100%';
-  document.getElementById('exProgLabel').textContent=`${total} / ${total}`;
-  document.getElementById('exDoneScore').textContent=pct+'%';
-  document.getElementById('exDoneSub').textContent=`${examScore} зөв · ${total} асуултаас`;
-  document.getElementById('exDoneGood').textContent=`✓ ${examScore} зөв`;
-  document.getElementById('exDoneBad').textContent=`✕ ${examWrong} буруу`;
-  document.getElementById('exDoneTotal').textContent=`📋 ${total} нийт`;
-  const msgs=[[100,'🎉 Маш сайн! Бүх асуултыг зөв хариуллаа.'],[80,'👏 Гайхалтай үр дүн!'],[60,'📖 Дундаж үр дүн. Буруу хэсгүүдийг давтаарай.'],[40,'💪 Илүү их бэлдэх хэрэгтэй.'],[0,'🔁 Дахин сурч шалгуулаарай!']];
-  const msg=msgs.find(m=>pct>=m[0]);
-  document.getElementById('exDoneMsg').textContent=msg?msg[1]:'';
-  document.getElementById('exDone').style.display='block';
+      function buildPrompt({ text, language, count }) {
+        const langLine = language === "en" ? "Write in English." : "Монгол хэлээр бич.";
+        return [
+          "You are an expert study coach.",
+          "Task: Turn the provided long case/text into high-quality flashcards for quick memorization.",
+          "Hard requirements:",
+          "- Extract ONLY the most important facts / claims that are needed to recall the case quickly.",
+          "- For each flashcard, include exactly 2 key evidence points (proof / justification) taken from the text.",
+          "- If evidence is not explicit, infer cautiously and mark the evidence as 'inferred'.",
+          "- Avoid fluff. Be concrete.",
+          `- Generate ${count} flashcards.`,
+          langLine,
+          "",
+          "Return STRICT JSON only (no markdown, no extra text) with this shape:",
+          "{",
+          '  "cards": [',
+          "    {",
+          '      "front": "question or cue",',
+          '      "back": "short answer",',
+          '      "evidence": ["evidence point 1", "evidence point 2"],',
+          '      "tags": ["optional", "tags"]',
+          "    }",
+          "  ]",
+          "}",
+          "",
+          "TEXT:",
+          text,
+        ].join("\n");
+      }
 
-  // write final score to DB (teacher can see anytime)
-  recordAttemptFinish(examScore, examWrong, total);
-}
+      async function groqChatJson({ apiKey, model, prompt }) {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.2,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content: "Return valid JSON only. No markdown. No code fences.",
+              },
+              { role: "user", content: prompt },
+            ],
+          }),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Groq error ${res.status}: ${text.slice(0, 400)}`);
+        }
+        const data = await res.json();
+        const content = data?.choices?.[0]?.message?.content ?? "";
+        const parsed = safeJsonParse(content);
+        if (!parsed) throw new Error("AI output JSON parse failed.");
+        return parsed;
+      }
 
-// Auto-open student join if URL has joinRoom
-(function bootJoin(){
-  try{
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get('joinRoom');
-    if(!roomId) return;
-    // Student flow bypasses login UI; keep app hidden
-    document.getElementById('loginGate').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'none';
-    openStudentJoin(String(roomId).trim().toUpperCase());
-  }catch{}
-})();
-</script>
-</body>
+      async function saveToFirestore({ db, source, cards, meta }) {
+        const docRef = await addDoc(collection(db, "flashcards"), {
+          source,
+          cards,
+          meta,
+          createdAt: serverTimestamp(),
+        });
+        return docRef.id;
+      }
+
+      // Optional: save to Google Apps Script (requires you implement doPost)
+      async function postToAppsScript(payload) {
+        const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Apps Script error ${res.status}: ${text.slice(0, 400)}`);
+        }
+        return await res.json().catch(async () => ({ ok: true, text: await res.text().catch(() => "") }));
+      }
+
+      // Init Firebase
+      let app, analytics, db;
+      try {
+        app = initializeApp(firebaseConfig);
+        analytics = getAnalytics(app);
+        db = getFirestore(app);
+        setFb(true, "connected");
+      } catch (e) {
+        setFb(false, "error");
+        console.error(e);
+      }
+
+      // Persist Groq key locally (optional)
+      const LS_KEY = "flashcard_groq_api_key";
+      groqKeyInput.value = localStorage.getItem(LS_KEY) || "";
+      groqKeyInput.addEventListener("change", () => {
+        const v = groqKeyInput.value.trim();
+        if (v) localStorage.setItem(LS_KEY, v);
+      });
+
+      sourceText.addEventListener("input", render);
+
+      btnClear.addEventListener("click", () => {
+        sourceText.value = "";
+        cards = [];
+        setAI("idle");
+        setStatus("Цэвэрлэгдлээ.", "ok");
+        render();
+      });
+
+      btnGenerate.addEventListener("click", async () => {
+        const text = sourceText.value.trim();
+        const apiKey = groqKeyInput.value.trim();
+        const model = modelSelect.value;
+        const language = languageSelect.value;
+        const count = Number(countSelect.value);
+
+        if (!text) {
+          setStatus("Урт текст/кейс оруулаарай.", "error");
+          return;
+        }
+        if (!apiKey) {
+          setStatus("Groq API key хэрэгтэй. `gsk_...` түлхүүрээ оруул.", "error");
+          return;
+        }
+
+        btnGenerate.disabled = true;
+        btnSave.disabled = true;
+        setAI("working");
+        setStatus("AI боловсруулж байна…");
+
+        try {
+          const prompt = buildPrompt({ text, language, count });
+          const out = await groqChatJson({ apiKey, model, prompt });
+          const outCards = Array.isArray(out?.cards) ? out.cards : [];
+
+          cards = outCards
+            .filter((c) => c && typeof c.front === "string" && typeof c.back === "string")
+            .map((c) => ({
+              front: c.front.trim(),
+              back: c.back.trim(),
+              evidence: Array.isArray(c.evidence) ? c.evidence.slice(0, 2).map((x) => String(x)) : undefined,
+              tags: Array.isArray(c.tags) ? c.tags.slice(0, 6).map((x) => String(x)) : undefined,
+            }))
+            .slice(0, count);
+
+          if (cards.length === 0) throw new Error("AI-с карт гарсангүй. Текстээ өөрөөр оруулж үз.");
+
+          setAI("done");
+          setStatus(`Бэлэн: ${cards.length} flashcard үүсгэлээ.`, "ok");
+          render();
+        } catch (e) {
+          console.error(e);
+          setAI("error");
+          setStatus(e?.message || "AI алдаа гарлаа.", "error");
+          render();
+        } finally {
+          btnGenerate.disabled = false;
+        }
+      });
+
+      btnSave.addEventListener("click", async () => {
+        if (!db) {
+          setStatus("Firebase холбогдоогүй байна.", "error");
+          return;
+        }
+        if (!cards.length) {
+          setStatus("Хадгалах flashcard алга.", "error");
+          return;
+        }
+
+        btnSave.disabled = true;
+        setStatus("Firebase руу хадгалж байна…");
+        try {
+          const meta = {
+            model: modelSelect.value,
+            language: languageSelect.value,
+            requestedCount: Number(countSelect.value),
+            sourceChars: sourceText.value.length,
+          };
+          const id = await saveToFirestore({ db, source: sourceText.value, cards, meta });
+          setStatus(`Хадгаллаа. Doc ID: ${id}`, "ok");
+
+          // Хэрвээ чи Google Sheet рүү бас бичихийг хүсвэл энэ мөрийг uncomment хийгээрэй.
+          // await postToAppsScript({ source: sourceText.value, cards, meta });
+        } catch (e) {
+          console.error(e);
+          setStatus(e?.message || "Хадгалах үед алдаа гарлаа.", "error");
+          btnSave.disabled = false;
+        }
+      });
+
+      render();
+    </script>
+  </body>
 </html>
