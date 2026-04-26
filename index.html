@@ -372,6 +372,38 @@
   .overlay .card h3 { margin-bottom: 8px; }
   .overlay .card p { color: var(--muted); line-height: 1.55; font-size: .88rem; }
 
+  /* QR scanner */
+  .scanModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,15,23,.82);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 350;
+    padding: 18px;
+  }
+  .scanModal.visible { display: flex; }
+  .scanCard {
+    width: 100%;
+    max-width: 520px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .scanCard h3 { margin-bottom: 8px; }
+  .scanVideo {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: #000;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+  }
+
   /* ─── Panels ─── */
   .panel { display: none; }
   .panel.active { display: block; }
@@ -1088,6 +1120,7 @@
           <input class="inp" id="stuQrText" type="text" placeholder="edu://exam?pin=1234 (эсвэл 1234)" />
         </div>
         <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap">
+          <button class="btn btn-ghost" type="button" onclick="startQrScan()">📷 QR унших</button>
           <button class="btn btn-primary" type="button" onclick="studentJoinRoom()">Нэвтрэх</button>
           <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
         </div>
@@ -1111,6 +1144,21 @@
       <button class="btn btn-sm" onclick="closeModal()">Цуцлах</button>
       <button class="btn btn-primary" onclick="saveEdit()">Хадгалах</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══ QR SCAN MODAL ═══ -->
+<div class="scanModal" id="scanModal">
+  <div class="scanCard">
+    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom: 10px">
+      <div>
+        <h3 style="margin:0">📷 QR унших</h3>
+        <div class="hint">Утасны camera-аа ашиглаж QR руу чиглүүлнэ. (HTTPS шаардлагатай)</div>
+      </div>
+      <button class="btn btn-ghost" type="button" onclick="stopQrScan()">✕ Хаах</button>
+    </div>
+    <video id="scanVideo" class="scanVideo" autoplay playsinline muted></video>
+    <div class="status-bar" id="scanStatus"></div>
   </div>
 </div>
 
@@ -1430,6 +1478,12 @@ function listenTeacherRequests(roomId) {
     if (doneSnap.exists()) return;
 
     try {
+      // Immediately write status so student sees progress (not "stuck")
+      await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).set({
+        status: 'queued',
+        queuedAt: firebase.database.ServerValue.TIMESTAMP,
+      });
+
       const cfgSnap = await dbRef(`activeRooms/${roomId}`).get();
       const room = cfgSnap.val() || {};
       const stuSnap = await dbRef(`activeRooms/${roomId}/students/${stuId}`).get();
@@ -1437,10 +1491,12 @@ function listenTeacherRequests(roomId) {
 
       let questions = [];
       if ((room.exam && room.exam.mode) === 'manual' && room.exam.manualRaw) {
+        await dbRef(`activeRooms/${roomId}/studentTests/${stuId}/status`).set('generating');
         let data;
         try { data = JSON.parse(room.exam.manualRaw); } catch { data = null; }
         questions = normalizeExamQuestions(data, room.count);
       } else {
+        await dbRef(`activeRooms/${roomId}/studentTests/${stuId}/status`).set('generating');
         const seed = req.seed || stuId;
         const inputText = [
           `Хичээл: ${room.subjectName || ''}`,
@@ -1453,11 +1509,16 @@ function listenTeacherRequests(roomId) {
           "Олон сонголтот тест зохио. Сурагч бүр дээр өөр хувилбар гаргахын тулд seed-ийг ашигла.",
         ].join("\n");
 
+        // Abort long network waits so we can surface errors
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 90000); // 90s
         const out = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'test', inputText, count: room.count || 10 }),
+          signal: ctrl.signal,
         });
+        clearTimeout(timer);
         if (!out.ok) {
           const t = await out.text().catch(()=>'');
           throw new Error('SCRIPT_URL error ' + out.status + ': ' + t.slice(0,200));
@@ -1469,6 +1530,7 @@ function listenTeacherRequests(roomId) {
       if (!questions.length) throw new Error('AI-аас асуулт ирсэнгүй.');
 
       await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).set({
+        status: 'ready',
         questions,
         createdAt: firebase.database.ServerValue.TIMESTAMP,
       });
@@ -1670,7 +1732,24 @@ function renderStudentStartButton(roomId, stuId) {
 async function studentRequestTest() {
   const ctx = window.__examRoom;
   if (!ctx) return;
-  roomStatus('roomStudentStatus', '⏳ Тест бэлтгэж байна…');
+  roomStatus('roomStudentStatus', '⏳ Тестийн хүсэлт илгээлээ…');
+  const stage = document.getElementById('studentStage');
+  if (stage) {
+    stage.innerHTML = `
+      <div class="quiz-start-box">
+        <div class="emoji">⏳</div>
+        <h2>Тест бэлтгэж байна…</h2>
+        <p>Багшийн компьютер AI‑аар таны тестийг бэлтгээд Firebase‑ээр илгээнэ.<br>Хэт удах юм бол багшийн tab нээлттэй эсэхийг шалга.</p>
+        <div class="quiz-info-row">
+          <span class="quiz-info-pill" id="stuGenStatus">status: —</span>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
+          <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
+          <button class="btn btn-ghost" type="button" onclick="studentRequestTest()">Дахин хүсэх</button>
+        </div>
+      </div>
+    `;
+  }
   // Request teacher to generate unique test
   const seed = Math.random().toString(16).slice(2);
   await dbRef(`activeRooms/${ctx.roomId}/requests/${ctx.stuId}`).set({
@@ -1683,6 +1762,8 @@ async function studentRequestTest() {
   const handler = (snap) => {
     const val = snap.val();
     if (!val) return;
+    const stEl = document.getElementById('stuGenStatus');
+    if (stEl) stEl.textContent = 'status: ' + String(val.status || '…');
     if (val.error) {
       roomStatus('roomStudentStatus', '❌ ' + val.error, true);
       return;
@@ -1904,6 +1985,87 @@ function withTimeout(promise, ms, label) {
     t = setTimeout(() => rej(new Error(`${label} timeout (${ms}ms)`)), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
+
+// ── QR scan (camera) ──
+let __scanStream = null;
+let __scanTimer = null;
+
+function setScanStatus(msg, isErr) {
+  const el = document.getElementById('scanStatus');
+  if (!el) return;
+  el.className = 'status-bar visible' + (isErr ? ' err' : '');
+  el.textContent = msg;
+}
+
+async function startQrScan() {
+  const modal = document.getElementById('scanModal');
+  const video = document.getElementById('scanVideo');
+  if (!modal || !video) return;
+
+  modal.classList.add('visible');
+  setScanStatus('⏳ Camera нээж байна…');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setScanStatus('❌ Энэ төхөөрөмж/хөтөч camera дэмжихгүй байна.', true);
+    return;
+  }
+  if (!window.isSecureContext) {
+    setScanStatus('❌ Camera ажиллахын тулд HTTPS хэрэгтэй (GitHub Pages дээр OK).', true);
+    return;
+  }
+  if (!('BarcodeDetector' in window)) {
+    setScanStatus('❌ Энэ browser QR унших (BarcodeDetector) дэмжихгүй байна. QR текстээ paste хийж ашигла.', true);
+    return;
+  }
+
+  try {
+    __scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false,
+    });
+    video.srcObject = __scanStream;
+    await video.play();
+
+    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+    setScanStatus('QR-г camera-д ойртуулж чиглүүлээрэй.');
+
+    __scanTimer = setInterval(async () => {
+      try {
+        const barcodes = await detector.detect(video);
+        if (!barcodes || !barcodes.length) return;
+        const raw = barcodes[0].rawValue || '';
+        const pin = parsePinFromText(raw);
+        if (pin) {
+          document.getElementById('stuPin').value = pin;
+          document.getElementById('stuQrText').value = raw;
+          setScanStatus(`✅ Оллоо. PIN: ${pin}`);
+          setTimeout(() => stopQrScan(), 500);
+        } else {
+          document.getElementById('stuQrText').value = raw;
+          setScanStatus('QR уншлаа, гэхдээ PIN олдсонгүй. QR текстийг шалга.', true);
+        }
+      } catch {}
+    }, 350);
+  } catch (e) {
+    console.error(e);
+    setScanStatus('❌ Camera permission denied / алдаа гарлаа.', true);
+  }
+}
+
+function stopQrScan() {
+  const modal = document.getElementById('scanModal');
+  if (modal) modal.classList.remove('visible');
+  if (__scanTimer) {
+    clearInterval(__scanTimer);
+    __scanTimer = null;
+  }
+  if (__scanStream) {
+    __scanStream.getTracks().forEach((t) => t.stop());
+    __scanStream = null;
+  }
+  const video = document.getElementById('scanVideo');
+  if (video) video.srcObject = null;
 }
 
 // ── Char count ──
