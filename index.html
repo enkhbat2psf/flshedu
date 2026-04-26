@@ -350,6 +350,12 @@
 
   /* Anti-copy/select helpers */
   .no-select, .no-select * { user-select: none !important; -webkit-user-select: none !important; }
+  .exam-locked #studentStage { filter: blur(12px); pointer-events: none; }
+  .exam-locked #studentStage::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
   .overlay {
     position: fixed;
     inset: 0;
@@ -1322,6 +1328,7 @@ let roomUnsubs = [];
 let teacherRequestUnsubs = [];
 let roomConfig = null;
 let cheatArmed = false; // counts only when exam started
+let examLockedUntil = 0;
 
 function openExamRoom() {
   const ov = document.getElementById('examRoomOverlay');
@@ -1399,6 +1406,26 @@ function roomStatus(elId, msg, isErr) {
   if (!el) return;
   el.className = 'status-bar visible' + (isErr ? ' err' : '');
   el.textContent = msg;
+}
+
+function lockExam(ms, title, msg) {
+  examLockedUntil = Math.max(examLockedUntil, Date.now() + ms);
+  document.body.classList.add('exam-locked');
+  showOverlay(title || 'Түгжигдлээ', msg || 'Tab/апп солих оролдлого илэрлээ.');
+  const tick = () => {
+    const left = examLockedUntil - Date.now();
+    if (left <= 0) {
+      document.body.classList.remove('exam-locked');
+      hideOverlay();
+      return;
+    }
+    // keep overlay visible with countdown
+    const s = Math.ceil(left / 1000);
+    const mEl = document.getElementById('ovMsg');
+    if (mEl) mEl.textContent = `${msg || 'Хориотой үйлдэл илэрлээ.'} (${s}s)`;
+    setTimeout(tick, 250);
+  };
+  tick();
 }
 
 function sanitizePin(pin) {
@@ -1946,6 +1973,12 @@ function installAntiCheat(roomId, stuId) {
     if (document.hidden) onCheat();
   }, true);
 
+  // fullscreen exit detection (when armed)
+  document.addEventListener('fullscreenchange', () => {
+    if (!cheatArmed) return;
+    if (!document.fullscreenElement) onCheat();
+  }, true);
+
   // split screen / resize
   window.addEventListener('resize', onResize, true);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize, true);
@@ -1970,8 +2003,8 @@ function installAntiCheat(roomId, stuId) {
     if (studentAutoSubmitted) return;
     // Before exam starts: block/notify but DO NOT count as cheat
     if (!cheatArmed) {
-      showOverlay('Анхаар', 'Шалгалт эхлэхээс өмнө энэ хуудсаас гарах/Tab солихыг хориглоно. Буцаад шалгалтаа эхлүүлнэ үү.');
-      setTimeout(hideOverlay, 1600);
+      // Don't count; just pause UI shortly
+      lockExam(1600, 'Анхаар', 'Шалгалт эхлэхээс өмнө энэ хуудсаас гарах/Tab солихыг хориглоно.');
       return;
     }
 
@@ -1982,8 +2015,8 @@ function installAntiCheat(roomId, stuId) {
 
     // Only warnings (max 6), no auto-submit
     if (studentWarnings <= 6) {
-      showOverlay('Сэрэмжлүүлэг', `Cheat илэрлээ. Сануулга: ${studentWarnings} / 6`);
-      setTimeout(hideOverlay, 1200);
+      // Lock the exam view for a few seconds so they cannot read/use tools during cheat.
+      lockExam(6000, 'Сэрэмжлүүлэг', `Cheat илэрлээ. Сануулга: ${studentWarnings} / 6`);
     }
   }
 
@@ -2005,6 +2038,13 @@ function armAntiCheat(roomId, stuId) {
   // Ensure installed
   if (!window.__antiCheatCleanup) installAntiCheat(roomId, stuId);
   cheatArmed = true;
+
+  // Require fullscreen (best-effort). If user exits fullscreen -> counts as cheat.
+  try {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  } catch {}
 }
 
 function disarmAntiCheat() {
