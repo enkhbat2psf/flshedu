@@ -1252,6 +1252,22 @@ function doLogin() {
   document.getElementById('loginGate').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
   updateStats();
+
+  // If opened from QR (?...exam=1&pin=XXXX) -> open exam room as student and prefill PIN
+  try {
+    const params = new URLSearchParams(location.search || '');
+    const pin = params.get('pin');
+    const exam = params.get('exam');
+    if (exam === '1') {
+      openExamRoom();
+      setRoomRole('student');
+      if (pin) {
+        document.getElementById('stuPin').value = String(pin);
+        document.getElementById('roomPin').textContent = String(pin);
+        document.getElementById('roomPin2').textContent = String(pin);
+      }
+    }
+  } catch {}
 }
 
 function doLogout() {
@@ -1622,7 +1638,10 @@ function shuffle4(arr) {
 function renderRoomQr(pin) {
   const el = document.getElementById('roomQr');
   if (!el) return;
-  const text = `edu://exam?pin=${pin}`;
+  // Use an https URL so any phone camera / Google Lens can open it directly.
+  // This avoids custom-scheme ("edu://") which often won't open automatically.
+  const base = `${location.origin}${location.pathname}`;
+  const text = `${base}?exam=1&pin=${encodeURIComponent(pin)}`;
   document.getElementById('roomQrText').textContent = text;
   el.innerHTML = '';
   // eslint-disable-next-line no-undef
