@@ -899,7 +899,7 @@
   </div>
   <div class="header-user">
     <span class="user-badge" id="userBadge"></span>
-    <button class="room-btn" onclick="switchTab('room')" title="Шалгалтын өрөө">🏫 Шалгалтын өрөө</button>
+    <button class="room-btn" onclick="openExamRoom()" title="Шалгалтын өрөө">🏫 Шалгалтын өрөө</button>
     <button class="logout-btn" onclick="doLogout()">Гарах</button>
   </div>
 </header>
@@ -909,7 +909,6 @@
   <button class="tab" onclick="switchTab('cards')" id="tab-cards">🃏 Картууд</button>
   <button class="tab" onclick="switchTab('quiz')" id="tab-quiz">🧪 Тест</button>
   <button class="tab" onclick="switchTab('study')" id="tab-study">📚 Судлах</button>
-  <button class="tab" onclick="switchTab('room')" id="tab-room">🏫 Шалгалтын өрөө</button>
 </div>
 
 <!-- ═══ GENERATE ═══ -->
@@ -978,85 +977,124 @@
   </div>
 </div>
 
-<!-- ═══ EXAM ROOM ═══ -->
-<div class="panel" id="panel-room">
-  <div class="room-top">
-    <div>
-      <div style="font-size:1.15rem;font-weight:800;letter-spacing:-.4px">🏫 Шалгалтын өрөө</div>
-      <div class="hint">Багш өрөө үүсгээд QR/PIN-оор сурагчдыг холбож, anti‑cheat-тэй шалгалт авна.</div>
-    </div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
-      <div class="seg">
-        <button id="roleTeacher" class="active" type="button" onclick="setRoomRole('teacher')">Багш</button>
-        <button id="roleStudent" type="button" onclick="setRoomRole('student')">Сурагч</button>
+<!-- ═══ EXAM ROOM (FULLSCREEN) ═══ -->
+<div class="overlay" id="examRoomOverlay">
+  <div class="card" style="max-width: 1100px; border-color: var(--border); background: var(--bg)">
+    <div class="room-top" style="margin-bottom: 10px">
+      <div>
+        <div style="font-size:1.25rem;font-weight:900;letter-spacing:-.5px">🏫 Шалгалтын өрөө</div>
+        <div class="hint">Багш 5 алхмаар тохируулга хийнэ → QR/PIN → сурагчид нэгдэнэ → эхлүүлэх үед хүүхэд бүрийн тест тусдаа AI-аар бэлтгэгдэнэ.</div>
       </div>
-      <span class="pill"><span>Firebase</span> <strong id="fbState" class="mono">…</strong></span>
-      <span class="pill"><span>Өрөө</span> <strong id="roomPin" class="mono">—</strong></span>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+        <div class="seg">
+          <button id="roleTeacher" class="active" type="button" onclick="setRoomRole('teacher')">Багш</button>
+          <button id="roleStudent" type="button" onclick="setRoomRole('student')">Сурагч</button>
+        </div>
+        <span class="pill"><span>Firebase</span> <strong id="fbState" class="mono">…</strong></span>
+        <span class="pill"><span>Өрөө</span> <strong id="roomPin" class="mono">—</strong></span>
+        <button class="btn btn-ghost" type="button" onclick="closeExamRoom()">✕ Хаах</button>
+      </div>
     </div>
-  </div>
 
-  <div class="room-grid">
-    <!-- Teacher side -->
-    <div class="box" id="roomTeacherBox">
-      <h3>Багш — Шалгалт зохион байгуулах</h3>
-      <div class="hint">“Шалгалт эхлүүлэх” дарж 5 алхмаар тохируулга хийнэ. AI‑аар эсвэл өөрийн тестээр.</div>
+    <div class="room-grid">
+      <!-- Teacher side -->
+      <div class="box" id="roomTeacherBox">
+        <h3>Багш — Өрөө үүсгэх (5 алхам)</h3>
+        <div class="hint">Эндээс дэлгэц дүүрэн тохируулга бөглөж дуусмагц QR/PIN гарна.</div>
 
-      <div style="height:12px"></div>
-      <button class="btn btn-primary" style="width:100%" onclick="openRoomWizard()">✦ Шалгалт эхлүүлэх</button>
-      <div class="status-bar" id="roomTeacherStatus"></div>
-
-      <div style="height:14px"></div>
-      <div class="box" style="padding:14px">
-        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center">
+        <div style="height:12px"></div>
+        <div class="box" style="padding:14px">
+          <div class="field-row">
+            <div>
+              <div class="field-label">1) Хичээлийн нэр</div>
+              <input class="inp" id="ex_subject" type="text" placeholder="Ж: Англи хэл" />
+            </div>
+            <div>
+              <div class="field-label">2) Шалгалтын сэдэв</div>
+              <input class="inp" id="ex_topic" type="text" placeholder="Ж: Past Simple" />
+            </div>
+          </div>
+          <div style="height:10px"></div>
+          <div class="field-row">
+            <div>
+              <div class="field-label">3) Тестийн тоо (max 27)</div>
+              <input class="inp" id="ex_count" type="number" min="1" max="27" value="10" />
+            </div>
+            <div>
+              <div class="field-label">4) Түвшин</div>
+              <select class="sel" id="ex_level">
+                <option>Амархан</option>
+                <option selected>Дунд</option>
+                <option>Хэцүү</option>
+              </select>
+            </div>
+          </div>
+          <div style="height:10px"></div>
           <div>
-            <div style="font-weight:800">Өрөө үүссэний дараа</div>
-            <div class="hint">Сурагчдын нэр ба cheat тоо realtime орж ирнэ.</div>
+            <div class="field-label">5) Асуулт бэлтгэх арга</div>
+            <div class="radio-row">
+              <label class="radio active" id="mode_ai_lbl"><input type="radio" name="ex_mode" value="ai" checked /> AI-аар зохиолгох</label>
+              <label class="radio" id="mode_manual_lbl"><input type="radio" name="ex_mode" value="manual" /> Миний тест</label>
+            </div>
+            <div class="hint" style="margin-top:8px">“Миний тест” сонговол доор JSON paste хийнэ.</div>
+            <textarea id="ex_manual" style="margin-top:8px; display:none" placeholder='[{"prompt":"...","options":["A","B","C","D"],"answerIndex":0}]'></textarea>
           </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap">
-            <button class="btn btn-ghost" onclick="teacherStartExam()" id="btnTeacherStartExam" disabled>▶ Эхлүүлэх</button>
-            <button class="btn btn-ghost" onclick="teacherEndExam()" id="btnTeacherEndExam" disabled>⏹ Дуусгах</button>
+          <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap">
+            <button class="btn btn-primary" type="button" onclick="createRoomFromForm()">✦ Өрөө үүсгэх</button>
+            <button class="btn btn-ghost" type="button" onclick="resetRoomForm()">Цэвэрлэх</button>
+          </div>
+          <div class="status-bar" id="roomTeacherStatus"></div>
+        </div>
+
+        <div style="height:14px"></div>
+        <div class="box" style="padding:14px">
+          <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center">
+            <div>
+              <div style="font-weight:900">QR / PIN</div>
+              <div class="hint">Сурагчид QR уншуулж (эсвэл PIN) нэгдэнэ.</div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap">
+              <button class="btn btn-ghost" onclick="teacherStartExam()" id="btnTeacherStartExam" disabled>▶ Эхлүүлэх</button>
+              <button class="btn btn-ghost" onclick="teacherEndExam()" id="btnTeacherEndExam" disabled>⏹ Дуусгах</button>
+            </div>
+          </div>
+          <div style="height:12px"></div>
+          <div class="qrBox">
+            <div id="roomQr" class="qrCanvas"></div>
+            <div class="hint">PIN: <strong class="mono" id="roomPin2">—</strong> · QR: <span class="mono" id="roomQrText">—</span></div>
+          </div>
+          <div style="height:12px"></div>
+          <div class="list" id="teacherStudentList"><div class="hint">Одоогоор сурагч алга.</div></div>
+        </div>
+      </div>
+
+      <!-- Student side -->
+      <div class="box" id="roomStudentBox" style="display:none">
+        <h3>Сурагч — Нэвтрэх</h3>
+        <div class="hint">QR/PIN-оор орно. Багш эхлүүлмэгц “Эхлэх” товч гарна. Дармагц тухайн сурагчийн тест AI-аар тусдаа бэлтгэгдэж ирнэ.</div>
+        <div style="height:12px"></div>
+        <div class="field-row">
+          <div>
+            <div class="field-label">Нэр</div>
+            <input class="inp" id="stuName" type="text" placeholder="Нэрээ оруул…" />
+          </div>
+          <div>
+            <div class="field-label">PIN (4 оронтой)</div>
+            <input class="inp" id="stuPin" type="text" inputmode="numeric" placeholder="1234" />
           </div>
         </div>
-        <div style="height:12px"></div>
-        <div class="qrBox">
-          <div id="roomQr" class="qrCanvas"></div>
-          <div class="hint">PIN: <strong class="mono" id="roomPin2">—</strong> · QR агуулга: <span class="mono" id="roomQrText">—</span></div>
+        <div style="margin-top:10px">
+          <div class="field-label">QR‑аас уншсан текст (сонголтоор)</div>
+          <input class="inp" id="stuQrText" type="text" placeholder="edu://exam?pin=1234 (эсвэл 1234)" />
         </div>
-        <div style="height:12px"></div>
-        <div class="list" id="teacherStudentList">
-          <div class="hint">Одоогоор сурагч алга.</div>
+        <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap">
+          <button class="btn btn-primary" type="button" onclick="studentJoinRoom()">Нэвтрэх</button>
+          <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
         </div>
+        <div class="status-bar" id="roomStudentStatus"></div>
+        <div style="height:14px"></div>
+        <div id="studentStage"></div>
       </div>
-    </div>
-
-    <!-- Student side -->
-    <div class="box" id="roomStudentBox" style="display:none">
-      <h3>Сурагч — Шалгалт өгөх</h3>
-      <div class="hint">PIN эсвэл QR‑аар нэвтэрнэ. Багш эхлүүлтэл “Хүлээлгийн өрөө” дээр байна.</div>
-
-      <div style="height:12px"></div>
-      <div class="field-row">
-        <div>
-          <div class="field-label">Нэр</div>
-          <input class="inp" id="stuName" type="text" placeholder="Нэрээ оруул…" />
-        </div>
-        <div>
-          <div class="field-label">PIN (4 оронтой)</div>
-          <input class="inp" id="stuPin" type="text" inputmode="numeric" placeholder="1234" />
-        </div>
-      </div>
-      <div style="margin-top:10px">
-        <div class="field-label">QR‑аас уншсан текст (сонголтоор)</div>
-        <input class="inp" id="stuQrText" type="text" placeholder="edu://exam?pin=1234 (эсвэл 1234)" />
-      </div>
-      <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="studentJoinRoom()">Нэвтрэх</button>
-        <button class="btn btn-ghost" onclick="studentLeaveRoom()">Гарах</button>
-      </div>
-      <div class="status-bar" id="roomStudentStatus"></div>
-
-      <div style="height:14px"></div>
-      <div id="studentStage"></div>
     </div>
   </div>
 </div>
@@ -1162,8 +1200,8 @@ function save() {
 }
 
 // ── Tab switch ──
-const TAB_IDS   = ['gen','cards','quiz','study','room'];
-const PANEL_IDS = ['panel-gen','panel-cards','panel-quiz','panel-study','panel-room'];
+const TAB_IDS   = ['gen','cards','quiz','study'];
+const PANEL_IDS = ['panel-gen','panel-cards','panel-quiz','panel-study'];
 
 function switchTab(t) {
   document.querySelectorAll('.tab').forEach((el, i) =>
@@ -1175,7 +1213,6 @@ function switchTab(t) {
   if (t === 'cards') renderCards();
   if (t === 'quiz')  initQuiz();
   if (t === 'study') initStudy();
-  if (t === 'room')  initRoom();
 }
 
 // ══════════════════════════════════════════
@@ -1195,6 +1232,21 @@ let studentJoined = false;
 let studentWarnings = 0;
 let studentAutoSubmitted = false;
 let roomUnsubs = [];
+let teacherRequestUnsubs = [];
+let roomConfig = null;
+
+function openExamRoom() {
+  const ov = document.getElementById('examRoomOverlay');
+  if (!ov) return;
+  ov.classList.add('visible');
+  initRoom();
+}
+
+function closeExamRoom() {
+  const ov = document.getElementById('examRoomOverlay');
+  if (!ov) return;
+  ov.classList.remove('visible');
+}
 
 function setRoomRole(role) {
   roomRole = role;
@@ -1216,6 +1268,42 @@ function initRoom() {
   if (roomRole === 'student') {
     renderStudentStageWaiting('PIN/QR оруулаад нэвтэрнэ үү.');
   }
+
+  // hook radio UI
+  const modeRadios = document.querySelectorAll('input[name="ex_mode"]');
+  modeRadios.forEach(r => r.addEventListener('change', () => {
+    const isManual = document.querySelector('input[name="ex_mode"]:checked')?.value === 'manual';
+    document.getElementById('ex_manual').style.display = isManual ? '' : 'none';
+    document.getElementById('mode_ai_lbl').classList.toggle('active', !isManual);
+    document.getElementById('mode_manual_lbl').classList.toggle('active', isManual);
+  }));
+}
+
+function resetRoomForm() {
+  document.getElementById('ex_subject').value = '';
+  document.getElementById('ex_topic').value = '';
+  document.getElementById('ex_count').value = 10;
+  document.getElementById('ex_level').value = 'Дунд';
+  document.querySelector('input[name="ex_mode"][value="ai"]').checked = true;
+  document.getElementById('ex_manual').value = '';
+  document.getElementById('ex_manual').style.display = 'none';
+  document.getElementById('mode_ai_lbl').classList.add('active');
+  document.getElementById('mode_manual_lbl').classList.remove('active');
+  roomStatus('roomTeacherStatus', 'Цэвэрлэгдлээ.');
+}
+
+function createRoomFromForm() {
+  const subjectName = (document.getElementById('ex_subject').value || '').trim();
+  const topic = (document.getElementById('ex_topic').value || '').trim();
+  let count = Number(document.getElementById('ex_count').value || 10);
+  count = Math.max(1, Math.min(27, Math.floor(count)));
+  const level = document.getElementById('ex_level').value || 'Дунд';
+  const mode = document.querySelector('input[name="ex_mode"]:checked')?.value || 'ai';
+  const manualRaw = (document.getElementById('ex_manual').value || '').trim();
+  if (!subjectName) return roomStatus('roomTeacherStatus', '⚠️ Хичээлийн нэр оруул.', true);
+  if (!topic) return roomStatus('roomTeacherStatus', '⚠️ Сэдэв оруул.', true);
+
+  createRoom({ subjectName, topic, count, level, mode, manualRaw });
 }
 
 function roomStatus(elId, msg, isErr) {
@@ -1257,23 +1345,6 @@ function on(ref, evt, fn) {
 }
 
 // ── Teacher wizard (5 questions) ──
-function openRoomWizard() {
-  if (!rtdb) return roomStatus('roomTeacherStatus', '⚠️ Firebase config дутуу байна.', true);
-
-  // Simple prompt-based wizard to match your “5 алхам”
-  const subjectName = prompt('1) Хичээлийн нэр (Ж: Англи хэл, Математик):', 'Англи хэл');
-  if (!subjectName) return;
-  const topic = prompt('2) Шалгалтын сэдэв (Ж: Past Simple):', 'Past Simple');
-  if (!topic) return;
-  let count = Number(prompt('3) Тестийн тоо (max 27):', '10'));
-  if (!Number.isFinite(count)) count = 10;
-  count = Math.max(1, Math.min(27, Math.floor(count)));
-  const level = prompt('4) Түвшин (Амархан / Дунд / Хэцүү):', 'Дунд') || 'Дунд';
-  const mode = confirm('5) AI-аар зохиолгох уу?\nOK = AI-аар\nCancel = Миний тест') ? 'ai' : 'manual';
-
-  createRoom({ subjectName, topic, count, level, mode });
-}
-
 async function createRoom(cfg) {
   try {
     roomStatus('roomTeacherStatus', '⏳ Өрөө үүсгэж байна…');
@@ -1284,46 +1355,14 @@ async function createRoom(cfg) {
     document.getElementById('roomPin').textContent = pin;
     document.getElementById('roomPin2').textContent = pin;
 
-    // questions
-    let questions = [];
-    if (cfg.mode === 'ai') {
-      roomStatus('roomTeacherStatus', '⏳ AI асуулт бэлдэж байна…');
-      // Таны одоогийн Code.gs нь action:"test" дээр { questions:[{q, correct, wrong[]}] } буцаадаг.
-      // Тиймээс Exam Room-д action:"test" ашиглаад, subject/topic/level-ийг prompt болгон нийлүүлж явуулна.
-      const inputText = [
-        `Хичээл: ${cfg.subjectName}`,
-        `Сэдэв: ${cfg.topic}`,
-        `Түвшин: ${cfg.level}`,
-        `Тестийн тоо: ${cfg.count} (max 27)`,
-        "",
-        "Дээрх мэдээлэлд тохируулж олон сонголтот тест зохио.",
-      ].join("\n");
-      const out = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        // NOTE: Apps Script Web App нь CORS preflight (OPTIONS) дэмждэггүй тул
-        // application/json биш text/plain илгээж "Failed to fetch"-ийг зайлсхийв.
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'test',
-          inputText,
-          count: cfg.count,
-        }),
-      });
-      if (!out.ok) {
-        const t = await out.text().catch(()=>'');
-        throw new Error('SCRIPT_URL error ' + out.status + ': ' + t.slice(0,200));
-      }
-      const data = await out.json();
-      questions = normalizeExamQuestions(data, cfg.count);
-      if (!questions.length) throw new Error('AI-аас асуулт ирсэнгүй. Script output format шалга.');
-    } else {
-      const raw = prompt('Өөрийн бэлдсэн тестээ JSON байдлаар paste хийнэ үү.\nShape: [{"prompt":"...","options":["A","B","C","D"],"answerIndex":0}]');
-      if (!raw) return;
-      let data;
-      try { data = JSON.parse(raw); } catch { throw new Error('JSON parse алдаа.'); }
-      questions = normalizeExamQuestions(data, cfg.count);
-      if (!questions.length) throw new Error('Таны тестийн формат буруу байна.');
-    }
+    roomConfig = {
+      subjectName: cfg.subjectName,
+      topic: cfg.topic,
+      count: cfg.count,
+      level: cfg.level,
+      mode: cfg.mode,
+      manualRaw: cfg.manualRaw || '',
+    };
 
     // create room in Firebase
     const roomId = dbRef('activeRooms').push().key;
@@ -1333,7 +1372,7 @@ async function createRoom(cfg) {
       pin,
       subjectName: cfg.subjectName,
       topic: cfg.topic,
-      count: questions.length,
+      count: cfg.count,
       level: cfg.level,
       mode: cfg.mode,
       status: 'waiting',
@@ -1344,7 +1383,7 @@ async function createRoom(cfg) {
     const updates = {};
     // Realtime DB: нэг update() дотор ancestor + child path давхар бичихийг хориглодог.
     // Тиймээс exam/questions-г roomObj дотор нэгтгээд нэг зам дээр хадгална.
-    updates[`activeRooms/${roomId}`] = { ...roomObj, exam: { questions } };
+    updates[`activeRooms/${roomId}`] = { ...roomObj, exam: { mode: cfg.mode, manualRaw: cfg.manualRaw || '' } };
     updates[`roomsByPin/${pin}`] = roomId;
 
     await rtdb.ref().update(updates);
@@ -1355,10 +1394,77 @@ async function createRoom(cfg) {
     roomStatus('roomTeacherStatus', `✅ Өрөө үүслээ. PIN: ${pin}. Сурагчдыг QR/PIN-оор оруулна уу.`);
 
     listenTeacherRoom(roomId);
+    listenTeacherRequests(roomId);
   } catch (e) {
     console.error(e);
     roomStatus('roomTeacherStatus', '❌ ' + (e.message || 'Алдаа'), true);
   }
+}
+
+function listenTeacherRequests(roomId) {
+  // When student clicks "Эхлэх", they create a request → teacher generates individualized test and writes back.
+  teacherRequestUnsubs.forEach(fn => { try { fn(); } catch {} });
+  teacherRequestUnsubs = [];
+  const reqRef = dbRef(`activeRooms/${roomId}/requests`);
+  const handler = async (snap) => {
+    const req = snap.val();
+    const stuId = snap.key;
+    if (!req || !stuId) return;
+    // ignore if already generated
+    const doneSnap = await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).get();
+    if (doneSnap.exists()) return;
+
+    try {
+      const cfgSnap = await dbRef(`activeRooms/${roomId}`).get();
+      const room = cfgSnap.val() || {};
+      const stuSnap = await dbRef(`activeRooms/${roomId}/students/${stuId}`).get();
+      const stu = stuSnap.val() || {};
+
+      let questions = [];
+      if ((room.exam && room.exam.mode) === 'manual' && room.exam.manualRaw) {
+        let data;
+        try { data = JSON.parse(room.exam.manualRaw); } catch { data = null; }
+        questions = normalizeExamQuestions(data, room.count);
+      } else {
+        const seed = req.seed || stuId;
+        const inputText = [
+          `Хичээл: ${room.subjectName || ''}`,
+          `Сэдэв: ${room.topic || ''}`,
+          `Түвшин: ${room.level || 'Дунд'}`,
+          `Тестийн тоо: ${room.count || 10} (max 27)`,
+          `Сурагч: ${stu.name || ''}`,
+          `Seed: ${seed}`,
+          "",
+          "Олон сонголтот тест зохио. Сурагч бүр дээр өөр хувилбар гаргахын тулд seed-ийг ашигла.",
+        ].join("\n");
+
+        const out = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'test', inputText, count: room.count || 10 }),
+        });
+        if (!out.ok) {
+          const t = await out.text().catch(()=>'');
+          throw new Error('SCRIPT_URL error ' + out.status + ': ' + t.slice(0,200));
+        }
+        const data = await out.json();
+        questions = normalizeExamQuestions(data, room.count);
+      }
+
+      if (!questions.length) throw new Error('AI-аас асуулт ирсэнгүй.');
+
+      await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).set({
+        questions,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+      });
+      await dbRef(`activeRooms/${roomId}/students/${stuId}`).update({ status: 'ready' });
+    } catch (e) {
+      console.error(e);
+      await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).set({ error: e.message || 'error' });
+    }
+  };
+  reqRef.on('child_added', handler);
+  teacherRequestUnsubs.push(() => reqRef.off('child_added', handler));
 }
 
 function normalizeExamQuestions(data, maxCount) {
@@ -1527,14 +1633,54 @@ function listenStudentRoom(roomId, stuId) {
   on(roomRef, 'value', snap => {
     const st = snap.val() || 'waiting';
     if (st === 'waiting') renderStudentStageWaiting('Хүлээлгийн өрөө — багш эхлүүлэхийг хүлээнэ үү…');
-    if (st === 'live') startStudentExam(roomId, stuId);
+    if (st === 'live') renderStudentStartButton(roomId, stuId);
     if (st === 'ended') renderStudentStageWaiting('Шалгалт дууссан байна.');
   });
 }
 
-async function startStudentExam(roomId, stuId) {
-  const qSnap = await dbRef(`activeRooms/${roomId}/exam/questions`).get();
-  const qs = qSnap.val() || [];
+function renderStudentStartButton(roomId, stuId) {
+  const stage = document.getElementById('studentStage');
+  stage.innerHTML = `
+    <div class="quiz-start-box">
+      <div class="emoji">🧪</div>
+      <h2>Шалгалт эхлэхэд бэлэн</h2>
+      <p>“Эхлэх” дармагц таны тест AI‑аар бэлтгэгдэж ирнэ.</p>
+      <button class="btn btn-primary" style="width:100%" type="button" onclick="studentRequestTest()">▶ Эхлэх</button>
+      <div class="hint" style="margin-top:10px">Анхаар: Шалгалт эхэлмэгц anti‑cheat идэвхжинэ.</div>
+    </div>
+  `;
+  window.__examRoom = { roomId, stuId };
+}
+
+async function studentRequestTest() {
+  const ctx = window.__examRoom;
+  if (!ctx) return;
+  roomStatus('roomStudentStatus', '⏳ Тест бэлтгэж байна…');
+  // Request teacher to generate unique test
+  const seed = Math.random().toString(16).slice(2);
+  await dbRef(`activeRooms/${ctx.roomId}/requests/${ctx.stuId}`).set({
+    requestedAt: firebase.database.ServerValue.TIMESTAMP,
+    seed,
+  });
+
+  // Wait for test
+  const testRef = dbRef(`activeRooms/${ctx.roomId}/studentTests/${ctx.stuId}`);
+  const handler = (snap) => {
+    const val = snap.val();
+    if (!val) return;
+    if (val.error) {
+      roomStatus('roomStudentStatus', '❌ ' + val.error, true);
+      return;
+    }
+    if (val.questions) {
+      testRef.off('value', handler);
+      startStudentExam(ctx.roomId, ctx.stuId, val.questions);
+    }
+  };
+  testRef.on('value', handler);
+}
+
+async function startStudentExam(roomId, stuId, qs) {
   if (!Array.isArray(qs) || !qs.length) {
     renderStudentStageWaiting('Асуулт олдсонгүй.');
     return;
