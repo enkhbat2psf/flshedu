@@ -36,7 +36,10 @@
     color: var(--text);
     min-height: 100vh;
     padding: 24px 20px 60px;
+  -webkit-text-size-adjust: 100%;
   }
+
+html, body { touch-action: manipulation; }
 
   /* ─── LOGIN GATE ─── */
   #loginGate {
@@ -1366,6 +1369,7 @@ let aiTranslateStrikes = 0;
 let warnedTotalCheat = false;
 let lastCheatAt = 0;
 let blurAt = 0;
+let blurFailTimer = null;
 let teacherStudentsCache = {}; // stuId -> {name, ...}
 let teacherSubmissionsCache = []; // normalized for export
 
@@ -1607,6 +1611,8 @@ function listenTeacherRequests(roomId) {
           `Seed: ${seed}`,
           "",
           "Олон сонголтот тест зохио. Сурагч бүр дээр өөр хувилбар гаргахын тулд seed-ийг ашигла.",
+          "ЗӨВХӨН JSON буцаа. Тайлбар, markdown, нэмэлт текст БИЧИХГҮЙ.",
+          "Формат: {\"questions\":[{\"q\":\"...\",\"correct\":\"...\",\"wrong\":[\"...\",\"...\",\"...\"]}]}",
         ].join("\n");
 
         // Abort long network waits so we can surface errors
@@ -1914,6 +1920,9 @@ function renderStudentStartButton(roomId, stuId) {
       <div class="emoji">🧪</div>
       <h2>Шалгалт эхлэхэд бэлэн</h2>
       <p>“Эхлэх” дармагц таны тест AI‑аар бэлтгэгдэж ирнэ.</p>
+      <div class="hint" style="margin:10px 0 0">
+        Санамж: Хүүхэд бүрт асуулт болон сонголтын дараалал <strong>өөр</strong> очих тул хуулах оролдлого хийхгүй байхыг анхаарна уу.
+      </div>
       <button class="btn btn-primary" style="width:100%" type="button" onclick="studentRequestTest()">▶ Эхлэх</button>
       <div class="hint" style="margin-top:10px">Анхаар: Шалгалт эхэлмэгц anti‑cheat идэвхжинэ.</div>
     </div>
@@ -1977,6 +1986,22 @@ async function startStudentExam(roomId, stuId, qs) {
   // Lock down (anti-cheat) — already installed on join, now ARM it
   armAntiCheat(roomId, stuId);
 
+  // Randomize question order + option order per student
+  const shuffled = qs
+    .map((q) => ({
+      prompt: q.prompt,
+      options: Array.isArray(q.options) ? q.options.slice(0, 4) : [],
+      answerIndex: Number(q.answerIndex),
+      explanation: q.explanation || '',
+    }))
+    .sort(() => Math.random() - 0.5)
+    .map((q) => {
+      const opts = q.options.map((t, idx) => ({ t, correct: idx === q.answerIndex }));
+      const mixed = opts.sort(() => Math.random() - 0.5);
+      const newIdx = mixed.findIndex((x) => x.correct);
+      return { ...q, options: mixed.map((x) => x.t), answerIndex: newIdx };
+    });
+
   // Render exam
   const stage = document.getElementById('studentStage');
   stage.innerHTML = `
@@ -1992,12 +2017,12 @@ async function startStudentExam(roomId, stuId, qs) {
   `;
 
   // store questions in window for submit
-  window.__examQuestions = qs;
+  window.__examQuestions = shuffled;
   window.__examAnswers = {};
   window.__examRoom = { roomId, stuId };
 
   const wrap = document.getElementById('examQs');
-  wrap.innerHTML = qs.map((q, qi) => `
+  wrap.innerHTML = shuffled.map((q, qi) => `
     <div class="quiz-card" style="margin-top:12px">
       <div class="study-badge">Асуулт ${qi+1}</div>
       <div class="quiz-question"><canvas class="qCanvas" data-text="${escAttr(q.prompt || '')}"></canvas></div>
@@ -2118,6 +2143,7 @@ async function studentSubmit(forcedCheat) {
     score: correct,
     total: qs.length,
     cheated: !!forcedCheat,
+    grade: forcedCheat ? 'F' : null,
     submittedAt: firebase.database.ServerValue.TIMESTAMP,
   });
   await dbRef(`activeRooms/${ctx.roomId}/students/${ctx.stuId}`).update({
@@ -2136,6 +2162,41 @@ async function studentSubmit(forcedCheat) {
       </div>
     </div>
   `;
+}
+
+async function forceFail(grade, reasonMsg) {
+  if (studentAutoSubmitted) return;
+  const ctx = window.__examRoom;
+  const qs = window.__examQuestions || [];
+  if (!ctx || !ctx.roomId || !ctx.stuId) return;
+  studentAutoSubmitted = true;
+  disarmAntiCheat();
+  const stage = document.getElementById('studentStage');
+  if (stage) {
+    stage.innerHTML = `
+      <div class="quiz-done">
+        <div style="font-size:3rem">⛔</div>
+        <h2>Шалгалт хаагдлаа</h2>
+        <div class="quiz-done-score">${grade}</div>
+        <p>${esc(reasonMsg || '')}</p>
+        <div class="quiz-done-actions">
+          <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
+        </div>
+      </div>
+    `;
+  }
+  await dbRef(`activeRooms/${ctx.roomId}/submissions/${ctx.stuId}`).set({
+    answers: {},
+    score: 0,
+    total: qs.length,
+    cheated: true,
+    grade: grade || 'F',
+    reason: reasonMsg || 'forced fail',
+    submittedAt: firebase.database.ServerValue.TIMESTAMP,
+  });
+  await dbRef(`activeRooms/${ctx.roomId}/students/${ctx.stuId}`).update({
+    status: 'submitted',
+  });
 }
 
 function renderStudentStageWaiting(text) {
@@ -2171,9 +2232,18 @@ function installAntiCheat(roomId, stuId) {
   window.addEventListener('blur', () => {
     blurAt = Date.now();
     onCheat('tab');
+    if (blurFailTimer) clearTimeout(blurFailTimer);
+    blurFailTimer = setTimeout(() => {
+      if (!cheatArmed) return;
+      // If still not focused after 10s -> force fail with grade F
+      try {
+        if (!document.hasFocus()) forceFail('F', '10 секундээс дээш цонхноос гарсан тул F дүнтэй хаалаа.');
+      } catch {}
+    }, 10000);
   }, true);
   window.addEventListener('focus', () => {
     if (!cheatArmed) { blurAt = 0; return; }
+    if (blurFailTimer) { clearTimeout(blurFailTimer); blurFailTimer = null; }
     if (blurAt) {
       const durMs = Date.now() - blurAt;
       blurAt = 0;
