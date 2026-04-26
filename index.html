@@ -1290,7 +1290,9 @@ async function createRoom(cfg) {
       roomStatus('roomTeacherStatus', '⏳ AI асуулт бэлдэж байна…');
       const out = await fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // NOTE: Apps Script Web App нь CORS preflight (OPTIONS) дэмждэггүй тул
+        // application/json биш text/plain илгээж "Failed to fetch"-ийг зайлсхийв.
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'exam',
           subjectName: cfg.subjectName,
@@ -2208,4 +2210,4 @@ function showStudyDone() {
 }
 </script>
 </body>
-</html>cssssssac
+</html>
