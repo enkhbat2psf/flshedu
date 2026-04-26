@@ -2228,13 +2228,13 @@ function installAntiCheat(roomId, stuId) {
   document.addEventListener('keydown', onKey, true);
 
   // focus/visibility
-  // Blur>3s => "Ask Gemini / Page tools" assist-menu usage (2 strikes ends exam)
+  // IMPORTANT: Do NOT warn on every blur.
+  // We only act after returning focus, based on how long they were away.
   window.addEventListener('blur', () => {
+    if (!cheatArmed) return; // before exam: ignore completely (no spam)
     blurAt = Date.now();
-    onCheat('tab');
     if (blurFailTimer) clearTimeout(blurFailTimer);
     blurFailTimer = setTimeout(() => {
-      if (!cheatArmed) return;
       // If still not focused after 10s -> force fail with grade F
       try {
         if (!document.hasFocus()) forceFail('F', '10 секундээс дээш цонхноос гарсан тул F дүнтэй хаалаа.');
@@ -2244,15 +2244,17 @@ function installAntiCheat(roomId, stuId) {
   window.addEventListener('focus', () => {
     if (!cheatArmed) { blurAt = 0; return; }
     if (blurFailTimer) { clearTimeout(blurFailTimer); blurFailTimer = null; }
-    if (blurAt) {
-      const durMs = Date.now() - blurAt;
-      blurAt = 0;
-      if (durMs >= 3000) onCheat('assist_menu');
-    }
+    if (!blurAt) return;
+    const durMs = Date.now() - blurAt;
+    blurAt = 0;
+    // 0.8s+ away = tab/app switch (general cheat)
+    if (durMs >= 800) onCheat('tab');
+    // 3s+ away = assist menu (Ask Gemini / Page tools) strike
+    if (durMs >= 3000) onCheat('assist_menu');
   }, true);
-  window.addEventListener('focus', () => { blurAt = 0; }, true);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) onCheat('ai_translate');
+    if (!cheatArmed) return;
+    if (document.hidden) onCheat('assist_menu');
   }, true);
   window.addEventListener('pagehide', () => onCheat('assist_menu'), true);
 
