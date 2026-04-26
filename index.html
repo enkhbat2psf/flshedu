@@ -1138,6 +1138,10 @@
         <div style="font-weight:900">Ирсэн дүн (Realtime)</div>
         <div class="hint">Сурагч “Дуусгах” дармагц энд оноо нь орж ирнэ.</div>
         <div style="height:10px"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px">
+          <button class="btn-mini" type="button" onclick="exportExamResultsCSV()">⬇ Excel (CSV) татах</button>
+          <span class="pill"><span>Rows</span> <strong class="mono" id="subRowCount">0</strong></span>
+        </div>
         <div class="list" id="teacherSubmissionList"><div class="hint">Одоогоор дүн алга.</div></div>
       </div>
       </div>
@@ -1357,6 +1361,9 @@ let totalCheat = 0;
 let aiTranslateStrikes = 0;
 let warnedTotalCheat = false;
 let lastCheatAt = 0;
+let blurAt = 0;
+let teacherStudentsCache = {}; // stuId -> {name, ...}
+let teacherSubmissionsCache = []; // normalized for export
 
 function openExamRoom() {
   const ov = document.getElementById('examRoomOverlay');
@@ -1711,6 +1718,8 @@ function listenTeacherRoom(roomId) {
   on(r, 'value', snap => {
     const val = snap.val() || null;
     const items = val && typeof val === 'object' ? Object.entries(val).map(([id, v]) => ({ id, ...(v||{}) })) : [];
+    teacherStudentsCache = {};
+    items.forEach(s => { teacherStudentsCache[s.id] = s; });
     if (!items.length) {
       listEl.innerHTML = `<div class="hint">Одоогоор сурагч алга.</div>`;
       return;
@@ -1740,22 +1749,65 @@ function listenTeacherSubmissions(roomId) {
     const items = val && typeof val === 'object' ? Object.entries(val).map(([id, v]) => ({ id, ...(v||{}) })) : [];
     if (!items.length) {
       el.innerHTML = `<div class="hint">Одоогоор дүн алга.</div>`;
+      teacherSubmissionsCache = [];
+      const cnt = document.getElementById('subRowCount');
+      if (cnt) cnt.textContent = '0';
       return;
     }
-    el.innerHTML = items
+    const normalized = items
       .sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0))
+      .map(s => {
+        const stu = teacherStudentsCache[s.id] || {};
+        return {
+          stuId: s.id,
+          name: stu.name || '—',
+          score: Number(s.score || 0),
+          total: Number(s.total || 0),
+          cheated: !!s.cheated,
+          submittedAt: s.submittedAt || 0,
+        };
+      });
+
+    teacherSubmissionsCache = normalized;
+    const cnt = document.getElementById('subRowCount');
+    if (cnt) cnt.textContent = String(normalized.length);
+
+    el.innerHTML = normalized
       .map(s => `
         <div class="stu">
           <div>
-            <div class="n">${esc(s.id)}</div>
+            <div class="n">${esc(s.name)} <span class="hint mono" style="margin-left:8px">${esc(s.stuId)}</span></div>
             <div class="hint" style="margin-top:4px">
-              Оноо: <span class="mono">${Number(s.score||0)} / ${Number(s.total||0)}</span>
+              Оноо: <span class="mono">${s.score} / ${s.total}</span>
               ${s.cheated ? ' · <span class="lock">CHEATED</span>' : ''}
             </div>
           </div>
         </div>
       `).join('');
   });
+}
+
+function exportExamResultsCSV() {
+  if (!teacherSubmissionsCache || !teacherSubmissionsCache.length) {
+    alert('Одоогоор татах дүн алга.');
+    return;
+  }
+  const rows = [
+    ['Нэр','Оноо','Нийт','Cheated','StuId','SubmittedAt'],
+    ...teacherSubmissionsCache.map(r => [
+      `"${String(r.name).replace(/"/g,'""')}"`,
+      String(r.score),
+      String(r.total),
+      r.cheated ? 'YES' : 'NO',
+      `"${String(r.stuId).replace(/"/g,'""')}"`,
+      r.submittedAt ? new Date(r.submittedAt).toISOString() : '',
+    ]),
+  ];
+  const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'exam-results.csv';
+  a.click();
 }
 
 // unlockStudent removed (no hard-lock)
@@ -2040,10 +2092,20 @@ function installAntiCheat(roomId, stuId) {
   document.addEventListener('keydown', onKey, true);
 
   // focus/visibility
-  window.addEventListener('blur', () => onCheat('tab'), true);
+  window.addEventListener('blur', () => {
+    blurAt = Date.now();
+    // If they stay away for a moment, treat as AI/Translate usage attempt
+    setTimeout(() => {
+      if (!cheatArmed) return;
+      if (!document.hasFocus && Date.now() - blurAt >= 1300) onCheat('ai_translate');
+    }, 1400);
+    onCheat('tab');
+  }, true);
+  window.addEventListener('focus', () => { blurAt = 0; }, true);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) onCheat('ai_translate');
   }, true);
+  window.addEventListener('pagehide', () => onCheat('ai_translate'), true);
 
   // fullscreen exit detection (when armed)
   document.addEventListener('fullscreenchange', () => {
