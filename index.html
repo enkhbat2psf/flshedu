@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <!-- qrcode.js + Firebase v8 (Realtime Database) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- QR Scanner (mobile-friendly) -->
+<script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
@@ -354,10 +356,11 @@
     background: rgba(15,15,23,.82);
     backdrop-filter: blur(6px);
     display: none;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 300;
     padding: 20px;
+    overflow: auto;
   }
   .overlay.visible { display: flex; }
   .overlay .card {
@@ -368,6 +371,7 @@
     border-radius: 18px;
     padding: 18px;
     box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    margin: 16px 0;
   }
   .overlay .card h3 { margin-bottom: 8px; }
   .overlay .card p { color: var(--muted); line-height: 1.55; font-size: .88rem; }
@@ -379,10 +383,11 @@
     background: rgba(15,15,23,.82);
     backdrop-filter: blur(6px);
     display: none;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 350;
     padding: 18px;
+    overflow: auto;
   }
   .scanModal.visible { display: flex; }
   .scanCard {
@@ -393,6 +398,7 @@
     border-radius: 18px;
     padding: 14px;
     box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    margin: 16px 0;
   }
   .scanCard h3 { margin-bottom: 8px; }
   .scanVideo {
@@ -402,6 +408,13 @@
     background: #000;
     aspect-ratio: 3 / 4;
     object-fit: cover;
+  }
+  #qrReader {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background: #000;
   }
 
   /* ─── Panels ─── */
@@ -1157,7 +1170,8 @@
       </div>
       <button class="btn btn-ghost" type="button" onclick="stopQrScan()">✕ Хаах</button>
     </div>
-    <video id="scanVideo" class="scanVideo" autoplay playsinline muted></video>
+    <div id="qrReader"></div>
+    <video id="scanVideo" class="scanVideo" autoplay playsinline muted style="display:none"></video>
     <div class="status-bar" id="scanStatus"></div>
   </div>
 </div>
@@ -1452,6 +1466,8 @@ async function createRoom(cfg) {
     await withTimeout(rtdb.ref().update(updates), 8000, 'firebase.update');
 
     renderRoomQr(pin);
+    // Auto scroll to QR after room is created (no need to zoom)
+    try { document.getElementById('roomQr')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
     document.getElementById('btnTeacherStartExam').disabled = false;
     document.getElementById('btnTeacherEndExam').disabled = false;
     roomStatus('roomTeacherStatus', `✅ Өрөө үүслээ. PIN: ${pin}. Сурагчдыг QR/PIN-оор оруулна уу.`);
@@ -2001,6 +2017,7 @@ function setScanStatus(msg, isErr) {
 async function startQrScan() {
   const modal = document.getElementById('scanModal');
   const video = document.getElementById('scanVideo');
+  const reader = document.getElementById('qrReader');
   if (!modal || !video) return;
 
   modal.classList.add('visible');
@@ -2014,18 +2031,44 @@ async function startQrScan() {
     setScanStatus('❌ Camera ажиллахын тулд HTTPS хэрэгтэй (GitHub Pages дээр OK).', true);
     return;
   }
-  if (!('BarcodeDetector' in window)) {
-    setScanStatus('❌ Энэ browser QR унших (BarcodeDetector) дэмжихгүй байна. QR текстээ paste хийж ашигла.', true);
-    return;
-  }
 
   try {
+    // Preferred: html5-qrcode (better mobile support)
+    if (window.Html5Qrcode && reader) {
+      reader.innerHTML = '';
+      video.style.display = 'none';
+      const qr = new Html5Qrcode('qrReader');
+      window.__html5qr = qr;
+      setScanStatus('QR-г camera-д ойртуулж чиглүүлээрэй.');
+      await qr.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        (decodedText) => {
+          const pin = parsePinFromText(decodedText);
+          document.getElementById('stuQrText').value = decodedText || '';
+          if (pin) document.getElementById('stuPin').value = pin;
+          setScanStatus(pin ? `✅ Оллоо. PIN: ${pin}` : 'QR уншлаа, гэхдээ PIN олдсонгүй.', !pin);
+          setTimeout(() => stopQrScan(), 450);
+        },
+        () => {},
+      );
+      return;
+    }
+
+    // Fallback: BarcodeDetector
+    if (!('BarcodeDetector' in window)) {
+      setScanStatus('❌ Энэ browser QR уншигч дэмжихгүй байна. QR текстээ paste хийж ашигла.', true);
+      return;
+    }
+
     __scanStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment' },
       audio: false,
     });
     video.srcObject = __scanStream;
     await video.play();
+    video.style.display = '';
+    if (reader) reader.innerHTML = '';
 
     const detector = new BarcodeDetector({ formats: ['qr_code'] });
     setScanStatus('QR-г camera-д ойртуулж чиглүүлээрэй.');
@@ -2056,6 +2099,16 @@ async function startQrScan() {
 function stopQrScan() {
   const modal = document.getElementById('scanModal');
   if (modal) modal.classList.remove('visible');
+
+  // stop html5-qrcode if running
+  if (window.__html5qr) {
+    try {
+      window.__html5qr.stop().catch(() => {}).finally(() => {
+        try { window.__html5qr.clear(); } catch {}
+        window.__html5qr = null;
+      });
+    } catch {}
+  }
   if (__scanTimer) {
     clearInterval(__scanTimer);
     __scanTimer = null;
@@ -2064,6 +2117,8 @@ function stopQrScan() {
     __scanStream.getTracks().forEach((t) => t.stop());
     __scanStream = null;
   }
+  const reader = document.getElementById('qrReader');
+  if (reader) reader.innerHTML = '';
   const video = document.getElementById('scanVideo');
   if (video) video.srcObject = null;
 }
