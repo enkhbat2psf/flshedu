@@ -364,7 +364,11 @@
   .stu .lock { color: var(--unknow); font-weight: 900; }
 
   /* Anti-copy/select helpers */
-  .no-select, .no-select * { user-select: none !important; -webkit-user-select: none !important; }
+  .no-select, .no-select * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -webkit-touch-callout: none !important; /* Long-press callout block */
+  }
   .exam-locked #studentStage { filter: blur(12px); pointer-events: none; }
   .exam-locked #studentStage::after {
     content: '';
@@ -1996,20 +2000,88 @@ async function startStudentExam(roomId, stuId, qs) {
   wrap.innerHTML = qs.map((q, qi) => `
     <div class="quiz-card" style="margin-top:12px">
       <div class="study-badge">Асуулт ${qi+1}</div>
-      <div class="quiz-question">${esc(q.prompt || '')}</div>
+      <div class="quiz-question"><canvas class="qCanvas" data-text="${escAttr(q.prompt || '')}"></canvas></div>
       <div class="quiz-options">
         ${(q.options||[]).slice(0,4).map((opt, oi) => `
           <button class="quiz-option" type="button" onclick="pick(${qi},${oi})">
             <span class="opt-label">${String.fromCharCode(65+oi)}</span>
-            <span>${esc(opt)}</span>
+            <canvas class="oCanvas" data-text="${escAttr(opt)}"></canvas>
           </button>
         `).join('')}
       </div>
     </div>
   `).join('');
 
+  // Render question/option text via Canvas (reduce Select/Translate/Gemini text extraction)
+  try { renderExamCanvases(); } catch {}
+
   // update student status
   await dbRef(`activeRooms/${roomId}/students/${stuId}`).update({ status: 'in_progress' });
+}
+
+function escAttr(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function renderExamCanvases() {
+  const qCanv = Array.from(document.querySelectorAll('canvas.qCanvas'));
+  const oCanv = Array.from(document.querySelectorAll('canvas.oCanvas'));
+
+  const draw = (canvas, text, fontSize, bold) => {
+    const parent = canvas.parentElement;
+    const maxW = Math.max(260, Math.min(740, (parent?.clientWidth || 360) - 4));
+    const padding = 6;
+    const font = `${bold ? 800 : 600} ${fontSize}px Sora, system-ui, sans-serif`;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.font = font;
+
+    // wrap text
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > (maxW - padding * 2) && line) {
+        lines.push(line);
+        line = w;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    const lineH = Math.round(fontSize * 1.35);
+    const h = Math.max(lineH + padding * 2, lines.length * lineH + padding * 2);
+
+    // set size (hiDPI)
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = maxW + 'px';
+    canvas.style.height = h + 'px';
+    canvas.width = Math.floor(maxW * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.scale(dpr, dpr);
+
+    // clear
+    ctx.clearRect(0, 0, maxW, h);
+    ctx.font = font;
+    ctx.fillStyle = '#e2e0f0';
+    ctx.textBaseline = 'top';
+
+    let y = padding;
+    for (const ln of lines) {
+      ctx.fillText(ln, padding, y);
+      y += lineH;
+    }
+  };
+
+  qCanv.forEach((c) => draw(c, c.dataset.text || '', 18, true));
+  oCanv.forEach((c) => draw(c, c.dataset.text || '', 15, false));
 }
 
 function pick(qi, oi) {
@@ -2087,25 +2159,32 @@ function installAntiCheat(roomId, stuId) {
   document.addEventListener('cut', blockEvt, true);
   document.addEventListener('contextmenu', blockEvt, true);
   document.addEventListener('selectstart', blockEvt, true);
+  document.addEventListener('pointerdown', onPointerDown, true);
+  document.addEventListener('pointerup', onPointerUp, true);
+  document.addEventListener('pointercancel', onPointerUp, true);
 
   // block some shortcuts (best-effort)
   document.addEventListener('keydown', onKey, true);
 
   // focus/visibility
+  // Blur>3s => "Ask Gemini / Page tools" assist-menu usage (2 strikes ends exam)
   window.addEventListener('blur', () => {
     blurAt = Date.now();
-    // If they stay away for a moment, treat as AI/Translate usage attempt
-    setTimeout(() => {
-      if (!cheatArmed) return;
-      if (!document.hasFocus && Date.now() - blurAt >= 1300) onCheat('ai_translate');
-    }, 1400);
     onCheat('tab');
+  }, true);
+  window.addEventListener('focus', () => {
+    if (!cheatArmed) { blurAt = 0; return; }
+    if (blurAt) {
+      const durMs = Date.now() - blurAt;
+      blurAt = 0;
+      if (durMs >= 3000) onCheat('assist_menu');
+    }
   }, true);
   window.addEventListener('focus', () => { blurAt = 0; }, true);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) onCheat('ai_translate');
   }, true);
-  window.addEventListener('pagehide', () => onCheat('ai_translate'), true);
+  window.addEventListener('pagehide', () => onCheat('assist_menu'), true);
 
   // fullscreen exit detection (when armed)
   document.addEventListener('fullscreenchange', () => {
@@ -2113,11 +2192,22 @@ function installAntiCheat(roomId, stuId) {
     if (!document.fullscreenElement) onCheat('tab');
   }, true);
 
-  // split screen / resize
+  // split screen / resize + viewport changes (assist menu can shrink viewport height)
   window.addEventListener('resize', onResize, true);
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize, true);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportResize, true);
 
   function blockEvt(e) { e.preventDefault(); }
+  let lpT = null;
+  function onPointerDown(e) {
+    if (!cheatArmed) return;
+    // long-press often triggers Circle-to-Search / assist menus
+    if (lpT) clearTimeout(lpT);
+    lpT = setTimeout(() => { onCheat('assist_menu'); }, 650);
+  }
+  function onPointerUp() {
+    if (lpT) clearTimeout(lpT);
+    lpT = null;
+  }
   function onKey(e) {
     // Don't count before exam; but once armed, try to block common "escape" shortcuts
     if (!cheatArmed) return;
@@ -2131,6 +2221,19 @@ function installAntiCheat(roomId, stuId) {
     const sw = screen.availWidth || screen.width || window.innerWidth;
     const sh = screen.availHeight || screen.height || window.innerHeight;
     if (window.innerWidth < sw * 0.68 || window.innerHeight < sh * 0.68) onCheat('split');
+  }
+
+  let lastVh = window.visualViewport ? window.visualViewport.height : 0;
+  function onViewportResize() {
+    if (!cheatArmed) return;
+    if (!window.visualViewport) return;
+    // Ignore zoom
+    if (window.visualViewport.scale && window.visualViewport.scale !== 1) return;
+    const vh = window.visualViewport.height;
+    if (lastVh && (lastVh - vh) > 110) {
+      onCheat('assist_menu');
+    }
+    lastVh = vh;
   }
 
   async function onCheat(reason) {
@@ -2147,16 +2250,16 @@ function installAntiCheat(roomId, stuId) {
     if (now - lastCheatAt < 1200) return;
     lastCheatAt = now;
 
-    // AI/Translate rule:
+    // Assist menu / AI tools rule (Ask Gemini / Page tools / Translate UI):
     // 1st time -> warning, 2nd time -> end exam.
-    if (reason === 'ai_translate') {
+    if (reason === 'assist_menu') {
       aiTranslateStrikes++;
       if (aiTranslateStrikes === 1) {
-        lockExam(3500, 'Сэрэмжлүүлэг', 'AI / Google Translate ашиглах оролдлого илэрлээ. Дахин давтагдвал шалгалт дуусна.');
+        lockExam(3500, 'Сэрэмжлүүлэг', 'Та туслах цэс (Ask Gemini / Page tools / Translate) ашиглаж байна! Дахин давтагдвал шалгалт дуусна.');
         return;
       }
       // second strike -> end exam (auto submit current answers)
-      lockExam(2500, 'Шалгалт дууслаа', 'AI / Google Translate 2 удаа илэрсэн тул шалгалтыг дуусгалаа.');
+      lockExam(2500, 'Шалгалт дууслаа', 'Туслах цэс 2 удаа илэрсэн тул шалгалтыг дуусгалаа.');
       await studentSubmit(true);
       return;
     }
@@ -2182,6 +2285,9 @@ function installAntiCheat(roomId, stuId) {
     document.removeEventListener('cut', blockEvt, true);
     document.removeEventListener('contextmenu', blockEvt, true);
     document.removeEventListener('selectstart', blockEvt, true);
+    document.removeEventListener('pointerdown', onPointerDown, true);
+    document.removeEventListener('pointerup', onPointerUp, true);
+    document.removeEventListener('pointercancel', onPointerUp, true);
     document.removeEventListener('keydown', onKey, true);
     window.removeEventListener('blur', onCheat, true);
     window.removeEventListener('resize', onResize, true);
