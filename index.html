@@ -1342,8 +1342,9 @@ async function createRoom(cfg) {
     };
 
     const updates = {};
-    updates[`activeRooms/${roomId}`] = roomObj;
-    updates[`activeRooms/${roomId}/exam/questions`] = questions;
+    // Realtime DB: нэг update() дотор ancestor + child path давхар бичихийг хориглодог.
+    // Тиймээс exam/questions-г roomObj дотор нэгтгээд нэг зам дээр хадгална.
+    updates[`activeRooms/${roomId}`] = { ...roomObj, exam: { questions } };
     updates[`roomsByPin/${pin}`] = roomId;
 
     await rtdb.ref().update(updates);
