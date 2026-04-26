@@ -1125,7 +1125,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4oMaDbE06FRtwVoC0m
 const firebaseConfig = {
   apiKey: "AIzaSyANAj5ys_RlIewVbRBKchzhH64-BZ4bhDc",
   authDomain: "flashcard-60ecb.firebaseapp.com",
-  databaseURL: "https://flashcard-60ecb-default-rtdb.firebaseio.com",
+  databaseURL: "https://flashcard-60ecb-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "flashcard-60ecb",
   storageBucket: "flashcard-60ecb.firebasestorage.app",
   messagingSenderId: "245589035739",
@@ -1139,6 +1139,15 @@ try {
   rtdb = firebase.database();
   const el = document.getElementById('fbState');
   if (el) el.textContent = 'connected';
+
+  // Show realtime connection state (helps diagnose "Өрөө үүсгэж байна…" hangs)
+  try {
+    rtdb.ref('.info/connected').on('value', (snap) => {
+      const ok = !!snap.val();
+      const e1 = document.getElementById('fbState');
+      if (e1) e1.textContent = ok ? 'online' : 'offline';
+    });
+  } catch {}
 } catch (e) {
   console.warn('Firebase init failed:', e);
   const el = document.getElementById('fbState');
@@ -1350,6 +1359,11 @@ async function createRoom(cfg) {
     roomStatus('roomTeacherStatus', '⏳ Өрөө үүсгэж байна…');
     unsubAllRoom();
 
+    if (!rtdb) {
+      roomStatus('roomTeacherStatus', '⚠️ Firebase холбогдоогүй байна (config/rules шалга).', true);
+      return;
+    }
+
     const pin = genPin();
     activePin = pin;
     document.getElementById('roomPin').textContent = pin;
@@ -1386,7 +1400,8 @@ async function createRoom(cfg) {
     updates[`activeRooms/${roomId}`] = { ...roomObj, exam: { mode: cfg.mode, manualRaw: cfg.manualRaw || '' } };
     updates[`roomsByPin/${pin}`] = roomId;
 
-    await rtdb.ref().update(updates);
+    roomStatus('roomTeacherStatus', '⏳ Firebase руу хадгалж байна…');
+    await withTimeout(rtdb.ref().update(updates), 8000, 'firebase.update');
 
     renderRoomQr(pin);
     document.getElementById('btnTeacherStartExam').disabled = false;
@@ -1881,6 +1896,14 @@ function esc(s) {
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#039;');
+}
+
+function withTimeout(promise, ms, label) {
+  let t;
+  const timeout = new Promise((_, rej) => {
+    t = setTimeout(() => rej(new Error(`${label} timeout (${ms}ms)`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
 
 // ── Char count ──
