@@ -3,8 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
 <title>AI Флаш Карт</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- qrcode.js + Firebase v8 (Realtime Database) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
   :root {
     --bg:        #0f0f17;
@@ -175,6 +180,21 @@
   }
   .logout-btn:hover { border-color: var(--unknow); color: var(--unknow); }
 
+  .room-btn {
+    padding: 6px 10px;
+    background: linear-gradient(135deg, rgba(80,210,194,.18), rgba(124,106,247,.16));
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: .76rem;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 8px 22px rgba(0,0,0,.22);
+  }
+  .room-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,.28); }
+
   /* ─── Tabs ─── */
   .tabs {
     display: flex; gap: 6px;
@@ -197,6 +217,160 @@
     color: var(--text);
     box-shadow: 0 2px 8px rgba(0,0,0,.4);
   }
+
+  /* ─── Exam Room UI ─── */
+  .room-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .seg {
+    display: inline-flex;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px;
+  }
+  .seg button {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Sora', sans-serif;
+    font-size: .78rem;
+    font-weight: 700;
+    padding: 8px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .seg button.active {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  }
+  .pill {
+    padding: 6px 12px;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: .78rem;
+    color: var(--muted);
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .pill strong { color: var(--text); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .room-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .room-grid { grid-template-columns: 1fr; } }
+  .box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 16px;
+  }
+  .box h3 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+    letter-spacing: -.3px;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: .84rem;
+    line-height: 1.5;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 640px) { .field-row { grid-template-columns: 1fr; } }
+  .inp, .sel {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    outline: none;
+    font-family: 'Sora', sans-serif;
+  }
+  .radio-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .radio {
+    display: inline-flex; gap: 8px; align-items: center;
+    padding: 9px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,.02);
+    cursor: pointer;
+    user-select: none;
+    color: var(--muted);
+    font-size: .82rem;
+    font-weight: 700;
+  }
+  .radio input { accent-color: var(--accent2); }
+  .radio.active { border-color: rgba(80,210,194,.45); color: var(--text); }
+  .qrBox {
+    display: grid;
+    gap: 10px;
+    justify-items: start;
+    align-items: start;
+  }
+  .qrCanvas {
+    background: white;
+    padding: 10px;
+    border-radius: 12px;
+  }
+  .list {
+    display: grid;
+    gap: 8px;
+  }
+  .stu {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(255,255,255,.02);
+  }
+  .stu .n { font-weight: 800; }
+  .stu .c { color: var(--unknow); font-weight: 800; }
+
+  /* Anti-copy/select helpers */
+  .no-select, .no-select * { user-select: none !important; -webkit-user-select: none !important; }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,15,23,.82);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+  }
+  .overlay.visible { display: flex; }
+  .overlay .card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--card);
+    border: 1px solid rgba(240,94,94,.35);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .overlay .card h3 { margin-bottom: 8px; }
+  .overlay .card p { color: var(--muted); line-height: 1.55; font-size: .88rem; }
 
   /* ─── Panels ─── */
   .panel { display: none; }
@@ -725,6 +899,7 @@
   </div>
   <div class="header-user">
     <span class="user-badge" id="userBadge"></span>
+    <button class="room-btn" onclick="switchTab('room')" title="Шалгалтын өрөө">🏫 Шалгалтын өрөө</button>
     <button class="logout-btn" onclick="doLogout()">Гарах</button>
   </div>
 </header>
@@ -734,6 +909,7 @@
   <button class="tab" onclick="switchTab('cards')" id="tab-cards">🃏 Картууд</button>
   <button class="tab" onclick="switchTab('quiz')" id="tab-quiz">🧪 Тест</button>
   <button class="tab" onclick="switchTab('study')" id="tab-study">📚 Судлах</button>
+  <button class="tab" onclick="switchTab('room')" id="tab-room">🏫 Шалгалтын өрөө</button>
 </div>
 
 <!-- ═══ GENERATE ═══ -->
@@ -802,6 +978,89 @@
   </div>
 </div>
 
+<!-- ═══ EXAM ROOM ═══ -->
+<div class="panel" id="panel-room">
+  <div class="room-top">
+    <div>
+      <div style="font-size:1.15rem;font-weight:800;letter-spacing:-.4px">🏫 Шалгалтын өрөө</div>
+      <div class="hint">Багш өрөө үүсгээд QR/PIN-оор сурагчдыг холбож, anti‑cheat-тэй шалгалт авна.</div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+      <div class="seg">
+        <button id="roleTeacher" class="active" type="button" onclick="setRoomRole('teacher')">Багш</button>
+        <button id="roleStudent" type="button" onclick="setRoomRole('student')">Сурагч</button>
+      </div>
+      <span class="pill"><span>Firebase</span> <strong id="fbState" class="mono">…</strong></span>
+      <span class="pill"><span>Өрөө</span> <strong id="roomPin" class="mono">—</strong></span>
+    </div>
+  </div>
+
+  <div class="room-grid">
+    <!-- Teacher side -->
+    <div class="box" id="roomTeacherBox">
+      <h3>Багш — Шалгалт зохион байгуулах</h3>
+      <div class="hint">“Шалгалт эхлүүлэх” дарж 5 алхмаар тохируулга хийнэ. AI‑аар эсвэл өөрийн тестээр.</div>
+
+      <div style="height:12px"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="openRoomWizard()">✦ Шалгалт эхлүүлэх</button>
+      <div class="status-bar" id="roomTeacherStatus"></div>
+
+      <div style="height:14px"></div>
+      <div class="box" style="padding:14px">
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center">
+          <div>
+            <div style="font-weight:800">Өрөө үүссэний дараа</div>
+            <div class="hint">Сурагчдын нэр ба cheat тоо realtime орж ирнэ.</div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="teacherStartExam()" id="btnTeacherStartExam" disabled>▶ Эхлүүлэх</button>
+            <button class="btn btn-ghost" onclick="teacherEndExam()" id="btnTeacherEndExam" disabled>⏹ Дуусгах</button>
+          </div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="qrBox">
+          <div id="roomQr" class="qrCanvas"></div>
+          <div class="hint">PIN: <strong class="mono" id="roomPin2">—</strong> · QR агуулга: <span class="mono" id="roomQrText">—</span></div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="list" id="teacherStudentList">
+          <div class="hint">Одоогоор сурагч алга.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Student side -->
+    <div class="box" id="roomStudentBox" style="display:none">
+      <h3>Сурагч — Шалгалт өгөх</h3>
+      <div class="hint">PIN эсвэл QR‑аар нэвтэрнэ. Багш эхлүүлтэл “Хүлээлгийн өрөө” дээр байна.</div>
+
+      <div style="height:12px"></div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">Нэр</div>
+          <input class="inp" id="stuName" type="text" placeholder="Нэрээ оруул…" />
+        </div>
+        <div>
+          <div class="field-label">PIN (4 оронтой)</div>
+          <input class="inp" id="stuPin" type="text" inputmode="numeric" placeholder="1234" />
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="field-label">QR‑аас уншсан текст (сонголтоор)</div>
+        <input class="inp" id="stuQrText" type="text" placeholder="edu://exam?pin=1234 (эсвэл 1234)" />
+      </div>
+      <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="studentJoinRoom()">Нэвтрэх</button>
+        <button class="btn btn-ghost" onclick="studentLeaveRoom()">Гарах</button>
+      </div>
+      <div class="status-bar" id="roomStudentStatus"></div>
+
+      <div style="height:14px"></div>
+      <div id="studentStage"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ EDIT MODAL ═══ -->
 <div class="modal-bg" id="editModal">
   <div class="modal">
@@ -821,9 +1080,23 @@
 
 <script>
 // ══════════════════════════════════════════
-// ── Backend URL ──
+// ── Backend URL + Firebase config ──
 // ══════════════════════════════════════════
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4oMaDbE06FRtwVoC0mnCssCsb9cEvR1pi9Aa2ngg19EWyPjlJUYCReVtDqFrP2twdxw/exec";
+// TODO: Firebase Realtime Database config-оо энд тавина
+const firebaseConfig = {};
+
+let rtdb = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  rtdb = firebase.database();
+  const el = document.getElementById('fbState');
+  if (el) el.textContent = 'connected';
+} catch (e) {
+  console.warn('Firebase init failed:', e);
+  const el = document.getElementById('fbState');
+  if (el) el.textContent = 'config?';
+}
 
 // ══════════════════════════════════════════
 // ── State ──
@@ -880,8 +1153,8 @@ function save() {
 }
 
 // ── Tab switch ──
-const TAB_IDS   = ['gen','cards','quiz','study'];
-const PANEL_IDS = ['panel-gen','panel-cards','panel-quiz','panel-study'];
+const TAB_IDS   = ['gen','cards','quiz','study','room'];
+const PANEL_IDS = ['panel-gen','panel-cards','panel-quiz','panel-study','panel-room'];
 
 function switchTab(t) {
   document.querySelectorAll('.tab').forEach((el, i) =>
@@ -893,6 +1166,514 @@ function switchTab(t) {
   if (t === 'cards') renderCards();
   if (t === 'quiz')  initQuiz();
   if (t === 'study') initStudy();
+  if (t === 'room')  initRoom();
+}
+
+// ══════════════════════════════════════════
+// ── EXAM ROOM (Teacher + Student) ──
+// Firebase schema:
+// activeRooms/{roomId}: { pin, subjectName, topic, count, level, mode, status, createdAt, startedAt, teacherName }
+// roomsByPin/{pin}: roomId
+// activeRooms/{roomId}/students/{stuId}: { name, joinedAt, cheatCount, status }
+// activeRooms/{roomId}/exam/questions: [ {prompt, options[4], answerIndex, explanation?} ]
+// activeRooms/{roomId}/submissions/{stuId}: { answers:{i:choice}, score, submittedAt, cheated }
+// ══════════════════════════════════════════
+let roomRole = 'teacher';
+let activeRoomId = '';
+let activePin = '';
+let studentId = '';
+let studentJoined = false;
+let studentWarnings = 0;
+let studentAutoSubmitted = false;
+let roomUnsubs = [];
+
+function setRoomRole(role) {
+  roomRole = role;
+  document.getElementById('roleTeacher').classList.toggle('active', role === 'teacher');
+  document.getElementById('roleStudent').classList.toggle('active', role === 'student');
+  document.getElementById('roomTeacherBox').style.display = role === 'teacher' ? '' : 'none';
+  document.getElementById('roomStudentBox').style.display = role === 'student' ? '' : 'none';
+  initRoom();
+}
+
+function initRoom() {
+  // keep last entered name/pin
+  const nameEl = document.getElementById('stuName');
+  const pinEl  = document.getElementById('stuPin');
+  if (nameEl && !nameEl.value) nameEl.value = userName || '';
+  if (pinEl && activePin) pinEl.value = activePin;
+
+  // show start UI for student stage if not joined
+  if (roomRole === 'student') {
+    renderStudentStageWaiting('PIN/QR оруулаад нэвтэрнэ үү.');
+  }
+}
+
+function roomStatus(elId, msg, isErr) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'status-bar visible' + (isErr ? ' err' : '');
+  el.textContent = msg;
+}
+
+function sanitizePin(pin) {
+  return String(pin || '').trim().replace(/\D/g,'').slice(0,4);
+}
+
+function parsePinFromText(t) {
+  const s = String(t || '').trim();
+  const m1 = s.match(/pin=(\d{4})/i);
+  if (m1) return m1[1];
+  const m2 = s.match(/\b(\d{4})\b/);
+  return m2 ? m2[1] : '';
+}
+
+function genPin() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function dbRef(path) {
+  if (!rtdb) throw new Error('Firebase config дутуу байна.');
+  return rtdb.ref(path);
+}
+
+function unsubAllRoom() {
+  roomUnsubs.forEach(fn => { try { fn(); } catch {} });
+  roomUnsubs = [];
+}
+
+function on(ref, evt, fn) {
+  ref.on(evt, fn);
+  roomUnsubs.push(() => ref.off(evt, fn));
+}
+
+// ── Teacher wizard (5 questions) ──
+function openRoomWizard() {
+  if (!rtdb) return roomStatus('roomTeacherStatus', '⚠️ Firebase config дутуу байна.', true);
+
+  // Simple prompt-based wizard to match your “5 алхам”
+  const subjectName = prompt('1) Хичээлийн нэр (Ж: Англи хэл, Математик):', 'Англи хэл');
+  if (!subjectName) return;
+  const topic = prompt('2) Шалгалтын сэдэв (Ж: Past Simple):', 'Past Simple');
+  if (!topic) return;
+  let count = Number(prompt('3) Тестийн тоо (max 27):', '10'));
+  if (!Number.isFinite(count)) count = 10;
+  count = Math.max(1, Math.min(27, Math.floor(count)));
+  const level = prompt('4) Түвшин (Амархан / Дунд / Хэцүү):', 'Дунд') || 'Дунд';
+  const mode = confirm('5) AI-аар зохиолгох уу?\nOK = AI-аар\nCancel = Миний тест') ? 'ai' : 'manual';
+
+  createRoom({ subjectName, topic, count, level, mode });
+}
+
+async function createRoom(cfg) {
+  try {
+    roomStatus('roomTeacherStatus', '⏳ Өрөө үүсгэж байна…');
+    unsubAllRoom();
+
+    const pin = genPin();
+    activePin = pin;
+    document.getElementById('roomPin').textContent = pin;
+    document.getElementById('roomPin2').textContent = pin;
+
+    // questions
+    let questions = [];
+    if (cfg.mode === 'ai') {
+      roomStatus('roomTeacherStatus', '⏳ AI асуулт бэлдэж байна…');
+      const out = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'exam',
+          subjectName: cfg.subjectName,
+          topic: cfg.topic,
+          count: cfg.count,
+          level: cfg.level,
+        }),
+      });
+      if (!out.ok) {
+        const t = await out.text().catch(()=>'');
+        throw new Error('SCRIPT_URL error ' + out.status + ': ' + t.slice(0,200));
+      }
+      const data = await out.json();
+      questions = normalizeExamQuestions(data, cfg.count);
+      if (!questions.length) throw new Error('AI-аас асуулт ирсэнгүй. Script output format шалга.');
+    } else {
+      const raw = prompt('Өөрийн бэлдсэн тестээ JSON байдлаар paste хийнэ үү.\nShape: [{"prompt":"...","options":["A","B","C","D"],"answerIndex":0}]');
+      if (!raw) return;
+      let data;
+      try { data = JSON.parse(raw); } catch { throw new Error('JSON parse алдаа.'); }
+      questions = normalizeExamQuestions(data, cfg.count);
+      if (!questions.length) throw new Error('Таны тестийн формат буруу байна.');
+    }
+
+    // create room in Firebase
+    const roomId = dbRef('activeRooms').push().key;
+    activeRoomId = roomId;
+
+    const roomObj = {
+      pin,
+      subjectName: cfg.subjectName,
+      topic: cfg.topic,
+      count: questions.length,
+      level: cfg.level,
+      mode: cfg.mode,
+      status: 'waiting',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      teacherName: userName || 'Багш',
+    };
+
+    const updates = {};
+    updates[`activeRooms/${roomId}`] = roomObj;
+    updates[`activeRooms/${roomId}/exam/questions`] = questions;
+    updates[`roomsByPin/${pin}`] = roomId;
+
+    await rtdb.ref().update(updates);
+
+    renderRoomQr(pin);
+    document.getElementById('btnTeacherStartExam').disabled = false;
+    document.getElementById('btnTeacherEndExam').disabled = false;
+    roomStatus('roomTeacherStatus', `✅ Өрөө үүслээ. PIN: ${pin}. Сурагчдыг QR/PIN-оор оруулна уу.`);
+
+    listenTeacherRoom(roomId);
+  } catch (e) {
+    console.error(e);
+    roomStatus('roomTeacherStatus', '❌ ' + (e.message || 'Алдаа'), true);
+  }
+}
+
+function normalizeExamQuestions(data, maxCount) {
+  let qs = [];
+  if (Array.isArray(data)) qs = data;
+  else if (data && Array.isArray(data.questions)) qs = data.questions;
+  else if (data && data.exam && Array.isArray(data.exam.questions)) qs = data.exam.questions;
+
+  return qs
+    .filter(q => q && typeof q.prompt === 'string' && Array.isArray(q.options) && q.options.length >= 4)
+    .map(q => ({
+      prompt: String(q.prompt).trim(),
+      options: q.options.slice(0,4).map(x => String(x)),
+      answerIndex: Number(q.answerIndex),
+      explanation: q.explanation ? String(q.explanation) : ''
+    }))
+    .filter(q => Number.isInteger(q.answerIndex) && q.answerIndex >= 0 && q.answerIndex < 4)
+    .slice(0, Math.min(27, maxCount || 27));
+}
+
+function renderRoomQr(pin) {
+  const el = document.getElementById('roomQr');
+  if (!el) return;
+  const text = `edu://exam?pin=${pin}`;
+  document.getElementById('roomQrText').textContent = text;
+  el.innerHTML = '';
+  // eslint-disable-next-line no-undef
+  new QRCode(el, { text, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+}
+
+function listenTeacherRoom(roomId) {
+  const listEl = document.getElementById('teacherStudentList');
+  const r = dbRef(`activeRooms/${roomId}/students`);
+  on(r, 'value', snap => {
+    const val = snap.val() || null;
+    const items = val && typeof val === 'object' ? Object.entries(val).map(([id, v]) => ({ id, ...(v||{}) })) : [];
+    if (!items.length) {
+      listEl.innerHTML = `<div class="hint">Одоогоор сурагч алга.</div>`;
+      return;
+    }
+    listEl.innerHTML = items
+      .sort((a,b)=>(b.joinedAt||0)-(a.joinedAt||0))
+      .map(s => `
+        <div class="stu">
+          <div class="n">${esc(s.name || '—')}</div>
+          <div class="c">Cheat: ${Number(s.cheatCount||0)}</div>
+        </div>
+      `).join('');
+  });
+}
+
+async function teacherStartExam() {
+  if (!activeRoomId) return roomStatus('roomTeacherStatus', '⚠️ Эхлээд өрөө үүсгэнэ үү.', true);
+  await dbRef(`activeRooms/${activeRoomId}`).update({
+    status: 'live',
+    startedAt: firebase.database.ServerValue.TIMESTAMP,
+  });
+  roomStatus('roomTeacherStatus', '▶ Шалгалт эхэллээ. Сурагчдын дэлгэц дээр асуултууд гарна.');
+}
+
+async function teacherEndExam() {
+  if (!activeRoomId) return;
+  await dbRef(`activeRooms/${activeRoomId}`).update({
+    status: 'ended',
+    endedAt: firebase.database.ServerValue.TIMESTAMP,
+  });
+  roomStatus('roomTeacherStatus', '⏹ Шалгалт дууслаа.');
+}
+
+// ── Student flow ──
+async function studentJoinRoom() {
+  if (!rtdb) return roomStatus('roomStudentStatus', '⚠️ Firebase config дутуу байна.', true);
+
+  const nm = (document.getElementById('stuName').value || '').trim() || userName || '';
+  let pin = sanitizePin(document.getElementById('stuPin').value);
+  const qrText = document.getElementById('stuQrText').value || '';
+  if (qrText) {
+    const p = parsePinFromText(qrText);
+    if (p) pin = p;
+  }
+  if (!nm) return roomStatus('roomStudentStatus', '⚠️ Нэрээ оруул.', true);
+  if (!pin) return roomStatus('roomStudentStatus', '⚠️ PIN оруул.', true);
+
+  roomStatus('roomStudentStatus', '⏳ Өрөө хайж байна…');
+  unsubAllRoom();
+  studentWarnings = 0;
+  studentAutoSubmitted = false;
+
+  const roomIdSnap = await dbRef(`roomsByPin/${pin}`).get();
+  const roomId = roomIdSnap.val();
+  if (!roomId) return roomStatus('roomStudentStatus', '❌ Энэ PIN-тай өрөө олдсонгүй.', true);
+
+  activePin = pin;
+  activeRoomId = roomId;
+  document.getElementById('roomPin').textContent = pin;
+  document.getElementById('roomPin2').textContent = pin;
+
+  // create student entry
+  const stuRef = dbRef(`activeRooms/${roomId}/students`).push();
+  studentId = stuRef.key;
+  await stuRef.set({
+    name: nm,
+    joinedAt: firebase.database.ServerValue.TIMESTAMP,
+    cheatCount: 0,
+    status: 'waiting',
+  });
+  studentJoined = true;
+
+  roomStatus('roomStudentStatus', `✅ Холбогдлоо. PIN: ${pin}. Багш эхлүүлэхийг хүлээнэ үү.`);
+  listenStudentRoom(roomId, studentId);
+}
+
+function studentLeaveRoom() {
+  unsubAllRoom();
+  studentJoined = false;
+  studentId = '';
+  activeRoomId = '';
+  renderStudentStageWaiting('PIN/QR оруулаад нэвтэрнэ үү.');
+  roomStatus('roomStudentStatus', 'Гарлаа.');
+  disableAntiCheat();
+}
+
+function listenStudentRoom(roomId, stuId) {
+  const roomRef = dbRef(`activeRooms/${roomId}/status`);
+  on(roomRef, 'value', snap => {
+    const st = snap.val() || 'waiting';
+    if (st === 'waiting') renderStudentStageWaiting('Хүлээлгийн өрөө — багш эхлүүлэхийг хүлээнэ үү…');
+    if (st === 'live') startStudentExam(roomId, stuId);
+    if (st === 'ended') renderStudentStageWaiting('Шалгалт дууссан байна.');
+  });
+}
+
+async function startStudentExam(roomId, stuId) {
+  const qSnap = await dbRef(`activeRooms/${roomId}/exam/questions`).get();
+  const qs = qSnap.val() || [];
+  if (!Array.isArray(qs) || !qs.length) {
+    renderStudentStageWaiting('Асуулт олдсонгүй.');
+    return;
+  }
+
+  // Lock down (anti-cheat)
+  enableAntiCheat(roomId, stuId);
+
+  // Render exam
+  const stage = document.getElementById('studentStage');
+  stage.innerHTML = `
+    <div class="quiz-start-box" style="text-align:left">
+      <div class="study-badge">Шалгалт</div>
+      <div class="hint">Анхаар: Tab/апп сольвол cheat тоологдоно. 2 дахь удаад автоматаар submit болно.</div>
+    </div>
+    <div id="examQs"></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 12px">
+      <button class="btn btn-primary" type="button" onclick="studentSubmit()">Дуусгах</button>
+      <span class="pill"><span>Warning</span> <strong id="warnCount" class="mono">0</strong></span>
+    </div>
+  `;
+
+  // store questions in window for submit
+  window.__examQuestions = qs;
+  window.__examAnswers = {};
+  window.__examRoom = { roomId, stuId };
+
+  const wrap = document.getElementById('examQs');
+  wrap.innerHTML = qs.map((q, qi) => `
+    <div class="quiz-card" style="margin-top:12px">
+      <div class="study-badge">Асуулт ${qi+1}</div>
+      <div class="quiz-question">${esc(q.prompt || '')}</div>
+      <div class="quiz-options">
+        ${(q.options||[]).slice(0,4).map((opt, oi) => `
+          <button class="quiz-option" type="button" onclick="pick(${qi},${oi})">
+            <span class="opt-label">${String.fromCharCode(65+oi)}</span>
+            <span>${esc(opt)}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  // update student status
+  await dbRef(`activeRooms/${roomId}/students/${stuId}`).update({ status: 'in_progress' });
+}
+
+function pick(qi, oi) {
+  if (!window.__examAnswers) return;
+  window.__examAnswers[qi] = oi;
+  // light UI mark: highlight selected option
+  const card = document.querySelectorAll('#examQs .quiz-card')[qi];
+  if (!card) return;
+  card.querySelectorAll('.quiz-option').forEach((b, idx) => {
+    b.style.borderColor = idx === oi ? 'rgba(80,210,194,.65)' : '';
+  });
+}
+
+async function studentSubmit(forcedCheat) {
+  if (studentAutoSubmitted) return;
+  const ctx = window.__examRoom;
+  const qs = window.__examQuestions || [];
+  const ans = window.__examAnswers || {};
+  if (!ctx || !ctx.roomId || !ctx.stuId) return;
+
+  // score
+  let correct = 0;
+  for (let i=0;i<qs.length;i++) {
+    if (Number(ans[i]) === Number(qs[i].answerIndex)) correct++;
+  }
+
+  studentAutoSubmitted = true;
+  disableAntiCheat();
+
+  await dbRef(`activeRooms/${ctx.roomId}/submissions/${ctx.stuId}`).set({
+    answers: ans,
+    score: correct,
+    total: qs.length,
+    cheated: !!forcedCheat,
+    submittedAt: firebase.database.ServerValue.TIMESTAMP,
+  });
+  await dbRef(`activeRooms/${ctx.roomId}/students/${ctx.stuId}`).update({
+    status: forcedCheat ? 'cheated' : 'submitted',
+  });
+
+  const stage = document.getElementById('studentStage');
+  stage.innerHTML = `
+    <div class="quiz-done">
+      <div style="font-size:3rem">${forcedCheat ? '⛔' : '🏁'}</div>
+      <h2>${forcedCheat ? 'Cheated' : 'Дууслаа'}</h2>
+      <div class="quiz-done-score">${correct} / ${qs.length}</div>
+      <p>${forcedCheat ? 'Tab/апп сольсон тул автоматаар илгээлээ.' : 'Амжилттай илгээлээ.'}</p>
+      <div class="quiz-done-actions">
+        <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderStudentStageWaiting(text) {
+  const stage = document.getElementById('studentStage');
+  if (!stage) return;
+  stage.innerHTML = `
+    <div class="empty-state">
+      <div class="emoji">⏳</div>
+      <p>${esc(text || '')}</p>
+    </div>
+  `;
+}
+
+// ── Anti-cheat (student only) ──
+function enableAntiCheat(roomId, stuId) {
+  document.body.classList.add('no-select');
+
+  // hard block selection/copy
+  document.addEventListener('copy', blockEvt, true);
+  document.addEventListener('cut', blockEvt, true);
+  document.addEventListener('contextmenu', blockEvt, true);
+  document.addEventListener('selectstart', blockEvt, true);
+
+  // focus/visibility
+  window.addEventListener('blur', onCheat, true);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) onCheat();
+  }, true);
+
+  // split screen / resize
+  window.addEventListener('resize', onResize, true);
+
+  function blockEvt(e) { e.preventDefault(); }
+  function onResize() {
+    // heuristic: if window becomes too small compared to screen -> warn
+    const sw = screen.availWidth || screen.width || window.innerWidth;
+    const sh = screen.availHeight || screen.height || window.innerHeight;
+    if (window.innerWidth < sw * 0.72 || window.innerHeight < sh * 0.72) onCheat();
+  }
+
+  async function onCheat() {
+    if (studentAutoSubmitted) return;
+    studentWarnings++;
+    const wEl = document.getElementById('warnCount');
+    if (wEl) wEl.textContent = String(studentWarnings);
+
+    await dbRef(`activeRooms/${roomId}/students/${stuId}/cheatCount`).transaction(v => (Number(v||0) + 1));
+
+    if (studentWarnings === 1) {
+      showOverlay('Сэрэмжлүүлэг', 'Өөр tab/апп руу шилжсэн байна. Дахин давтагдвал шалгалт автоматаар submit болно.');
+      setTimeout(hideOverlay, 1800);
+    } else {
+      showOverlay('Auto‑submit', 'Cheat 2 удаа илэрсэн тул шалгалтыг автоматаар илгээж байна…');
+      await studentSubmit(true);
+      setTimeout(hideOverlay, 1400);
+    }
+  }
+
+  // stash handlers for cleanup
+  window.__antiCheatCleanup = () => {
+    document.body.classList.remove('no-select');
+    document.removeEventListener('copy', blockEvt, true);
+    document.removeEventListener('cut', blockEvt, true);
+    document.removeEventListener('contextmenu', blockEvt, true);
+    document.removeEventListener('selectstart', blockEvt, true);
+    window.removeEventListener('blur', onCheat, true);
+    window.removeEventListener('resize', onResize, true);
+  };
+}
+
+function disableAntiCheat() {
+  if (window.__antiCheatCleanup) {
+    try { window.__antiCheatCleanup(); } catch {}
+    window.__antiCheatCleanup = null;
+  }
+  hideOverlay();
+}
+
+function showOverlay(title, msg) {
+  let ov = document.getElementById('antiCheatOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'antiCheatOverlay';
+    ov.className = 'overlay';
+    ov.innerHTML = `<div class="card"><h3 id="ovTitle"></h3><p id="ovMsg"></p></div>`;
+    document.body.appendChild(ov);
+  }
+  document.getElementById('ovTitle').textContent = title;
+  document.getElementById('ovMsg').textContent = msg;
+  ov.classList.add('visible');
+}
+function hideOverlay() {
+  const ov = document.getElementById('antiCheatOverlay');
+  if (ov) ov.classList.remove('visible');
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
 }
 
 // ── Char count ──
