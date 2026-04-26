@@ -1,911 +1,1421 @@
 <!DOCTYPE html>
 <html lang="mn">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Багш — Шалгалт авах</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
-      rel="stylesheet"
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Флаш Карт</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0f0f17;
+    --surface:   #16161f;
+    --card:      #1e1e2e;
+    --border:    #2a2a3d;
+    --accent:    #7c6af7;
+    --accent2:   #50d2c2;
+    --accent3:   #f7a06a;
+    --know:      #3ddc97;
+    --unknow:    #f05e5e;
+    --text:      #e2e0f0;
+    --muted:     #6b6880;
+    --radius:    14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 20px 60px;
+  }
+
+  /* ─── LOGIN GATE ─── */
+  #loginGate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 200;
+    padding: 20px;
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    animation: fadeUp .4s ease both;
+  }
+  .login-logo {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 16px;
+    display: grid; place-items: center;
+    font-size: 26px;
+    margin: 0 auto 20px;
+  }
+  .login-box h2 {
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -0.4px;
+  }
+  .login-box p {
+    text-align: center;
+    color: var(--muted);
+    font-size: .82rem;
+    margin-bottom: 28px;
+    font-weight: 300;
+  }
+  .login-field-label {
+    font-size: .78rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+    letter-spacing: .3px;
+  }
+  .login-input {
+    width: 100%;
+    padding: 13px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: .95rem;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    margin-bottom: 20px;
+  }
+  .login-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,106,247,.15);
+  }
+  .login-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent), #5a4dcc);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Sora', sans-serif;
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    box-shadow: 0 4px 16px rgba(124,106,247,.35);
+    letter-spacing: .2px;
+  }
+  .login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,106,247,.5); }
+  .login-btn:active { transform: translateY(0); }
+  .login-error {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(240,94,94,.1);
+    border: 1px solid rgba(240,94,94,.3);
+    border-radius: 10px;
+    color: var(--unknow);
+    font-size: .82rem;
+    text-align: center;
+    display: none;
+  }
+  .login-error.visible { display: block; }
+
+  /* ─── MAIN APP ─── */
+  #mainApp { display: none; }
+
+  /* ─── Header ─── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .logo {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: grid; place-items: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+  header span { color: var(--muted); font-size: .8rem; font-weight: 300; }
+  .header-user {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .user-badge {
+    padding: 5px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: .78rem;
+    color: var(--accent2);
+    font-weight: 600;
+  }
+  .logout-btn {
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: .75rem;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    transition: all .2s;
+  }
+  .logout-btn:hover { border-color: var(--unknow); color: var(--unknow); }
+
+  /* ─── Tabs ─── */
+  .tabs {
+    display: flex; gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 5px;
+    margin-bottom: 24px;
+  }
+  .tab {
+    flex: 1; padding: 9px;
+    border: none; border-radius: 10px;
+    background: transparent; color: var(--muted);
+    font-family: 'Sora', sans-serif;
+    font-size: .78rem; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+  }
+  .tab.active {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  }
+
+  /* ─── Panels ─── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ─── Generate Panel ─── */
+  .input-wrap { position: relative; margin-bottom: 14px; }
+  textarea {
+    width: 100%;
+    height: 160px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: .9rem;
+    resize: vertical;
+    transition: border-color .2s;
+    outline: none;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .char-count {
+    position: absolute; bottom: 10px; right: 14px;
+    font-size: .72rem; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 22px;
+    border: none; border-radius: 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: .88rem; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #5a4dcc);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(124,106,247,.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,106,247,.5); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-sm {
+    padding: 7px 14px;
+    font-size: .78rem;
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-sm:hover { color: var(--text); border-color: var(--accent); }
+  .btn-danger { color: var(--unknow) !important; }
+  .btn-danger:hover { border-color: var(--unknow) !important; }
+  .btn-export {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-export:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .status-bar {
+    margin-top: 12px; padding: 12px 16px;
+    background: var(--surface); border-radius: 10px;
+    font-size: .82rem; color: var(--muted);
+    border-left: 3px solid var(--accent);
+    display: none;
+  }
+  .status-bar.visible { display: block; }
+  .status-bar.error { border-color: var(--unknow); color: var(--unknow); }
+
+  /* ─── Stats strip ─── */
+  .stats-strip {
+    display: flex; gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-pill {
+    flex: 1; padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+  }
+  .stat-pill .num {
+    font-size: 1.4rem; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .stat-pill .lbl { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+  .stat-pill.know .num { color: var(--know); }
+  .stat-pill.unknow .num { color: var(--unknow); }
+
+  /* ─── Card Grid ─── */
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+  }
+  .toolbar-left { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  /* ─── Flip Card ─── */
+  .flip-wrap {
+    height: 180px;
+    perspective: 900px;
+    cursor: pointer;
+  }
+  .flip-inner {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .55s cubic-bezier(.4,0,.2,1);
+  }
+  .flip-wrap.flipped .flip-inner { transform: rotateY(180deg); }
+
+  .flip-front, .flip-back {
+    position: absolute; inset: 0;
+    backface-visibility: hidden;
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border);
+  }
+  .flip-front {
+    background: var(--card);
+    background-image: radial-gradient(circle at 80% 20%, rgba(124,106,247,.08), transparent 60%);
+  }
+  .flip-back {
+    background: var(--surface);
+    background-image: radial-gradient(circle at 20% 80%, rgba(80,210,194,.08), transparent 60%);
+    transform: rotateY(180deg);
+  }
+
+  .card-badge {
+    font-size: .65rem; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 10px;
+  }
+  .flip-back .card-badge { color: var(--accent2); }
+
+  .card-text {
+    flex: 1;
+    font-size: .9rem; line-height: 1.55;
+    overflow: auto;
+  }
+
+  .card-actions {
+    display: flex; gap: 6px;
+    margin-top: 10px;
+    opacity: 0; transition: opacity .2s;
+  }
+  .flip-wrap:hover .card-actions { opacity: 1; }
+
+  .card-tag {
+    width: 8px; height: 8px; border-radius: 50%;
+    margin-left: auto; align-self: flex-start;
+    background: var(--border);
+    transition: background .2s;
+  }
+  .card-tag.know { background: var(--know); }
+  .card-tag.unknow { background: var(--unknow); }
+
+  /* ─── Edit modal ─── */
+  .modal-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+    z-index: 100; place-items: center;
+  }
+  .modal-bg.open { display: grid; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px; width: 90%; max-width: 480px;
+  }
+  .modal h3 { font-size: 1.1rem; margin-bottom: 18px; }
+  .field-label { font-size: .78rem; color: var(--muted); margin-bottom: 6px; }
+  .modal textarea {
+    height: 90px; margin-bottom: 14px; font-size: .88rem;
+  }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* ─── Study Mode ─── */
+  .study-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 60vh; padding: 10px 0;
+  }
+  .study-progress {
+    width: 100%; max-width: 520px;
+    margin-bottom: 20px;
+  }
+  .prog-track {
+    height: 4px; background: var(--border); border-radius: 99px;
+    overflow: hidden; margin-bottom: 8px;
+  }
+  .prog-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .4s ease;
+  }
+  .prog-label {
+    display: flex; justify-content: space-between;
+    font-size: .75rem; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .study-card-wrap {
+    width: 100%; max-width: 520px;
+    height: 280px;
+    perspective: 1000px;
+    cursor: pointer;
+    margin-bottom: 24px;
+  }
+  .study-inner {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .6s cubic-bezier(.4,0,.2,1);
+  }
+  .study-card-wrap.flipped .study-inner { transform: rotateY(180deg); }
+
+  .study-front, .study-back {
+    position: absolute; inset: 0;
+    backface-visibility: hidden;
+    border-radius: 20px;
+    padding: 32px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+  .study-front {
+    background: linear-gradient(135deg, var(--card), #1a1a2e);
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+  .study-back {
+    background: linear-gradient(135deg, #131d24, var(--surface));
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    transform: rotateY(180deg);
+  }
+  .study-badge { font-size: .7rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 14px; }
+  .study-back .study-badge { color: var(--accent2); }
+  .study-q { font-size: 1.1rem; line-height: 1.6; font-weight: 500; }
+  .study-hint { font-size: .75rem; color: var(--muted); margin-top: 16px; }
+
+  .study-btns {
+    display: flex; gap: 14px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+  }
+  .study-btns.visible { opacity: 1; pointer-events: all; }
+
+  .btn-know {
+    padding: 13px 32px;
+    background: rgba(61,220,151,.12);
+    border: 1.5px solid var(--know);
+    color: var(--know);
+    font-family: 'Sora', sans-serif;
+    font-weight: 700; font-size: .9rem;
+    border-radius: 12px; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-know:hover { background: rgba(61,220,151,.25); transform: translateY(-1px); }
+  .btn-unknow {
+    padding: 13px 32px;
+    background: rgba(240,94,94,.12);
+    border: 1.5px solid var(--unknow);
+    color: var(--unknow);
+    font-family: 'Sora', sans-serif;
+    font-weight: 700; font-size: .9rem;
+    border-radius: 12px; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-unknow:hover { background: rgba(240,94,94,.25); transform: translateY(-1px); }
+
+  .study-done {
+    display: none; text-align: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 40px 30px;
+    width: 100%; max-width: 520px;
+  }
+  .study-done h2 { font-size: 1.6rem; margin-bottom: 10px; }
+  .study-done p { color: var(--muted); font-size: .9rem; margin-bottom: 24px; }
+  .done-score { font-size: 3rem; font-weight: 700; margin: 20px 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  /* ─── QUIZ MODE ─── */
+  .quiz-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 60vh; padding: 10px 0;
+  }
+  .quiz-start-box {
+    width: 100%; max-width: 520px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 32px;
+    text-align: center;
+  }
+  .quiz-start-box .emoji { font-size: 3.5rem; margin-bottom: 16px; }
+  .quiz-start-box h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; }
+  .quiz-start-box p { color: var(--muted); font-size: .88rem; line-height: 1.6; margin-bottom: 28px; }
+  .quiz-info-row {
+    display: flex; gap: 10px; justify-content: center;
+    margin-bottom: 28px;
+  }
+  .quiz-info-pill {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: .78rem;
+    color: var(--accent2);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .quiz-card {
+    width: 100%; max-width: 520px;
+    background: linear-gradient(135deg, var(--card), #1a1a2e);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    min-height: 140px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .quiz-question {
+    font-size: 1.1rem;
+    line-height: 1.65;
+    font-weight: 500;
+  }
+
+  .quiz-options {
+    width: 100%; max-width: 520px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 480px) {
+    .quiz-options { grid-template-columns: 1fr; }
+  }
+  .quiz-option {
+    padding: 16px 14px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: .86rem;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .1s;
+    position: relative;
+  }
+  .quiz-option:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(124,106,247,.08);
+    transform: translateY(-1px);
+  }
+  .quiz-option:disabled { cursor: not-allowed; }
+  .quiz-option.correct {
+    border-color: var(--know) !important;
+    background: rgba(61,220,151,.15) !important;
+    color: var(--know) !important;
+    font-weight: 600;
+  }
+  .quiz-option.wrong {
+    border-color: var(--unknow) !important;
+    background: rgba(240,94,94,.15) !important;
+    color: var(--unknow) !important;
+  }
+  .quiz-option .opt-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    background: var(--border);
+    border-radius: 6px;
+    font-size: .7rem;
+    font-weight: 700;
+    margin-right: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+    vertical-align: middle;
+    transition: background .15s;
+  }
+  .quiz-option.correct .opt-label { background: rgba(61,220,151,.3); }
+  .quiz-option.wrong .opt-label { background: rgba(240,94,94,.3); }
+
+  .quiz-feedback {
+    width: 100%; max-width: 520px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: .85rem;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .quiz-feedback.correct-fb {
+    background: rgba(61,220,151,.12);
+    border: 1px solid rgba(61,220,151,.3);
+    color: var(--know);
+    display: block;
+  }
+  .quiz-feedback.wrong-fb {
+    background: rgba(240,94,94,.12);
+    border: 1px solid rgba(240,94,94,.3);
+    color: var(--unknow);
+    display: block;
+  }
+
+  .quiz-score-bar {
+    width: 100%; max-width: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .quiz-score-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    color: var(--accent3);
+    font-weight: 600;
+  }
+
+  .quiz-done {
+    display: none; text-align: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 40px 30px;
+    width: 100%; max-width: 520px;
+  }
+  .quiz-done h2 { font-size: 1.5rem; margin-bottom: 8px; }
+  .quiz-done p { color: var(--muted); font-size: .88rem; margin-top: 8px; margin-bottom: 24px; }
+  .quiz-done-score {
+    font-size: 2.8rem; font-weight: 700; margin: 16px 0 4px;
+    background: linear-gradient(135deg, var(--accent3), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .quiz-done-sub {
+    font-size: .85rem; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .quiz-done-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+  .quiz-result-row {
+    display: flex; gap: 12px; justify-content: center;
+    margin: 16px 0;
+  }
+  .quiz-result-pill {
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: .82rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+  .quiz-result-pill.good {
+    background: rgba(61,220,151,.12);
+    border: 1px solid rgba(61,220,151,.3);
+    color: var(--know);
+  }
+  .quiz-result-pill.bad {
+    background: rgba(240,94,94,.12);
+    border: 1px solid rgba(240,94,94,.3);
+    color: var(--unknow);
+  }
+
+  /* ─── Empty state ─── */
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted); font-size: .9rem;
+  }
+  .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+
+  /* ─── Anims ─── */
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(12px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  .flip-wrap { animation: fadeUp .3s ease both; }
+
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+  .quiz-option.correct { animation: pulse .3s ease; }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN GATE ═══ -->
+<div id="loginGate">
+  <div class="login-box">
+    <div class="login-logo">🧠</div>
+    <h2>AI Флаш Карт</h2>
+    <p>Нэрээ оруулаад нэвтрэнэ үү</p>
+    <div class="login-field-label">Таны нэр</div>
+    <input
+      type="text"
+      id="loginNameInput"
+      class="login-input"
+      placeholder="Нэрээ оруулна уу…"
+      onkeydown="if(event.key==='Enter') doLogin()"
+      autocomplete="off"
     />
-    <style>
-      :root {
-        --bg: #0f0f17;
-        --surface: #16161f;
-        --card: #1e1e2e;
-        --border: #2a2a3d;
-        --accent: #7c6af7;
-        --accent2: #50d2c2;
-        --accent3: #f7a06a;
-        --know: #3ddc97;
-        --unknow: #f05e5e;
-        --text: #e2e0f0;
-        --muted: #6b6880;
-        --radius: 14px;
-      }
+    <button class="login-btn" onclick="doLogin()">✦ Нэвтрэх</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
 
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
+<!-- ═══ MAIN APP ═══ -->
+<div id="mainApp">
 
-      body {
-        font-family: "Sora", sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        min-height: 100vh;
-        padding: 24px 20px 60px;
-      }
+<header>
+  <div class="logo">🧠</div>
+  <div>
+    <h1>AI Флаш Карт</h1>
+    <span>Google Apps Script холболт</span>
+  </div>
+  <div class="header-user">
+    <span class="user-badge" id="userBadge"></span>
+    <button class="logout-btn" onclick="doLogout()">Гарах</button>
+  </div>
+</header>
 
-      /* ─── LOGIN GATE ─── */
-      #loginGate {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        position: fixed;
-        inset: 0;
-        background: var(--bg);
-        z-index: 200;
-        padding: 20px;
-      }
-      .login-box {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 24px;
-        padding: 40px 36px;
-        width: 100%;
-        max-width: 380px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-        animation: fadeUp 0.4s ease both;
-      }
-      .login-logo {
-        width: 56px;
-        height: 56px;
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
-        border-radius: 16px;
-        display: grid;
-        place-items: center;
-        font-size: 26px;
-        margin: 0 auto 20px;
-      }
-      .login-box h2 {
-        text-align: center;
-        font-size: 1.3rem;
-        font-weight: 700;
-        margin-bottom: 6px;
-        letter-spacing: -0.4px;
-      }
-      .login-box p {
-        text-align: center;
-        color: var(--muted);
-        font-size: 0.82rem;
-        margin-bottom: 28px;
-        font-weight: 300;
-      }
-      .login-field-label {
-        font-size: 0.78rem;
-        color: var(--muted);
-        margin-bottom: 8px;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-      }
-      .login-input {
-        width: 100%;
-        padding: 13px 16px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        color: var(--text);
-        font-family: "Sora", sans-serif;
-        font-size: 0.95rem;
-        outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        margin-bottom: 20px;
-      }
-      .login-input:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 3px rgba(124, 106, 247, 0.15);
-      }
-      .login-btn {
-        width: 100%;
-        padding: 13px;
-        background: linear-gradient(135deg, var(--accent), #5a4dcc);
-        color: #fff;
-        border: none;
-        border-radius: var(--radius);
-        font-family: "Sora", sans-serif;
-        font-size: 0.95rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.2s;
-        box-shadow: 0 4px 16px rgba(124, 106, 247, 0.35);
-        letter-spacing: 0.2px;
-      }
-      .login-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(124, 106, 247, 0.5);
-      }
-      .login-btn:active {
-        transform: translateY(0);
-      }
-      .login-error {
-        margin-top: 14px;
-        padding: 10px 14px;
-        background: rgba(240, 94, 94, 0.1);
-        border: 1px solid rgba(240, 94, 94, 0.3);
-        border-radius: 10px;
-        color: var(--unknow);
-        font-size: 0.82rem;
-        text-align: center;
-        display: none;
-      }
-      .login-error.visible {
-        display: block;
-      }
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('gen')">✨ Үүсгэх</button>
+  <button class="tab" onclick="switchTab('cards')" id="tab-cards">🃏 Картууд</button>
+  <button class="tab" onclick="switchTab('quiz')" id="tab-quiz">🧪 Тест</button>
+  <button class="tab" onclick="switchTab('study')" id="tab-study">📚 Судлах</button>
+</div>
 
-      /* ─── MAIN APP ─── */
-      #mainApp {
-        display: none;
-        max-width: 980px;
-        margin: 0 auto;
-      }
+<!-- ═══ GENERATE ═══ -->
+<div class="panel active" id="panel-gen">
+  <div class="input-wrap">
+    <textarea id="inputText" placeholder="Флаш карт болгох текстээ энд буулгана уу…" oninput="updateChar()"></textarea>
+    <span class="char-count" id="charCount">0 тэмдэгт</span>
+  </div>
+  <button class="btn btn-primary" id="genBtn" onclick="generateFlashcards()">
+    <span>✦</span> Флаш карт үүсгэх
+  </button>
+  <div class="status-bar" id="statusBar"></div>
+</div>
 
-      /* ─── Header ─── */
-      header {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        margin-bottom: 26px;
-      }
-      .logo {
-        width: 42px;
-        height: 42px;
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
-        border-radius: 12px;
-        display: grid;
-        place-items: center;
-        font-size: 20px;
-        flex-shrink: 0;
-      }
-      header h1 {
-        font-size: 1.35rem;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-      }
-      header span {
-        color: var(--muted);
-        font-size: 0.8rem;
-        font-weight: 300;
-      }
-      .header-user {
-        margin-left: auto;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .user-badge {
-        padding: 5px 12px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 20px;
-        font-size: 0.78rem;
-        color: var(--accent2);
-        font-weight: 600;
-      }
-      .logout-btn {
-        padding: 5px 10px;
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        color: var(--muted);
-        font-size: 0.75rem;
-        cursor: pointer;
-        font-family: "Sora", sans-serif;
-        transition: all 0.2s;
-      }
-      .logout-btn:hover {
-        border-color: var(--unknow);
-        color: var(--unknow);
-      }
-
-      /* ─── Tabs (single) ─── */
-      .tabs {
-        display: flex;
-        gap: 6px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 5px;
-        margin-bottom: 18px;
-      }
-      .tab {
-        flex: 1;
-        padding: 9px;
-        border: none;
-        border-radius: 10px;
-        background: var(--card);
-        color: var(--text);
-        font-family: "Sora", sans-serif;
-        font-size: 0.78rem;
-        font-weight: 700;
-        cursor: default;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-      }
-
-      /* ─── Panel ─── */
-      .panel {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 18px;
-        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.45);
-      }
-
-      /* ─── Inputs / Buttons ─── */
-      textarea {
-        width: 100%;
-        min-height: 150px;
-        resize: vertical;
-        padding: 14px 14px;
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--text);
-        font-family: "Sora", sans-serif;
-        outline: none;
-        line-height: 1.45;
-      }
-      textarea:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 3px rgba(124, 106, 247, 0.15);
-      }
-      .field-label {
-        font-size: 0.78rem;
-        color: var(--muted);
-        margin: 12px 0 8px;
-        font-weight: 700;
-        letter-spacing: 0.2px;
-      }
-      .row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-      }
-      @media (max-width: 860px) {
-        .row {
-          grid-template-columns: 1fr;
-        }
-      }
-      select,
-      input[type="number"] {
-        width: 100%;
-        padding: 12px 14px;
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--text);
-        outline: none;
-        font-family: "Sora", sans-serif;
-      }
-      .btn {
-        border: 1px solid var(--border);
-        background: transparent;
-        color: var(--text);
-        padding: 12px 14px;
-        border-radius: var(--radius);
-        font-weight: 800;
-        font-size: 0.9rem;
-        cursor: pointer;
-        font-family: "Sora", sans-serif;
-        transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
-      }
-      .btn:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-      .btn-primary {
-        border: none;
-        background: linear-gradient(135deg, var(--accent), #5a4dcc);
-        box-shadow: 0 4px 16px rgba(124, 106, 247, 0.35);
-      }
-      .btn-primary:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(124, 106, 247, 0.5);
-      }
-      .btn-ghost:hover:not(:disabled) {
-        border-color: rgba(124, 106, 247, 0.6);
-      }
-      .status-bar {
-        margin-top: 12px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(80, 210, 194, 0.08);
-        border: 1px solid rgba(80, 210, 194, 0.22);
-        color: rgba(80, 210, 194, 0.95);
-        font-size: 0.85rem;
-        display: none;
-        line-height: 1.4;
-      }
-      .status-bar.visible {
-        display: block;
-      }
-      .status-bar.err {
-        background: rgba(240, 94, 94, 0.1);
-        border-color: rgba(240, 94, 94, 0.25);
-        color: var(--unknow);
-      }
-
-      /* ─── QUIZ MODE (from d.html style) ─── */
-      .quiz-wrap {
-        display: grid;
-        gap: 14px;
-      }
-      .empty-state {
-        border: 1px dashed var(--border);
-        border-radius: 18px;
-        padding: 22px 18px;
-        text-align: center;
-        color: var(--muted);
-        background: rgba(255, 255, 255, 0.02);
-      }
-      .empty-state .emoji {
-        font-size: 3rem;
-        margin-bottom: 10px;
-      }
-      .quiz-start-box {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 18px;
-        text-align: center;
-      }
-      .quiz-start-box .emoji {
-        font-size: 3.4rem;
-        margin-bottom: 14px;
-      }
-      .quiz-start-box h2 {
-        font-size: 1.25rem;
-        font-weight: 800;
-        margin-bottom: 10px;
-      }
-      .quiz-start-box p {
-        color: var(--muted);
-        font-size: 0.88rem;
-        line-height: 1.6;
-        margin-bottom: 18px;
-      }
-      .quiz-info-row {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-bottom: 14px;
-      }
-      .quiz-info-pill {
-        padding: 6px 12px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        font-size: 0.78rem;
-        color: var(--muted);
-      }
-      .quiz-topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-      }
-      .quiz-score-display {
-        padding: 6px 12px;
-        background: rgba(124, 106, 247, 0.12);
-        border: 1px solid rgba(124, 106, 247, 0.22);
-        border-radius: 999px;
-        font-size: 0.8rem;
-        color: rgba(124, 106, 247, 0.95);
-        font-weight: 700;
-      }
-      .quiz-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 18px;
-      }
-      .study-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
-        border-radius: 999px;
-        border: 1px solid var(--border);
-        color: var(--muted);
-        font-size: 0.78rem;
-        margin-bottom: 10px;
-      }
-      .quiz-question {
-        font-size: 1.05rem;
-        font-weight: 700;
-        line-height: 1.35;
-        margin-bottom: 14px;
-      }
-      .quiz-options {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-      @media (max-width: 640px) {
-        .quiz-options {
-          grid-template-columns: 1fr;
-        }
-      }
-      .quiz-option {
-        width: 100%;
-        text-align: left;
-        padding: 12px 12px;
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.02);
-        color: var(--text);
-        cursor: pointer;
-        font-family: "Sora", sans-serif;
-        transition: transform 0.1s ease, border-color 0.1s ease;
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
-      }
-      .quiz-option:hover:not(:disabled) {
-        transform: translateY(-1px);
-        border-color: rgba(124, 106, 247, 0.6);
-      }
-      .quiz-option:disabled {
-        cursor: not-allowed;
-        opacity: 0.9;
-      }
-      .opt-label {
-        flex: 0 0 auto;
-        width: 28px;
-        height: 28px;
-        border-radius: 10px;
-        display: grid;
-        place-items: center;
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.02);
-        color: var(--muted);
-        font-weight: 800;
-      }
-      .quiz-option.correct {
-        border-color: rgba(61, 220, 151, 0.55);
-        background: rgba(61, 220, 151, 0.08);
-      }
-      .quiz-option.wrong {
-        border-color: rgba(240, 94, 94, 0.55);
-        background: rgba(240, 94, 94, 0.08);
-      }
-      .quiz-feedback {
-        border-radius: 14px;
-        padding: 12px 12px;
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.02);
-        color: var(--muted);
-        line-height: 1.45;
-      }
-      .quiz-feedback.correct-fb {
-        border-color: rgba(61, 220, 151, 0.35);
-        color: rgba(61, 220, 151, 0.95);
-        background: rgba(61, 220, 151, 0.06);
-      }
-      .quiz-feedback.wrong-fb {
-        border-color: rgba(240, 94, 94, 0.35);
-        color: rgba(240, 94, 94, 0.95);
-        background: rgba(240, 94, 94, 0.06);
-      }
-      .quiz-done {
-        text-align: center;
-        padding: 12px 0;
-      }
-      .quiz-done h2 {
-        font-size: 1.5rem;
-        margin-bottom: 8px;
-      }
-      .quiz-done p {
-        color: var(--muted);
-        font-size: 0.88rem;
-        margin-top: 8px;
-        margin-bottom: 18px;
-      }
-      .quiz-done-score {
-        font-size: 3rem;
-        font-weight: 800;
-        margin: 10px 0 4px;
-        letter-spacing: -1px;
-      }
-      .quiz-done-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-top: 14px;
-      }
-
-      @keyframes fadeUp {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <!-- LOGIN -->
-    <div id="loginGate">
-      <div class="login-box">
-        <div class="login-logo">🧑‍🏫</div>
-        <h2>Багш — Шалгалт авах</h2>
-        <p>Багшийн нэрээ оруулаад нэвтэрнэ үү</p>
-        <div class="login-field-label">Багшийн нэр</div>
-        <input
-          type="text"
-          id="loginNameInput"
-          class="login-input"
-          placeholder="Нэрээ оруулна уу…"
-          onkeydown="if(event.key==='Enter') doLogin()"
-          autocomplete="off"
-        />
-        <button class="login-btn" onclick="doLogin()">✦ Нэвтрэх</button>
-        <div class="login-error" id="loginError"></div>
-      </div>
+<!-- ═══ CARDS ═══ -->
+<div class="panel" id="panel-cards">
+  <div class="stats-strip">
+    <div class="stat-pill">
+      <div class="num" id="totalCount">0</div>
+      <div class="lbl">Нийт карт</div>
     </div>
+    <div class="stat-pill know">
+      <div class="num" id="knowCount">0</div>
+      <div class="lbl">Мэддэг</div>
+    </div>
+    <div class="stat-pill unknow">
+      <div class="num" id="unknowCount">0</div>
+      <div class="lbl">Давтах</div>
+    </div>
+  </div>
 
-    <!-- MAIN -->
-    <div id="mainApp">
-      <header>
-        <div class="logo">🧪</div>
-        <div>
-          <h1>Шалгалт авах</h1>
-          <span>Apps Script холболт (AI)</span>
-        </div>
-        <div class="header-user">
-          <span class="user-badge" id="userBadge"></span>
-          <button class="logout-btn" onclick="doLogout()">Гарах</button>
-        </div>
-      </header>
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button class="btn btn-sm" onclick="exportJSON()">⬇ JSON</button>
+      <button class="btn btn-sm btn-export" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-sm btn-danger" onclick="clearAll()">🗑 Бүгдийг устгах</button>
+    </div>
+    <button class="btn btn-sm" onclick="resetStatus()">↺ Төлөв арилгах</button>
+  </div>
 
-      <div class="tabs">
-        <button class="tab" type="button">🧪 Багшийн шалгалт</button>
-      </div>
+  <div class="cards-grid" id="cardsGrid">
+    <div class="empty-state">
+      <div class="emoji">📭</div>
+      <p>Одоохондоо карт байхгүй байна.<br>«Үүсгэх» таб дээр текст оруулна уу.</p>
+    </div>
+  </div>
+</div>
 
-      <div class="panel">
-        <div class="row">
-          <div>
-            <div class="field-label">Текст / кейс (түүгээр тест үүсгэнэ)</div>
-            <textarea id="inputText" placeholder="Тест үүсгэх текстээ энд буулгана уу…"></textarea>
-            <div class="field-label">Асуултын тоо</div>
-            <select id="qCount">
-              <option value="5">5</option>
-              <option value="10" selected>10</option>
-              <option value="15">15</option>
-            </select>
-            <div style="display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap">
-              <button class="btn btn-primary" id="genBtn" onclick="generateTest()"><span>✦</span> Тест үүсгэх</button>
-              <button class="btn btn-ghost" onclick="clearAll()">Цэвэрлэх</button>
-            </div>
-            <div class="status-bar" id="statusBar"></div>
+<!-- ═══ QUIZ ═══ -->
+<div class="panel" id="panel-quiz">
+  <div class="quiz-wrap" id="quizWrap">
+    <div class="empty-state">
+      <div class="emoji">🧪</div>
+      <p>Тест эхлэхийн тулд карт үүсгэнэ үү.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STUDY ═══ -->
+<div class="panel" id="panel-study">
+  <div class="study-wrap" id="studyWrap">
+    <div class="empty-state">
+      <div class="emoji">📚</div>
+      <p>Эхлэхийн тулд карт үүсгэнэ үү.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EDIT MODAL ═══ -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3>✏️ Карт засах</h3>
+    <div class="field-label">Асуулт</div>
+    <textarea id="editQ"></textarea>
+    <div class="field-label">Хариулт</div>
+    <textarea id="editA"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="closeModal()">Цуцлах</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Хадгалах</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mainApp -->
+
+<script>
+// ══════════════════════════════════════════
+// ── Backend URL ──
+// ══════════════════════════════════════════
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw27PhqlrB8dNs4MFWXGS9YQHyqIfTkfaXEHcgsRpTknkMR_eXiakWTRHdn52xvuqxRaw/exec";
+
+// ══════════════════════════════════════════
+// ── State ──
+// ══════════════════════════════════════════
+let cards       = JSON.parse(localStorage.getItem('fc_cards') || '[]');
+let userName    = '';
+let editIdx     = null;
+let studyDeck   = [];
+let studyIdx    = 0;
+let studyFlipped= false;
+
+// Quiz state
+let quizDeck     = [];
+let quizIdx      = 0;
+let quizScore    = 0;
+let quizWrong    = 0;
+let quizAnswered = false;
+
+// ══════════════════════════════════════════
+// ── Login / Logout ──
+// ══════════════════════════════════════════
+function doLogin() {
+  const nameInput = document.getElementById('loginNameInput');
+  const name = nameInput.value.trim();
+  const errEl = document.getElementById('loginError');
+  if (!name) {
+    errEl.textContent = '⚠️ Нэрээ оруулна уу!';
+    errEl.classList.add('visible');
+    nameInput.focus();
+    return;
+  }
+  errEl.classList.remove('visible');
+  userName = name;
+  document.getElementById('userBadge').textContent = '👤 ' + userName;
+  document.getElementById('loginGate').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  updateStats();
+}
+
+function doLogout() {
+  userName = '';
+  document.getElementById('loginNameInput').value = '';
+  document.getElementById('loginError').classList.remove('visible');
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('loginGate').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════
+// ── Persist ──
+// ══════════════════════════════════════════
+function save() {
+  localStorage.setItem('fc_cards', JSON.stringify(cards));
+  updateStats();
+}
+
+// ── Tab switch ──
+const TAB_IDS   = ['gen','cards','quiz','study'];
+const PANEL_IDS = ['panel-gen','panel-cards','panel-quiz','panel-study'];
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el, i) =>
+    el.classList.toggle('active', TAB_IDS[i] === t)
+  );
+  document.querySelectorAll('.panel').forEach((el, i) =>
+    el.classList.toggle('active', PANEL_IDS[i] === 'panel-' + t)
+  );
+  if (t === 'cards') renderCards();
+  if (t === 'quiz')  initQuiz();
+  if (t === 'study') initStudy();
+}
+
+// ── Char count ──
+function updateChar() {
+  const v = document.getElementById('inputText').value.length;
+  document.getElementById('charCount').textContent = v.toLocaleString() + ' тэмдэгт';
+}
+
+// ══════════════════════════════════════════
+// ── Generate ──
+// ══════════════════════════════════════════
+async function generateFlashcards() {
+  const inputText = document.getElementById('inputText').value.trim();
+  const statusBar = document.getElementById('statusBar');
+  const btn       = document.getElementById('genBtn');
+
+  if (!inputText) { alert('Текстээ оруулна уу!'); return; }
+
+  btn.disabled = true;
+  statusBar.className = 'status-bar visible';
+  statusBar.textContent = '⏳ AI бодож байна… түр хүлээнэ үү.';
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ userName, inputText })
+    });
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    if (data.error) {
+      statusBar.className = 'status-bar visible error';
+      statusBar.textContent = '❌ ' + data.error;
+      return;
+    }
+
+    let parsed = [];
+
+    if (Array.isArray(data.cards) && data.cards.length) {
+      parsed = data.cards.map(c => ({
+        q: (c.q || c.question || c.front || '').toString().trim(),
+        a: (c.a || c.answer  || c.back  || '').toString().trim()
+      })).filter(c => c.q && c.a && c.q !== c.a);
+    }
+
+    if (!parsed.length && Array.isArray(data) && data.length) {
+      parsed = data.map(c => ({
+        q: (c.q || c.question || c.front || '').toString().trim(),
+        a: (c.a || c.answer  || c.back  || '').toString().trim()
+      })).filter(c => c.q && c.a && c.q !== c.a);
+    }
+
+    if (!parsed.length) {
+      const raw = typeof data === 'string' ? data
+                : (data.result || data.output || data.text || '');
+      if (raw) parsed = parseRawText(raw);
+    }
+
+    if (!parsed.length) {
+      throw new Error('Карт задлах боломжгүй. Backend-ийн хариуг шалгана уу.');
+    }
+
+    const newCards = parsed.map(c => ({ q: c.q, a: c.a, status: 'none' }));
+    cards.push(...newCards);
+    save();
+
+    statusBar.className = 'status-bar visible';
+    statusBar.textContent = `✅ ${newCards.length} карт амжилттай үүслээ!`;
+    document.getElementById('inputText').value = '';
+    updateChar();
+
+    setTimeout(() => { switchTab('cards'); }, 800);
+
+  } catch(e) {
+    statusBar.className = 'status-bar visible error';
+    statusBar.textContent = '❌ Алдаа: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════
+// ── Raw text parser (backup) ──
+// ══════════════════════════════════════════
+function parseRawText(raw) {
+  let parsed = [];
+
+  // 1) JSON array
+  try {
+    const match = raw.match(/\[[\s\S]*?\]/);
+    if (match) {
+      const arr = JSON.parse(match[0]);
+      if (Array.isArray(arr) && arr.length) parsed = arr;
+    }
+  } catch {}
+
+  // 2) "Асуулт: ... Хариулт: ..."
+  if (!parsed.length) {
+    const blocks = raw.split(/\n\s*\n/);
+    for (const block of blocks) {
+      const qm = block.match(/(?:Асуулт|Q)\s*[:\-]\s*(.+)/i);
+      const am = block.match(/(?:Хариулт|A)\s*[:\-]\s*([\s\S]+)/i);
+      if (qm && am) {
+        parsed.push({ q: qm[1].trim(), a: am[1].trim().split('\n')[0].trim() });
+      }
+    }
+  }
+
+  // 3) Line-by-line
+  if (!parsed.length) {
+    const lines = raw.split('\n');
+    let cur = {};
+    for (const l of lines) {
+      const t = l.trim();
+      const qm = t.match(/^(?:Асуулт|Q)\s*[:\-]\s*(.+)/i);
+      const am = t.match(/^(?:Хариулт|A)\s*[:\-]\s*(.+)/i);
+      if (qm) { cur.q = qm[1].trim(); }
+      else if (am && cur.q) { cur.a = am[1].trim(); parsed.push({...cur}); cur = {}; }
+    }
+  }
+
+  // 4) **Front:** ... **Back:** ...
+  if (!parsed.length) {
+    const blocks = raw.split(/\n\s*\n|(?=\*\*Front:|Here is|Flashcard \d)/i);
+    for (const block of blocks) {
+      const qm = block.match(/\*{0,2}(?:Front|Question)\*{0,2}\s*:?\*{0,2}\s*(.+)/i);
+      const am = block.match(/\*{0,2}(?:Back|Answer)\*{0,2}\s*:?\*{0,2}\s*(.+)/i);
+      if (qm && am) parsed.push({ q: qm[1].trim(), a: am[1].trim() });
+    }
+  }
+
+  return parsed.map(c => ({ q: c.q || '', a: c.a || '' }))
+               .filter(c => c.q && c.a && c.q !== c.a);
+}
+
+// ══════════════════════════════════════════
+// ── Render cards ──
+// ══════════════════════════════════════════
+function renderCards() {
+  const grid = document.getElementById('cardsGrid');
+  if (!cards.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="emoji">📭</div><p>Одоохондоо карт байхгүй байна.<br>«Үүсгэх» таб дээр текст оруулна уу.</p></div>`;
+    return;
+  }
+  grid.innerHTML = cards.map((c, i) => `
+    <div class="flip-wrap ${c.flipped?'flipped':''}" onclick="flipCard(event,${i})" style="animation-delay:${i*0.04}s">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="card-badge">Асуулт · ${i+1}</div>
+            <div class="card-tag ${c.status==='know'?'know':c.status==='unknow'?'unknow':''}"></div>
           </div>
-
-          <div>
-            <div class="field-label">Шалгалтын орох</div>
-            <div class="quiz-wrap" id="quizWrap">
-              <div class="quiz-start-box">
-                <div class="emoji">🧪</div>
-                <h2>Шалгалтаа эхлүүлэх</h2>
-                <p>
-                  Эхлээд зүүн талд текст оруулаад <strong>“Тест үүсгэх”</strong> дарна.<br />
-                  Дараа нь эндээс тестээ эхлүүлнэ.
-                </p>
-                <div class="quiz-info-row">
-                  <span class="quiz-info-pill">📋 <span id="pillCount">0</span> асуулт</span>
-                  <span class="quiz-info-pill">✦ 4 сонголт</span>
-                </div>
-                <button class="btn btn-primary" style="width: 100%" id="startBtn" onclick="startQuiz()" disabled>
-                  ▶ Тест эхлэх
-                </button>
-              </div>
-            </div>
+          <div class="card-text">${esc(c.q)}</div>
+          <div class="card-actions">
+            <button class="btn btn-sm" onclick="openEdit(event,${i})">✏️ Засах</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteCard(event,${i})">🗑</button>
           </div>
+        </div>
+        <div class="flip-back">
+          <div class="card-badge">Хариулт</div>
+          <div class="card-text">${esc(c.a)}</div>
         </div>
       </div>
     </div>
+  `).join('');
+  updateStats();
+}
 
-    <script>
-      // ══════════════════════════════════════════
-      // ТОХИРГОО (хоосон үлдээ — дараа нь чи бөглөнө)
-      // ══════════════════════════════════════════
-      const SCRIPT_URL = "";
-      const firebaseConfig = {};
+function flipCard(e, i) {
+  if (e.target.closest('button')) return;
+  cards[i].flipped = !cards[i].flipped;
+  const wrap = document.querySelectorAll('.flip-wrap')[i];
+  wrap.classList.toggle('flipped', cards[i].flipped);
+}
 
-      // ══════════════════════════════════════════
-      // State
-      // ══════════════════════════════════════════
-      const LS_TEST = "teacher_test_questions_v1";
-      let userName = "";
-      let questions = JSON.parse(localStorage.getItem(LS_TEST) || "[]");
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
-      // Quiz state
-      let quizDeck = [];
-      let quizIdx = 0;
-      let quizScore = 0;
-      let quizWrong = 0;
-      let quizAnswered = false;
+// ── Stats ──
+function updateStats() {
+  document.getElementById('totalCount').textContent  = cards.length;
+  document.getElementById('knowCount').textContent   = cards.filter(c=>c.status==='know').length;
+  document.getElementById('unknowCount').textContent = cards.filter(c=>c.status==='unknow').length;
+  const label = cards.length > 0 ? `🃏 Картууд (${cards.length})` : '🃏 Картууд';
+  document.getElementById('tab-cards').textContent = label;
+  const qLabel = cards.length >= 4 ? `🧪 Тест (${cards.length})` : '🧪 Тест';
+  document.getElementById('tab-quiz').textContent = qLabel;
+}
 
-      function $(id) {
-        return document.getElementById(id);
-      }
+// ── Edit ──
+function openEdit(e, i) {
+  e.stopPropagation();
+  editIdx = i;
+  document.getElementById('editQ').value = cards[i].q;
+  document.getElementById('editA').value = cards[i].a;
+  document.getElementById('editModal').classList.add('open');
+}
+function closeModal() { document.getElementById('editModal').classList.remove('open'); }
+function saveEdit() {
+  cards[editIdx].q = document.getElementById('editQ').value.trim();
+  cards[editIdx].a = document.getElementById('editA').value.trim();
+  save(); closeModal(); renderCards();
+}
 
-      function setStatus(msg, kind) {
-        const el = $("statusBar");
-        el.className = "status-bar visible" + (kind === "err" ? " err" : "");
-        el.textContent = msg;
-      }
+function deleteCard(e, i) {
+  e.stopPropagation();
+  if (!confirm('Энэ картыг устгах уу?')) return;
+  cards.splice(i, 1);
+  save(); renderCards();
+}
 
-      // ══════════════════════════════════════════
-      // Login / Logout
-      // ══════════════════════════════════════════
-      function doLogin() {
-        const nameInput = $("loginNameInput");
-        const name = nameInput.value.trim();
-        const errEl = $("loginError");
-        if (!name) {
-          errEl.textContent = "⚠️ Нэрээ оруулна уу!";
-          errEl.classList.add("visible");
-          nameInput.focus();
-          return;
-        }
-        errEl.classList.remove("visible");
-        userName = name;
-        $("userBadge").textContent = "👤 " + userName;
-        $("loginGate").style.display = "none";
-        $("mainApp").style.display = "block";
-        syncStartBox();
-      }
+function clearAll() {
+  if (!cards.length) return;
+  if (!confirm('Бүх картыг устгах уу?')) return;
+  cards = []; save(); renderCards();
+}
 
-      function doLogout() {
-        userName = "";
-        $("loginNameInput").value = "";
-        $("loginError").classList.remove("visible");
-        $("mainApp").style.display = "none";
-        $("loginGate").style.display = "flex";
-      }
+function resetStatus() {
+  cards.forEach(c => { c.status = 'none'; c.flipped = false; });
+  save(); renderCards();
+}
 
-      // ══════════════════════════════════════════
-      // Teacher: Generate Test (AI via Apps Script)
-      // Payload: { action:"test", inputText:"..." }
-      // ══════════════════════════════════════════
-      async function generateTest() {
-        const inputText = $("inputText").value.trim();
-        const btn = $("genBtn");
-        const count = Number($("qCount").value);
+// ── Export ──
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(cards.map(c=>({question:c.q,answer:c.a})),null,2)], {type:'application/json'});
+  dl(blob, 'flashcards.json');
+}
+function exportCSV() {
+  const rows = [['Асуулт','Хариулт'], ...cards.map(c=>[`"${c.q.replace(/"/g,'""')}"`,`"${c.a.replace(/"/g,'""')}"`])];
+  const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv;charset=utf-8'});
+  dl(blob, 'flashcards.csv');
+}
+function dl(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = name; a.click();
+}
 
-        if (!inputText) {
-          setStatus("⚠️ Текстээ оруулна уу!", "err");
-          return;
-        }
-        if (!SCRIPT_URL) {
-          setStatus("⚠️ SCRIPT_URL хоосон байна. Тохиргоонд URL-аа тавина.", "err");
-          return;
-        }
+// ══════════════════════════════════════════
+// ── QUIZ MODE ──
+// ══════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
-        btn.disabled = true;
-        setStatus("⏳ AI тест үүсгэж байна… түр хүлээнэ үү.");
+function initQuiz() {
+  const wrap = document.getElementById('quizWrap');
 
-        try {
-          const res = await fetch(SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "test", inputText, count }),
-          });
-          if (!res.ok) {
-            const t = await res.text().catch(() => "");
-            throw new Error(`SCRIPT_URL error ${res.status}: ${t.slice(0, 250)}`);
-          }
+  if (cards.length < 4) {
+    wrap.innerHTML = `
+      <div class="quiz-start-box">
+        <div class="emoji">🧪</div>
+        <h2>Тест өгөх</h2>
+        <p>Тест эхлэхийн тулд дор хаяж <strong>4 флаш карт</strong> хэрэгтэй.<br>
+           Одоогоор <strong>${cards.length}</strong> карт байна.</p>
+        <button class="btn btn-primary" onclick="switchTab('gen')">✦ Карт үүсгэх</button>
+      </div>`;
+    return;
+  }
 
-          const ct = res.headers.get("content-type") || "";
-          let data;
-          if (ct.includes("application/json")) data = await res.json();
-          else {
-            const txt = await res.text();
-            data = JSON.parse(txt);
-          }
+  // Show start screen
+  wrap.innerHTML = `
+    <div class="quiz-start-box">
+      <div class="emoji">🧪</div>
+      <h2>Тест өгөх</h2>
+      <p>Флаш картуудаасаа сэдэвлэсэн дөрвөн сонголттой тест.<br>
+         Зөв хариултыг сонгоорой!</p>
+      <div class="quiz-info-row">
+        <span class="quiz-info-pill">📋 ${cards.length} асуулт</span>
+        <span class="quiz-info-pill">✦ 4 сонголт</span>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="startQuiz()">▶ Тест эхлэх</button>
+    </div>`;
+}
 
-          const qs = normalizeTestResponse(data);
-          if (!qs.length) throw new Error("Тестийн хариу хоосон байна. Script output format шалга.");
+function startQuiz() {
+  quizDeck     = shuffle(cards.map((c, i) => ({...c, _origIdx: i})));
+  quizIdx      = 0;
+  quizScore    = 0;
+  quizWrong    = 0;
+  quizAnswered = false;
 
-          questions = qs;
-          localStorage.setItem(LS_TEST, JSON.stringify(questions));
-          setStatus(`✅ Бэлэн: ${questions.length} асуулт үүсгэлээ. Одоо баруун талд “Тест эхлэх” дар.`, "ok");
-          syncStartBox();
-        } catch (e) {
-          console.error(e);
-          setStatus("❌ " + (e.message || "Алдаа гарлаа."), "err");
-        } finally {
-          btn.disabled = false;
-        }
-      }
+  const wrap = document.getElementById('quizWrap');
+  wrap.innerHTML = `
+    <div class="study-progress" style="width:100%;max-width:520px">
+      <div class="prog-track"><div class="prog-fill" id="qProgFill" style="width:0%"></div></div>
+      <div class="prog-label">
+        <span id="qProgTxt">1 / ${quizDeck.length}</span>
+        <span class="quiz-score-display" id="qScoreDisplay">⭐ 0</span>
+      </div>
+    </div>
 
-      function normalizeTestResponse(data) {
-        let qs = [];
-        if (Array.isArray(data)) qs = data;
-        else if (data && Array.isArray(data.questions)) qs = data.questions;
-        else if (data && data.test && Array.isArray(data.test.questions)) qs = data.test.questions;
+    <div class="quiz-card" id="quizCard">
+      <div class="study-badge">Асуулт</div>
+      <div class="quiz-question" id="quizQ"></div>
+    </div>
 
-        return qs
-          .filter((q) => q && typeof q.prompt === "string" && Array.isArray(q.options) && q.options.length >= 2)
-          .map((q) => ({
-            prompt: String(q.prompt).trim(),
-            options: q.options.slice(0, 4).map((x) => String(x)),
-            answerIndex: Number(q.answerIndex),
-            explanation: q.explanation ? String(q.explanation) : "",
-          }))
-          .filter((q) => Number.isInteger(q.answerIndex) && q.answerIndex >= 0 && q.answerIndex < q.options.length);
-      }
+    <div class="quiz-feedback" id="quizFeedback"></div>
 
-      function clearAll() {
-        $("inputText").value = "";
-        questions = [];
-        localStorage.removeItem(LS_TEST);
-        setStatus("Цэвэрлэгдлээ.", "ok");
-        renderStartBox();
-      }
+    <div class="quiz-options" id="quizOptions"></div>
 
-      function syncStartBox() {
-        $("pillCount").textContent = String(questions.length);
-        $("startBtn").disabled = questions.length === 0;
-      }
+    <div class="quiz-done" id="quizDone">
+      <div style="font-size:3rem">🏆</div>
+      <h2>Тест дууслаа!</h2>
+      <div class="quiz-done-score" id="quizDoneScore"></div>
+      <div class="quiz-done-sub" id="quizDoneSub"></div>
+      <div class="quiz-result-row">
+        <span class="quiz-result-pill good" id="quizDoneGood">✓ 0 зөв</span>
+        <span class="quiz-result-pill bad"  id="quizDoneBad">✕ 0 буруу</span>
+      </div>
+      <p id="quizDoneTxt"></p>
+      <div class="quiz-done-actions">
+        <button class="btn btn-primary" onclick="startQuiz()">↺ Дахин тест</button>
+        <button class="btn btn-sm" onclick="switchTab('study')">📚 Судлах горим</button>
+      </div>
+    </div>`;
 
-      // ══════════════════════════════════════════
-      // Quiz
-      // ══════════════════════════════════════════
-      function shuffle(arr) {
-        const a = arr.slice();
-        for (let i = a.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [a[i], a[j]] = [a[j], a[i]];
-        }
-        return a;
-      }
+  showQuizQuestion();
+}
 
-      function startQuiz() {
-        if (!questions.length) return;
-        quizDeck = shuffle(questions.map((q, i) => ({ ...q, _origIdx: i })));
-        quizIdx = 0;
-        quizScore = 0;
-        quizWrong = 0;
-        quizAnswered = false;
-        renderQuizCard();
-      }
+function showQuizQuestion() {
+  if (quizIdx >= quizDeck.length) { showQuizDone(); return; }
 
-      function renderStartBox() {
-        const wrap = $("quizWrap");
-        wrap.innerHTML = `
-          <div class="quiz-start-box">
-            <div class="emoji">🧪</div>
-            <h2>Шалгалтаа эхлүүлэх</h2>
-            <p>
-              Эхлээд зүүн талд текст оруулаад <strong>“Тест үүсгэх”</strong> дарна.<br />
-              Дараа нь эндээс тестээ эхлүүлнэ.
-            </p>
-            <div class="quiz-info-row">
-              <span class="quiz-info-pill">📋 <span id="pillCount">${questions.length}</span> асуулт</span>
-              <span class="quiz-info-pill">✦ 4 сонголт</span>
-            </div>
-            <button class="btn btn-primary" style="width:100%" id="startBtn" onclick="startQuiz()" ${
-              questions.length ? "" : "disabled"
-            }>▶ Тест эхлэх</button>
-          </div>
-        `;
-      }
+  quizAnswered = false;
+  const correct = quizDeck[quizIdx];
 
-      function renderQuizCard() {
-        const q = quizDeck[quizIdx];
-        if (!q) return renderDone();
+  // Build wrong answers from other cards (avoid exact same answer text)
+  const otherAnswers = cards
+    .filter((_, i) => i !== correct._origIdx && cards[i].a !== correct.a)
+    .map(c => c.a);
 
-        quizAnswered = false;
+  const wrongPool = shuffle(otherAnswers).slice(0, 3);
+  // Pad if not enough distinct wrong answers
+  while (wrongPool.length < 3) wrongPool.push('—');
 
-        const wrap = $("quizWrap");
-        wrap.innerHTML = `
-          <div class="quiz-topbar">
-            <div class="quiz-info-pill">📍 <span id="qProgTxt">${quizIdx + 1} / ${quizDeck.length}</span></div>
-            <div class="quiz-score-display" id="qScoreDisplay">⭐ ${quizScore}</div>
-          </div>
+  const LABELS = ['A', 'B', 'C', 'D'];
+  const options = shuffle([
+    { text: correct.a, isCorrect: true },
+    ...wrongPool.map(w => ({ text: w, isCorrect: false }))
+  ]);
 
-          <div class="quiz-card" id="quizCard">
-            <div class="study-badge">Асуулт</div>
-            <div class="quiz-question" id="quizQ">${escapeHtml(q.prompt)}</div>
-            <div class="quiz-options" id="quizOptions">
-              ${q.options
-                .map(
-                  (opt, oi) => `
-                    <button class="quiz-option" type="button" onclick="answer(${oi})" id="opt_${oi}">
-                      <span class="opt-label">${String.fromCharCode(65 + oi)}</span>
-                      <span>${escapeHtml(opt)}</span>
-                    </button>
-                  `,
-                )
-                .join("")}
-            </div>
-            <div id="quizFeedback" style="margin-top: 12px"></div>
-            <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap">
-              <button class="btn btn-ghost" type="button" onclick="skip()">Дараагийнх</button>
-              <button class="btn btn-ghost" type="button" onclick="renderStartBox()">Гарах</button>
-            </div>
-          </div>
-        `;
-      }
+  // Update question
+  document.getElementById('quizQ').textContent = correct.q;
 
-      function answer(oi) {
-        if (quizAnswered) return;
-        quizAnswered = true;
-        const q = quizDeck[quizIdx];
-        const correct = q.answerIndex;
+  // Update progress
+  const pct = Math.round(quizIdx / quizDeck.length * 100);
+  document.getElementById('qProgFill').style.width = pct + '%';
+  document.getElementById('qProgTxt').textContent = `${quizIdx + 1} / ${quizDeck.length}`;
+  document.getElementById('qScoreDisplay').textContent = `⭐ ${quizScore}`;
 
-        for (let i = 0; i < q.options.length; i++) {
-          const btn = $("opt_" + i);
-          btn.disabled = true;
-          if (i === correct) btn.classList.add("correct");
-          if (i === oi && oi !== correct) btn.classList.add("wrong");
-        }
+  // Clear feedback
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'quiz-feedback';
+  fb.textContent = '';
 
-        const fb = $("quizFeedback");
-        if (oi === correct) {
-          quizScore++;
-          fb.innerHTML = `<div class="quiz-feedback correct-fb">✅ Зөв!</div>`;
-        } else {
-          quizWrong++;
-          fb.innerHTML = `<div class="quiz-feedback wrong-fb">❌ Буруу. Зөв хариулт: <strong>${escapeHtml(
-            q.options[correct],
-          )}</strong>${q.explanation ? `<div style="margin-top:6px;color:var(--muted)">${escapeHtml(q.explanation)}</div>` : ""}</div>`;
-        }
-        $("qScoreDisplay").textContent = "⭐ " + quizScore;
-      }
+  // Render options
+  document.getElementById('quizOptions').innerHTML = options.map((opt, i) => `
+    <button
+      class="quiz-option"
+      onclick="answerQuiz(this, ${opt.isCorrect}, '${escAttr(correct.a)}')"
+      data-correct="${opt.isCorrect}"
+    >
+      <span class="opt-label">${LABELS[i]}</span>${esc(opt.text)}
+    </button>
+  `).join('');
+}
 
-      function skip() {
-        quizIdx++;
-        renderQuizCard();
-      }
+function escAttr(s) {
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
 
-      function renderDone() {
-        const wrap = $("quizWrap");
-        const total = quizDeck.length || 0;
-        wrap.innerHTML = `
-          <div class="quiz-done">
-            <div class="emoji" style="font-size:3.2rem">🏁</div>
-            <h2>Дууслаа</h2>
-            <div class="quiz-done-score">${quizScore} / ${total}</div>
-            <p>Зөв: <strong>${quizScore}</strong> · Буруу: <strong>${quizWrong}</strong></p>
-            <div class="quiz-done-actions">
-              <button class="btn btn-primary" type="button" onclick="startQuiz()">↻ Дахин эхлэх</button>
-              <button class="btn btn-ghost" type="button" onclick="renderStartBox()">Шалгалтын орох</button>
-            </div>
-          </div>
-        `;
-      }
+function answerQuiz(btn, isCorrect, correctAnswerText) {
+  if (quizAnswered) return;
+  quizAnswered = true;
 
-      function escapeHtml(str) {
-        return String(str)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;");
-      }
+  // Disable all options & mark correct
+  document.querySelectorAll('.quiz-option').forEach(b => {
+    b.disabled = true;
+    b.style.pointerEvents = 'none';
+    if (b.dataset.correct === 'true') b.classList.add('correct');
+  });
 
-      // Boot
-      renderStartBox();
-      syncStartBox();
-    </script>
-  </body>
+  const fb = document.getElementById('quizFeedback');
+
+  if (isCorrect) {
+    quizScore++;
+    document.getElementById('qScoreDisplay').textContent = `⭐ ${quizScore}`;
+    fb.className = 'quiz-feedback correct-fb';
+    fb.textContent = '✓ Зөв! Маш сайн!';
+  } else {
+    quizWrong++;
+    btn.classList.add('wrong');
+    fb.className = 'quiz-feedback wrong-fb';
+    fb.textContent = `✕ Буруу. Зөв хариулт: ${correctAnswerText}`;
+  }
+
+  setTimeout(() => {
+    quizIdx++;
+    showQuizQuestion();
+  }, 1400);
+}
+
+function showQuizDone() {
+  document.getElementById('quizCard').style.display   = 'none';
+  document.getElementById('quizOptions').style.display = 'none';
+  document.getElementById('quizFeedback').style.display = 'none';
+
+  const total = quizDeck.length;
+  const pct   = Math.round(quizScore / total * 100);
+
+  document.getElementById('quizDoneScore').textContent = `${pct}%`;
+  document.getElementById('quizDoneSub').textContent   = `${quizScore} / ${total} асуулт`;
+  document.getElementById('quizDoneGood').textContent  = `✓ ${quizScore} зөв`;
+  document.getElementById('quizDoneBad').textContent   = `✕ ${quizWrong} буруу`;
+
+  let msg = '';
+  if (pct === 100) msg = '🎉 Төгс үр дүн! Та бүх асуултыг зөв хариуллаа!';
+  else if (pct >= 80) msg = '👏 Маш сайн! Та сэдвийг сайн эзэмшсэн байна.';
+  else if (pct >= 60) msg = '📖 Дундаж. Дахин давтаж судлаарай.';
+  else msg = '💪 Цааш давтан сурах хэрэгтэй байна. Бүтэлгүйтэхгүй!';
+
+  document.getElementById('quizDoneTxt').textContent = msg;
+  document.getElementById('quizDone').style.display  = 'block';
+  document.getElementById('qProgFill').style.width   = '100%';
+}
+
+// ══════════════════════════════════════════
+// ── STUDY MODE ──
+// ══════════════════════════════════════════
+function initStudy() {
+  const wrap = document.getElementById('studyWrap');
+  if (!cards.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="emoji">📚</div><p>Эхлэхийн тулд карт үүсгэнэ үү.</p></div>`;
+    return;
+  }
+  studyDeck = [...cards.map((c,i)=>({...c,_i:i}))].filter(c=>c.status!=='know');
+  if (!studyDeck.length) studyDeck = cards.map((c,i)=>({...c,_i:i}));
+  for (let i=studyDeck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[studyDeck[i],studyDeck[j]]=[studyDeck[j],studyDeck[i]];}
+  studyIdx = 0; studyFlipped = false;
+
+  wrap.innerHTML = `
+    <div class="study-progress">
+      <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+      <div class="prog-label">
+        <span id="progTxt">1 / ${studyDeck.length}</span>
+        <span id="progPct">0%</span>
+      </div>
+    </div>
+    <div class="study-card-wrap" id="studyCard" onclick="flipStudy()">
+      <div class="study-inner" id="studyInner">
+        <div class="study-front">
+          <div class="study-badge">Асуулт</div>
+          <div class="study-q" id="studyQ"></div>
+          <div class="study-hint">Дарж хариултыг харна уу</div>
+        </div>
+        <div class="study-back">
+          <div class="study-badge">Хариулт</div>
+          <div class="study-q" id="studyA"></div>
+        </div>
+      </div>
+    </div>
+    <div class="study-btns" id="studyBtns">
+      <button class="btn-unknow" onclick="markStudy('unknow')">✕ Мэдэхгүй</button>
+      <button class="btn-know"   onclick="markStudy('know')">✓ Мэдлээ</button>
+    </div>
+    <div class="study-done" id="studyDone">
+      <div>🎉</div>
+      <h2>Дууслаа!</h2>
+      <div class="done-score" id="doneScore"></div>
+      <p id="doneTxt"></p>
+      <button class="btn btn-primary" onclick="initStudy()" style="margin-top:10px">↺ Дахин эхлэх</button>
+    </div>
+  `;
+  showStudyCard();
+}
+
+function showStudyCard() {
+  if (studyIdx >= studyDeck.length) { showStudyDone(); return; }
+  const c = studyDeck[studyIdx];
+  document.getElementById('studyQ').textContent = c.q;
+  document.getElementById('studyA').textContent = c.a;
+  document.getElementById('studyCard').classList.remove('flipped');
+  document.getElementById('studyBtns').classList.remove('visible');
+  studyFlipped = false;
+
+  const pct = Math.round(studyIdx/studyDeck.length*100);
+  document.getElementById('progFill').style.width = pct+'%';
+  document.getElementById('progTxt').textContent = `${studyIdx+1} / ${studyDeck.length}`;
+  document.getElementById('progPct').textContent = pct+'%';
+}
+
+function flipStudy() {
+  if (studyFlipped) return;
+  studyFlipped = true;
+  document.getElementById('studyCard').classList.add('flipped');
+  setTimeout(()=>document.getElementById('studyBtns').classList.add('visible'), 350);
+}
+
+function markStudy(status) {
+  const c = studyDeck[studyIdx];
+  cards[c._i].status = status;
+  save();
+  studyIdx++;
+  setTimeout(showStudyCard, 150);
+}
+
+function showStudyDone() {
+  document.getElementById('studyCard').style.display='none';
+  document.getElementById('studyBtns').style.display='none';
+  const know = studyDeck.filter(c=>cards[c._i].status==='know').length;
+  const pct = Math.round(know/studyDeck.length*100);
+  document.getElementById('doneScore').textContent = pct+'%';
+  document.getElementById('doneTxt').textContent = `${studyDeck.length} картаас ${know}-г мэдэж байна.`;
+  document.getElementById('studyDone').style.display='block';
+  document.getElementById('progFill').style.width='100%';
+}
+</script>
+</body>
 </html>
