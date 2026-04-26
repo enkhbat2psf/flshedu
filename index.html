@@ -1288,17 +1288,25 @@ async function createRoom(cfg) {
     let questions = [];
     if (cfg.mode === 'ai') {
       roomStatus('roomTeacherStatus', '⏳ AI асуулт бэлдэж байна…');
+      // Таны одоогийн Code.gs нь action:"test" дээр { questions:[{q, correct, wrong[]}] } буцаадаг.
+      // Тиймээс Exam Room-д action:"test" ашиглаад, subject/topic/level-ийг prompt болгон нийлүүлж явуулна.
+      const inputText = [
+        `Хичээл: ${cfg.subjectName}`,
+        `Сэдэв: ${cfg.topic}`,
+        `Түвшин: ${cfg.level}`,
+        `Тестийн тоо: ${cfg.count} (max 27)`,
+        "",
+        "Дээрх мэдээлэлд тохируулж олон сонголтот тест зохио.",
+      ].join("\n");
       const out = await fetch(SCRIPT_URL, {
         method: 'POST',
         // NOTE: Apps Script Web App нь CORS preflight (OPTIONS) дэмждэггүй тул
         // application/json биш text/plain илгээж "Failed to fetch"-ийг зайлсхийв.
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
-          action: 'exam',
-          subjectName: cfg.subjectName,
-          topic: cfg.topic,
+          action: 'test',
+          inputText,
           count: cfg.count,
-          level: cfg.level,
         }),
       });
       if (!out.ok) {
@@ -1353,21 +1361,62 @@ async function createRoom(cfg) {
 }
 
 function normalizeExamQuestions(data, maxCount) {
+  // Accept shapes:
+  // 1) [{prompt, options[4], answerIndex}]
+  // 2) { questions: [{prompt, options[4], answerIndex}] }
+  // 3) { questions: [{q, correct, wrong:["..","..",".."]}] }  (таны Code.gs)
   let qs = [];
   if (Array.isArray(data)) qs = data;
   else if (data && Array.isArray(data.questions)) qs = data.questions;
   else if (data && data.exam && Array.isArray(data.exam.questions)) qs = data.exam.questions;
 
-  return qs
-    .filter(q => q && typeof q.prompt === 'string' && Array.isArray(q.options) && q.options.length >= 4)
-    .map(q => ({
-      prompt: String(q.prompt).trim(),
-      options: q.options.slice(0,4).map(x => String(x)),
-      answerIndex: Number(q.answerIndex),
-      explanation: q.explanation ? String(q.explanation) : ''
-    }))
-    .filter(q => Number.isInteger(q.answerIndex) && q.answerIndex >= 0 && q.answerIndex < 4)
-    .slice(0, Math.min(27, maxCount || 27));
+  const normalized = [];
+  for (const q of qs) {
+    // Format A: prompt/options/answerIndex
+    if (q && typeof q.prompt === 'string' && Array.isArray(q.options) && q.options.length >= 4) {
+      const opts = q.options.slice(0, 4).map((x) => String(x));
+      const ai = Number(q.answerIndex);
+      if (Number.isInteger(ai) && ai >= 0 && ai < 4) {
+        normalized.push({
+          prompt: String(q.prompt).trim(),
+          options: opts,
+          answerIndex: ai,
+          explanation: q.explanation ? String(q.explanation) : '',
+        });
+      }
+      continue;
+    }
+
+    // Format B: q/correct/wrong[]
+    if (q && typeof q.q === 'string' && typeof q.correct === 'string' && Array.isArray(q.wrong)) {
+      const prompt = String(q.q).trim();
+      const correct = String(q.correct).trim();
+      const wrongs = q.wrong.slice(0, 3).map((x) => String(x).trim()).filter(Boolean);
+      // pad wrongs if missing
+      while (wrongs.length < 3) wrongs.push('—');
+      const opts = shuffle4([correct, ...wrongs]);
+      const ai = opts.indexOf(correct);
+      if (prompt && ai >= 0) {
+        normalized.push({
+          prompt,
+          options: opts,
+          answerIndex: ai,
+          explanation: '',
+        });
+      }
+    }
+  }
+
+  return normalized.slice(0, Math.min(27, maxCount || 27));
+}
+
+function shuffle4(arr) {
+  const a = arr.slice(0, 4);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 function renderRoomQr(pin) {
