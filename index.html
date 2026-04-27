@@ -794,25 +794,20 @@ const deviceId = (() => {
 })();
 
 const alpha = (i) => String.fromCharCode(65 + (i % 26));
-const shuffle = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+
+const normalizeVariants = (exam) => {
+  // New format: exam.variants = [{label:'A', questions:[...]}]
+  if (Array.isArray(exam?.variants) && exam.variants.length) {
+    return exam.variants.map((v, idx) => ({
+      label: v.label || alpha(idx),
+      questions: Array.isArray(v.questions) ? v.questions : []
+    }));
   }
-  return a;
-};
-const makeVariantOrders = (questionCount, variantCount) => {
-  const base = Array.from({ length: questionCount }, (_, i) => i + 1);
-  const orders = [base];
-  for (let v = 1; v < variantCount; v++) orders.push(shuffle(base));
-  return orders;
-};
-const applyOrder = (questions, order) => {
-  if (!Array.isArray(order) || order.length !== questions.length) return questions;
-  const byId = new Map(questions.map(q => [q.id, q]));
-  const out = order.map(id => byId.get(id)).filter(Boolean);
-  return out.length ? out : questions;
+  // Backward-compat: older exam only had questions (or variantOrders shuffle)
+  if (Array.isArray(exam?.questions) && exam.questions.length) {
+    return [{ label: 'A', questions: exam.questions }];
+  }
+  return [{ label: 'A', questions: [] }];
 };
 
 // ─── QR PAYLOAD (compact) ─────────────────────────────────────────────────────
@@ -823,29 +818,37 @@ const packExamForQR = (exam) => ({
   s: exam.subject,
   d: exam.duration,
   p: exam.passingScore,
-  o: exam.variantOrders || undefined,
-  q: (exam.questions || []).map(q => ([
-    q.text || '',
-    (q.options || []).map(o => o.text || ''),
-    q.answer ?? null
-  ]))
+  v: normalizeVariants(exam).map(v => (
+    (v.questions || []).map(q => ([
+      q.text || '',
+      (q.options || []).map(o => o.text || ''),
+      q.answer ?? null
+    ]))
+  ))
 });
 
-const unpackExamFromQR = (packed) => ({
-  id: packed.i,
-  title: packed.t,
-  subject: packed.s,
-  duration: packed.d,
-  passingScore: packed.p,
-  variantOrders: packed.o || [Array.from({ length: (packed.q || []).length }, (_, i) => i + 1)],
-  questions: (packed.q || []).map((row, idx) => ({
-    id: idx + 1,
-    text: row?.[0] || '',
-    options: ['A','B','C','D'].map((key, oi) => ({ key, text: row?.[1]?.[oi] || '' })),
-    answer: row?.[2] ?? null
-  })),
-  published: true
-});
+const unpackExamFromQR = (packed) => {
+  const variantsPacked = Array.isArray(packed?.v) ? packed.v : [];
+  const variants = (variantsPacked.length ? variantsPacked : [packed?.q || []]).map((qPack, vidx) => ({
+    label: alpha(vidx),
+    questions: (qPack || []).map((row, idx) => ({
+      id: idx + 1,
+      text: row?.[0] || '',
+      options: ['A','B','C','D'].map((key, oi) => ({ key, text: row?.[1]?.[oi] || '' })),
+      answer: row?.[2] ?? null
+    }))
+  }));
+
+  return ({
+    id: packed.i,
+    title: packed.t,
+    subject: packed.s,
+    duration: packed.d,
+    passingScore: packed.p,
+    variants,
+    published: true
+  });
+};
 
 // ─── AI PARSER (Groq) ─────────────────────────────────────────────────────────
 const parseTestWithAI = async (rawText, apiKey) => {
@@ -1112,11 +1115,7 @@ function AIParseStep({ apiKey, onParsed, onManual, onBack, variantCount, onVaria
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
             <button className="btn btn-outline" onClick={onBack}>← Буцах</button>
             <div style={{display:'flex',gap:10}}>
-              <button
-                className="btn btn-outline"
-                onClick={() => onVariantCountChange?.(Math.min(10, (variantCount || 1) + 1))}
-                title="Шалгалтын хувилбар нэмэх"
-              >
+              <button className="btn btn-outline" onClick={() => onVariantCountChange?.()} title="Шалгалтын хувилбар нэмэх" disabled={(variantCount || 1) >= 5}>
                 ➕ Хувилбар ({variantCount || 1})
               </button>
               <button className="btn btn-outline" onClick={onManual}>✏ Гараар оруулах</button>
@@ -1208,34 +1207,47 @@ function QuestionEditor({ questions, onChange }) {
 function CreateExam({ apiKey, onSave, onCancel }) {
   const [step, setStep] = useState(1); // 1=info, 2=parse, 3=review
   const [info, setInfo] = useState({ title: '', subject: 'Англи хэл', duration: 45, passingScore: 60 });
-  const [questions, setQuestions] = useState([]);
+  const [variants, setVariants] = useState([{ label: 'A', questions: [] }]);
+  const [activeVar, setActiveVar] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [variantCount, setVariantCount] = useState(1);
+  const variantCount = variants.length;
 
   const stepLabels = ['Мэдээлэл', 'Тест оруулах', 'Хянах & нийтлэх'];
 
   const handleParsed = qs => {
-    setQuestions(qs);
+    setVariants(prev => prev.map((v, idx) => idx === activeVar ? ({...v, questions: qs}) : v));
     setStep(3);
   };
 
   const handleManual = () => {
-    setQuestions([{id:1,text:'',options:[{key:'A',text:''},{key:'B',text:''},{key:'C',text:''},{key:'D',text:''}],answer:null}]);
+    const seed = [{id:1,text:'',options:[{key:'A',text:''},{key:'B',text:''},{key:'C',text:''},{key:'D',text:''}],answer:null}];
+    setVariants(prev => prev.map((v, idx) => idx === activeVar ? ({...v, questions: seed}) : v));
     setStep(3);
   };
 
+  const addVariant = () => {
+    setVariants(prev => {
+      const nextIdx = prev.length;
+      if (nextIdx >= 5) return prev;
+      return [...prev, { label: alpha(nextIdx), questions: [] }];
+    });
+    setActiveVar(v => Math.min(v + 1, 4));
+  };
+
   const handlePublish = () => {
-    const validQs = questions.filter(q => q.text.trim());
-    if (validQs.length === 0) { alert('Дор хаяж нэг асуулт оруулна уу'); return; }
+    const hasAny = variants.some(v => (v.questions || []).some(q => (q.text || '').trim()));
+    if (!hasAny) { alert('Дор хаяж нэг асуулт оруулна уу'); return; }
     setSaving(true);
     setTimeout(() => {
-      const normalizedQs = validQs.map((q, i) => ({...q, id: i + 1}));
-      const orders = makeVariantOrders(normalizedQs.length, Math.max(1, variantCount || 1));
+      const normalizedVariants = variants.map((v, vidx) => {
+        const valid = (v.questions || []).filter(q => (q.text || '').trim());
+        const normalizedQs = valid.map((q, i) => ({...q, id: i + 1}));
+        return { label: v.label || alpha(vidx), questions: normalizedQs };
+      }).filter(v => v.questions.length > 0);
       const exam = {
         id: uid(),
         ...info,
-        questions: normalizedQs,
-        variantOrders: orders,
+        variants: normalizedVariants.length ? normalizedVariants : [{ label: 'A', questions: [] }],
         createdAt: new Date().toISOString(),
         published: true,
         submissionCount: 0
@@ -1301,7 +1313,7 @@ function CreateExam({ apiKey, onSave, onCancel }) {
               onManual={handleManual}
               onBack={() => setStep(1)}
               variantCount={variantCount}
-              onVariantCountChange={setVariantCount}
+              onVariantCountChange={addVariant}
             />
           )}
 
@@ -1311,11 +1323,8 @@ function CreateExam({ apiKey, onSave, onCancel }) {
                 <div>
                   <div className="card-title">{info.title}</div>
                   <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:3}}>
-                    {questions.filter(q=>q.text).length} асуулт · {info.duration} мин · {info.subject}
-                    {' · '}<span style={{fontWeight:700,color:'var(--violet)'}}>Хувилбар: {variantCount}</span>
-                    {' · '}<span style={{color: questions.filter(q=>q.answer).length === questions.filter(q=>q.text).length ? 'var(--green)' : 'var(--amber)'}}>
-                      {questions.filter(q=>q.answer).length}/{questions.filter(q=>q.text).length} хариулт тохируулсан
-                    </span>
+                    {(variants[activeVar]?.questions || []).filter(q=>q.text).length} асуулт · {info.duration} мин · {info.subject}
+                    {' · '}<span style={{fontWeight:700,color:'var(--violet)'}}>Хувилбар: {variants[activeVar]?.label || alpha(activeVar)} / {variantCount}</span>
                   </div>
                 </div>
                 <div style={{display:'flex',gap:10}}>
@@ -1325,7 +1334,26 @@ function CreateExam({ apiKey, onSave, onCancel }) {
                   </button>
                 </div>
               </div>
-              <QuestionEditor questions={questions} onChange={setQuestions} />
+
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
+                {variants.map((v, idx) => (
+                  <button
+                    key={idx}
+                    className={`btn btn-sm ${idx === activeVar ? 'btn-violet' : 'btn-outline'}`}
+                    onClick={() => setActiveVar(idx)}
+                  >
+                    {v.label || alpha(idx)} хувилбар ({(v.questions||[]).filter(q=>q.text).length})
+                  </button>
+                ))}
+                {variantCount < 5 && (
+                  <button className="btn btn-outline btn-sm" onClick={addVariant}>➕ Хувилбар нэмэх</button>
+                )}
+              </div>
+
+              <QuestionEditor
+                questions={variants[activeVar]?.questions || []}
+                onChange={(qs) => setVariants(prev => prev.map((v, idx) => idx === activeVar ? ({...v, questions: qs}) : v))}
+              />
             </div>
           )}
         </div>
@@ -1457,7 +1485,7 @@ function QRModal({ exam, onClose }) {
               )}
 
               <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:8}}>
-                ❓ {exam.questions.length} асуулт &nbsp;·&nbsp; ⏱ {exam.duration} мин &nbsp;·&nbsp; 📚 {exam.subject}
+                ❓ {(normalizeVariants(exam)[0]?.questions || []).length} асуулт &nbsp;·&nbsp; ⏱ {exam.duration} мин &nbsp;·&nbsp; 📚 {exam.subject}
               </div>
               <div style={{marginTop:12,fontSize:'0.78rem',color:'var(--text3)'}}>
                 Сурагч уншуулмагц нэр, ангиа оруулаад шалгалт эхэлнэ
@@ -1751,6 +1779,9 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
             {exams.map(exam => {
               const subs = submissions.filter(s => s.examId === exam.id);
               const avg = subs.length ? Math.round(subs.reduce((a,s) => a+s.score, 0) / subs.length) : null;
+              const vars = normalizeVariants(exam);
+              const vCount = vars.length;
+              const qCount = (vars[0]?.questions || []).length;
               return (
                 <div className="exam-card" key={exam.id} onClick={() => setQrExam(exam)} style={{cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
@@ -1759,8 +1790,9 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                   </div>
                   <div className="exam-card-meta">
                     <span>📚 {exam.subject}</span>
-                    <span>❓ {exam.questions.length} асуулт</span>
+                    <span>❓ {qCount} асуулт</span>
                     <span>⏱ {exam.duration} мин</span>
+                    <span>🅰 {vCount} хувилбар</span>
                   </div>
                   <div style={{display:'flex',gap:12,fontSize:'0.82rem',color:'var(--text2)',marginBottom:10}}>
                     <span>👥 {subs.length} оролцсон</span>
@@ -1874,6 +1906,7 @@ function StudentPortal({ exams, onStartExam, onBack }) {
 
 // ─── EXAM INTRO ───────────────────────────────────────────────────────────────
 function ExamIntro({ exam, studentName, studentClass, onStart, onBack }) {
+  const qCount = (exam.questions || []).length;
   return (
     <div className="modal-overlay">
       <div className="modal" style={{maxWidth:520}}>
@@ -1889,7 +1922,7 @@ function ExamIntro({ exam, studentName, studentClass, onStart, onBack }) {
         <div className="modal-body">
           <div style={{background:'var(--surface2)',borderRadius:10,padding:'16px',marginBottom:16,display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             {[
-              ['📋 Асуултын тоо', exam.questions.length + ' асуулт'],
+              ['📋 Асуултын тоо', qCount + ' асуулт'],
               ['⏱ Хугацаа', exam.duration + ' минут'],
               ['✅ Тэнцэх босго', exam.passingScore + '%'],
               ['👤 Сурагч', studentName + (studentClass ? ' · ' + studentClass : '')],
@@ -1926,11 +1959,7 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
   const cheatLogRef = useRef([]);
   const startMsRef = useRef(Date.now());
 
-  const orderedQuestions = useMemo(() => {
-    const orders = exam.variantOrders || [Array.from({ length: exam.questions.length }, (_, i) => i + 1)];
-    const idx = Math.max(0, Math.min((exam.variantIndex ?? 0), orders.length - 1));
-    return applyOrder(exam.questions, orders[idx]);
-  }, [exam]);
+  const orderedQuestions = useMemo(() => exam.questions || [], [exam]);
 
   const logCheat = useCallback((type, detail) => {
     if (submittedRef.current) return;
@@ -2234,6 +2263,7 @@ function ResultPage({ submission, exam, onHome }) {
 function QRStudentLogin({ exam, onStart, onBack }) {
   const [name, setName] = useState('');
   const [cls, setCls] = useState('');
+  const qCount = (exam.questions || []).length;
 
   const announceJoin = useCallback((n, c) => {
     try {
@@ -2268,7 +2298,7 @@ function QRStudentLogin({ exam, onStart, onBack }) {
         </div>
         <div className="modal-body">
           <div style={{background:'var(--violet-light)',borderRadius:10,padding:'12px 16px',marginBottom:18,fontSize:'0.85rem',color:'#4c3db0',lineHeight:1.6}}>
-            📋 <strong>{exam.questions.length} асуулт</strong> &nbsp;·&nbsp; ⏱ <strong>{exam.duration} мин</strong> &nbsp;·&nbsp; 📚 {exam.subject}
+            📋 <strong>{qCount} асуулт</strong> &nbsp;·&nbsp; ⏱ <strong>{exam.duration} мин</strong> &nbsp;·&nbsp; 📚 {exam.subject}
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -2306,9 +2336,15 @@ function App() {
   const [page, setPage] = useState({ type: 'landing' });
 
   const withRandomVariant = useCallback((exam) => {
-    const orders = exam.variantOrders || [Array.from({ length: exam.questions.length }, (_, i) => i + 1)];
-    const idx = Math.floor(Math.random() * Math.max(1, orders.length));
-    return { ...exam, variantIndex: idx, variantLabel: alpha(idx) };
+    const vars = normalizeVariants(exam);
+    const idx = Math.floor(Math.random() * Math.max(1, vars.length));
+    const picked = vars[idx] || { label: alpha(idx), questions: [] };
+    return {
+      ...exam,
+      variantIndex: idx,
+      variantLabel: picked.label || alpha(idx),
+      questions: picked.questions || []
+    };
   }, []);
 
   // Handle QR URL hash on load
