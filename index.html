@@ -739,12 +739,26 @@ const fmtDur = (sec) => {
   return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
 };
 
-// ─── FIREBASE (optional) ──────────────────────────────────────────────────────
+// ─── FIREBASE (built-in config) ───────────────────────────────────────────────
+// Default Firebase config is embedded in code (no manual setup needed).
+// You can still override it by setting localStorage key: se_firebase_config
+const FIREBASE_DEFAULT_CONFIG = {
+  apiKey: "AIzaSyAYewyWCkgMiPhZlybGaDA3J6XAXeYxVvM",
+  authDomain: "smrtexm.firebaseapp.com",
+  projectId: "smrtexm",
+  storageBucket: "smrtexm.firebasestorage.app",
+  messagingSenderId: "1085014532833",
+  appId: "1:1085014532833:web:e9ca4fe4e00bbb30750da0",
+  measurementId: "G-YJC8GK38PB",
+  databaseURL: "https://smrtexm-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
 const getFirebaseConfig = () => {
   try {
     const raw = localStorage.getItem('se_firebase_config');
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return FIREBASE_DEFAULT_CONFIG;
 };
 const hasFirebaseConfig = () => {
   const cfg = getFirebaseConfig();
