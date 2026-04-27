@@ -1338,15 +1338,16 @@ function CreateExam({ apiKey, onSave, onCancel }) {
 function QRModal({ exam, onClose }) {
   const [step, setStep] = useState('confirm');
   const qrRef = useRef(null);
-  const [joins, setJoins] = useState([]); // {name, cls, at}
+  const [joins, setJoins] = useState([]); // {id, name, cls, at}
+  const [joinCount, setJoinCount] = useState(0);
   const channelRef = useRef(null);
 
-  const addJoin = useCallback((payload) => {
+  const addJoin = useCallback((payload, id) => {
     if (!payload?.name) return;
     setJoins(prev => {
-      const key = (payload.name || '') + '|' + (payload.cls || '');
-      if (prev.some(p => (p.name + '|' + p.cls) === key)) return prev;
-      return [{ name: payload.name, cls: payload.cls || '—', at: payload.at || Date.now() }, ...prev].slice(0, 30);
+      const key = id || (payload.name + '|' + (payload.cls || '') + '|' + (payload.at || ''));
+      if (prev.some(p => p.id === key)) return prev;
+      return [{ id: key, name: payload.name, cls: payload.cls || '—', at: payload.at || Date.now() }, ...prev].slice(0, 30);
     });
   }, []);
 
@@ -1357,7 +1358,7 @@ function QRModal({ exam, onClose }) {
       const bc = new BroadcastChannel('se_join_' + exam.id);
       channelRef.current = bc;
       bc.onmessage = (ev) => {
-        if (ev?.data?.type === 'JOIN') addJoin(ev.data.payload);
+        if (ev?.data?.type === 'JOIN') addJoin(ev.data.payload, ev.data.payload?.id);
       };
       return () => { try { bc.close(); } catch {} };
     } catch {
@@ -1371,20 +1372,19 @@ function QRModal({ exam, onClose }) {
     const db = getDb();
     if (!db) return;
     try {
-      const ref = db.ref('se/joins/' + exam.id);
-      const handler = ref.on('value', (snap) => {
-        const val = snap.val() || {};
-        const list = Object.values(val)
-          .filter(Boolean)
-          .map(j => ({ name: j.name || '', cls: j.cls || '—', at: j.at || 0 }))
-          .filter(j => j.name)
-          .sort((a,b) => (b.at||0) - (a.at||0))
-          .slice(0, 30);
-        setJoins(list);
+      // reset when switching exams / reopening
+      setJoins([]);
+      setJoinCount(0);
+
+      const ref = db.ref('se/joins/' + exam.id).limitToLast(60);
+      const onAdd = ref.on('child_added', (snap) => {
+        const v = snap.val();
+        addJoin(v, snap.key);
+        setJoinCount(c => c + 1);
       });
-      return () => { try { ref.off('value', handler); } catch {} };
+      return () => { try { ref.off('child_added', onAdd); } catch {} };
     } catch {}
-  }, [exam?.id]);
+  }, [exam?.id, addJoin]);
 
   useEffect(() => {
     if (step !== 'qr' || !qrRef.current) return;
@@ -1440,7 +1440,7 @@ function QRModal({ exam, onClose }) {
 
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,margin:'0 auto 10px',maxWidth:360}}>
                 <div style={{fontSize:'0.82rem',color:'var(--text2)',textAlign:'left'}}>
-                  👥 Орсон: <strong style={{color:'var(--text)'}}>{joins.length}</strong>
+                  👥 Орсон: <strong style={{color:'var(--text)'}}>{joinCount || joins.length}</strong>
                 </div>
                 <div style={{fontSize:'0.78rem',color:'var(--text3)'}}>Нэр/анги оруулсан сурагчид</div>
               </div>
