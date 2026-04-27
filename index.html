@@ -810,44 +810,31 @@ const normalizeVariants = (exam) => {
   return [{ label: 'A', questions: [] }];
 };
 
+const roomRef = (db, roomID) => db.ref('activeRooms/' + roomID);
+const packQuestions = (questions) => (questions || []).map(q => ({
+  text: q.text || '',
+  options: (q.options || []).map(o => ({ key: o.key, text: o.text || '' })),
+  answer: q.answer ?? null
+}));
+const unpackQuestions = (questions) => (questions || []).map((q, idx) => ({
+  id: idx + 1,
+  text: q?.text || '',
+  options: ['A', 'B', 'C', 'D'].map((key, oi) => {
+    const hit = (q?.options || []).find(o => o?.key === key);
+    const byIndex = q?.options?.[oi];
+    return { key, text: (hit?.text ?? byIndex?.text ?? '') };
+  }),
+  answer: q?.answer ?? null
+}));
+
 // ─── QR PAYLOAD (compact) ─────────────────────────────────────────────────────
 // Keep QR short enough to be reliably scannable.
 const packExamForQR = (exam) => ({
-  i: exam.id,
-  t: exam.title,
-  s: exam.subject,
-  d: exam.duration,
-  p: exam.passingScore,
-  v: normalizeVariants(exam).map(v => (
-    (v.questions || []).map(q => ([
-      q.text || '',
-      (q.options || []).map(o => o.text || ''),
-      q.answer ?? null
-    ]))
-  ))
+  r: exam.id
 });
 
 const unpackExamFromQR = (packed) => {
-  const variantsPacked = Array.isArray(packed?.v) ? packed.v : [];
-  const variants = (variantsPacked.length ? variantsPacked : [packed?.q || []]).map((qPack, vidx) => ({
-    label: alpha(vidx),
-    questions: (qPack || []).map((row, idx) => ({
-      id: idx + 1,
-      text: row?.[0] || '',
-      options: ['A','B','C','D'].map((key, oi) => ({ key, text: row?.[1]?.[oi] || '' })),
-      answer: row?.[2] ?? null
-    }))
-  }));
-
-  return ({
-    id: packed.i,
-    title: packed.t,
-    subject: packed.s,
-    duration: packed.d,
-    passingScore: packed.p,
-    variants,
-    published: true
-  });
+  return ({ roomID: packed?.r || null });
 };
 
 // ─── AI PARSER (Groq) ─────────────────────────────────────────────────────────
@@ -1252,6 +1239,25 @@ function CreateExam({ apiKey, onSave, onCancel }) {
         published: true,
         submissionCount: 0
       };
+
+      // Publish room to Firebase (activeRooms/{roomID})
+      const db = getDb();
+      if (db) {
+        try {
+          const versions = {};
+          exam.variants.forEach((v) => { versions[v.label] = packQuestions(v.questions); });
+          roomRef(db, exam.id).set({
+            roomID: exam.id,
+            title: exam.title,
+            subject: exam.subject,
+            duration: exam.duration,
+            passingScore: exam.passingScore,
+            createdAt: exam.createdAt,
+            versions
+          });
+        } catch {}
+      }
+
       onSave(exam);
     }, 300);
   };
@@ -1404,7 +1410,7 @@ function QRModal({ exam, onClose }) {
       setJoins([]);
       setJoinCount(0);
 
-      const ref = db.ref('se/joins/' + exam.id).limitToLast(60);
+      const ref = roomRef(db, exam.id).child('joins').limitToLast(60);
       const onAdd = ref.on('child_added', (snap) => {
         const v = snap.val();
         addJoin(v, snap.key);
@@ -1526,6 +1532,46 @@ function ConfirmDeleteModal({ title, onCancel, onConfirm }) {
   );
 }
 
+function QRRoomLoader({ roomID, onLoaded, onBack }) {
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    const db = getDb();
+    if (!db) { setErr('Firebase холболт алга'); return; }
+    try {
+      const ref = roomRef(db, roomID);
+      ref.once('value')
+        .then(snap => {
+          const val = snap.val();
+          if (!val || !val.versions) throw new Error('Room олдсонгүй');
+          onLoaded(val);
+        })
+        .catch(e => setErr(e.message || 'Алдаа'));
+    } catch(e) {
+      setErr(e.message || 'Алдаа');
+    }
+  }, [roomID, onLoaded]);
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{maxWidth:420}}>
+        <div className="modal-head">
+          <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>⏳ Room ачаалж байна...</div>
+        </div>
+        <div className="modal-body">
+          {err ? (
+            <div style={{color:'var(--red)',fontWeight:700}}>⚠ {err}</div>
+          ) : (
+            <div style={{color:'var(--text2)'}}>Шалгалтын мэдээллийг авч байна</div>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-outline" onClick={onBack}>← Буцах</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── CHEAT DETAIL MODAL ───────────────────────────────────────────────────────
 function CheatDetailModal({ sub, onClose }) {
   const log = sub.cheatLog || [];
@@ -1606,7 +1652,7 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
     const db = getDb();
     if (!db) { setRtdbSubs(null); return; }
     try {
-      const ref = db.ref('se/submissions/' + view.exam.id);
+      const ref = roomRef(db, view.exam.id).child('submissions');
       const handler = ref.on('value', (snap) => {
         const val = snap.val() || {};
         const list = Object.values(val).filter(Boolean);
@@ -2076,7 +2122,10 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
     const db = getDb();
     if (db) {
       try {
-        db.ref('se/submissions/' + exam.id + '/' + submission.id).set(submission);
+        roomRef(db, exam.id).child('submissions').child(submission.id).set({
+          ...submission,
+          studentVersion: submission.variantLabel
+        });
       } catch {}
     }
 
@@ -2275,7 +2324,7 @@ function QRStudentLogin({ exam, onStart, onBack }) {
     const db = getDb();
     if (db) {
       try {
-        db.ref('se/joins/' + exam.id).push({
+        roomRef(db, exam.roomID || exam.id).child('joins').push({
           name: n,
           cls: c || '',
           at: firebase.database.ServerValue.TIMESTAMP
@@ -2334,16 +2383,22 @@ function App() {
   const [qrExam, setQrExam] = useState(null); // exam loaded from QR URL
 
   const [page, setPage] = useState({ type: 'landing' });
+  const [roomLoaded, setRoomLoaded] = useState(null); // {roomID,title,subject,duration,passingScore,versions}
 
-  const withRandomVariant = useCallback((exam) => {
-    const vars = normalizeVariants(exam);
-    const idx = Math.floor(Math.random() * Math.max(1, vars.length));
-    const picked = vars[idx] || { label: alpha(idx), questions: [] };
+  const withRandomVariant = useCallback((roomExam) => {
+    const versions = roomExam?.versions || {};
+    const keys = Object.keys(versions).sort();
+    const idx = Math.floor(Math.random() * Math.max(1, keys.length));
+    const label = keys[idx] || 'A';
+    const questions = unpackQuestions(versions[label] || []);
     return {
-      ...exam,
-      variantIndex: idx,
-      variantLabel: picked.label || alpha(idx),
-      questions: picked.questions || []
+      id: roomExam.roomID,
+      title: roomExam.title,
+      subject: roomExam.subject,
+      duration: roomExam.duration,
+      passingScore: roomExam.passingScore,
+      variantLabel: label,
+      questions
     };
   }, []);
 
@@ -2355,10 +2410,9 @@ function App() {
         const compressed = hash.slice(4);
         const json = LZString.decompressFromEncodedURIComponent(compressed);
         const packed = JSON.parse(json);
-        const exam = unpackExamFromQR(packed);
-        if (exam && exam.id) {
-          setQrExam(exam);
-          setPage({ type: 'qrStudent', exam });
+        const parsed = unpackExamFromQR(packed);
+        if (parsed?.roomID) {
+          setPage({ type: 'qrRoom', roomID: parsed.roomID });
           window.location.hash = '';
         }
       } catch(e) { console.error('QR decode error', e); }
@@ -2371,6 +2425,10 @@ function App() {
     if (!exam?.id) return;
     setExams(prev => prev.filter(e => e.id !== exam.id));
     setSubmissions(prev => prev.filter(s => s.examId !== exam.id));
+    const db = getDb();
+    if (db) {
+      try { roomRef(db, exam.id).remove(); } catch {}
+    }
   }, [setExams, setSubmissions]);
 
   // Result page: special full-page rendering
@@ -2483,6 +2541,14 @@ function App() {
             onBack={goHome}
           />
         </div>
+      )}
+
+      {page.type === 'qrRoom' && page.roomID && (
+        <QRRoomLoader
+          roomID={page.roomID}
+          onLoaded={(roomExam) => { setRoomLoaded(roomExam); setPage({ type: 'qrStudent', exam: roomExam }); }}
+          onBack={goHome}
+        />
       )}
 
       {page.type === 'qrStudent' && page.exam && (
