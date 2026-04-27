@@ -9,6 +9,8 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -737,6 +739,46 @@ const fmtDur = (sec) => {
   return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
 };
 
+// ─── FIREBASE (optional) ──────────────────────────────────────────────────────
+const getFirebaseConfig = () => {
+  try {
+    const raw = localStorage.getItem('se_firebase_config');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+const hasFirebaseConfig = () => {
+  const cfg = getFirebaseConfig();
+  return !!(cfg && cfg.apiKey && cfg.projectId && (cfg.databaseURL || cfg.databaseUrl));
+};
+const getFirebaseApp = (() => {
+  let app = null;
+  return () => {
+    if (app) return app;
+    const cfg = getFirebaseConfig();
+    if (!cfg) return null;
+    const fixed = { ...cfg, databaseURL: cfg.databaseURL || cfg.databaseUrl };
+    try {
+      app = firebase.initializeApp(fixed, 'smartExam');
+      return app;
+    } catch (e) {
+      try { app = firebase.app('smartExam'); return app; } catch { return null; }
+    }
+  };
+})();
+const getDb = () => {
+  const app = getFirebaseApp();
+  if (!app) return null;
+  try { return firebase.database(app); } catch { return null; }
+};
+const deviceId = (() => {
+  const k = 'se_device_id';
+  const existing = localStorage.getItem(k);
+  if (existing) return existing;
+  const id = uid();
+  try { localStorage.setItem(k, id); } catch {}
+  return id;
+})();
+
 const alpha = (i) => String.fromCharCode(65 + (i % 26));
 const shuffle = (arr) => {
   const a = [...arr];
@@ -964,6 +1006,8 @@ function TeacherLogin({ onLogin }) {
 function SettingsModal({ apiKey, onSave, onClose }) {
   const [key, setKey] = useState(apiKey || '');
   const [show, setShow] = useState(false);
+  const [fb, setFb] = useState(() => localStorage.getItem('se_firebase_config') || '');
+  const [fbOk, setFbOk] = useState(() => hasFirebaseConfig());
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
@@ -983,6 +1027,46 @@ function SettingsModal({ apiKey, onSave, onClose }) {
                 style={{flex:1}}
               />
               <button className="btn btn-outline btn-sm" onClick={() => setShow(s => !s)}>{show ? '🙈' : '👁'}</button>
+            </div>
+          </div>
+
+          <div className="divider" />
+
+          <div className="form-group">
+            <label className="form-label">Realtime Database (Firebase) — QR оролцогч харах</label>
+            <textarea
+              className="form-textarea"
+              style={{minHeight:120,fontFamily:'monospace',fontSize:'0.78rem'}}
+              placeholder={'Firebase config JSON (apiKey, projectId, databaseURL ...)\n\nЖишээ:\n{\n  "apiKey": "...",\n  "authDomain": "...",\n  "projectId": "...",\n  "databaseURL": "https://<project>.firebaseio.com"\n}'}
+              value={fb}
+              onChange={e => { setFb(e.target.value); }}
+            />
+            <div className="form-hint">
+              Статус: {fbOk ? <strong style={{color:'var(--green)'}}>Идэвхтэй</strong> : <strong style={{color:'var(--amber)'}}>Оруулаагүй</strong>}
+            </div>
+            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  try {
+                    const obj = fb.trim() ? JSON.parse(fb) : null;
+                    if (!obj) { localStorage.removeItem('se_firebase_config'); setFbOk(false); return; }
+                    localStorage.setItem('se_firebase_config', JSON.stringify(obj));
+                    setFb(JSON.stringify(obj, null, 2));
+                    setFbOk(hasFirebaseConfig());
+                  } catch(e) {
+                    alert('Firebase config JSON буруу байна: ' + e.message);
+                  }
+                }}
+              >
+                ✓ Firebase хадгалах
+              </button>
+              <button
+                className="btn btn-red btn-sm"
+                onClick={() => { localStorage.removeItem('se_firebase_config'); setFb(''); setFbOk(false); }}
+              >
+                🗑 Устгах
+              </button>
             </div>
           </div>
         </div>
@@ -1294,7 +1378,7 @@ function QRModal({ exam, onClose }) {
     });
   }, []);
 
-  // Listen for students who entered name/class (best-effort: same-origin tabs)
+  // Listen for students who entered name/class (BroadcastChannel: same-origin tabs)
   useEffect(() => {
     if (!exam?.id) return;
     try {
@@ -1308,6 +1392,27 @@ function QRModal({ exam, onClose }) {
       // BroadcastChannel not available -> ignore
     }
   }, [exam?.id, addJoin]);
+
+  // Realtime join list across devices via Firebase RTDB (optional)
+  useEffect(() => {
+    if (!exam?.id) return;
+    const db = getDb();
+    if (!db) return;
+    try {
+      const ref = db.ref('se/joins/' + exam.id);
+      const handler = ref.on('value', (snap) => {
+        const val = snap.val() || {};
+        const list = Object.values(val)
+          .filter(Boolean)
+          .map(j => ({ name: j.name || '', cls: j.cls || '—', at: j.at || 0 }))
+          .filter(j => j.name)
+          .sort((a,b) => (b.at||0) - (a.at||0))
+          .slice(0, 30);
+        setJoins(list);
+      });
+      return () => { try { ref.off('value', handler); } catch {} };
+    } catch {}
+  }, [exam?.id]);
 
   useEffect(() => {
     if (step !== 'qr' || !qrRef.current) return;
@@ -2135,6 +2240,17 @@ function QRStudentLogin({ exam, onStart, onBack }) {
       bc.postMessage({ type: 'JOIN', payload: { name: n, cls: c || '', at: Date.now() } });
       bc.close();
     } catch {}
+
+    const db = getDb();
+    if (db) {
+      try {
+        db.ref('se/joins/' + exam.id + '/' + deviceId).set({
+          name: n,
+          cls: c || '',
+          at: firebase.database.ServerValue.TIMESTAMP
+        });
+      } catch {}
+    }
   }, [exam?.id]);
 
   return (
