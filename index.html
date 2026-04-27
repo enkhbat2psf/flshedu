@@ -1020,8 +1020,6 @@ function TeacherLogin({ onLogin }) {
 function SettingsModal({ apiKey, onSave, onClose }) {
   const [key, setKey] = useState(apiKey || '');
   const [show, setShow] = useState(false);
-  const [fb, setFb] = useState(() => localStorage.getItem('se_firebase_config') || '');
-  const [fbOk, setFbOk] = useState(() => hasFirebaseConfig());
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
@@ -1041,46 +1039,6 @@ function SettingsModal({ apiKey, onSave, onClose }) {
                 style={{flex:1}}
               />
               <button className="btn btn-outline btn-sm" onClick={() => setShow(s => !s)}>{show ? '🙈' : '👁'}</button>
-            </div>
-          </div>
-
-          <div className="divider" />
-
-          <div className="form-group">
-            <label className="form-label">Realtime Database (Firebase) — QR оролцогч харах</label>
-            <textarea
-              className="form-textarea"
-              style={{minHeight:120,fontFamily:'monospace',fontSize:'0.78rem'}}
-              placeholder={'Firebase config JSON (apiKey, projectId, databaseURL ...)\n\nЖишээ:\n{\n  "apiKey": "...",\n  "authDomain": "...",\n  "projectId": "...",\n  "databaseURL": "https://<project>.firebaseio.com"\n}'}
-              value={fb}
-              onChange={e => { setFb(e.target.value); }}
-            />
-            <div className="form-hint">
-              Статус: {fbOk ? <strong style={{color:'var(--green)'}}>Идэвхтэй</strong> : <strong style={{color:'var(--amber)'}}>Оруулаагүй</strong>}
-            </div>
-            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => {
-                  try {
-                    const obj = fb.trim() ? JSON.parse(fb) : null;
-                    if (!obj) { localStorage.removeItem('se_firebase_config'); setFbOk(false); return; }
-                    localStorage.setItem('se_firebase_config', JSON.stringify(obj));
-                    setFb(JSON.stringify(obj, null, 2));
-                    setFbOk(hasFirebaseConfig());
-                  } catch(e) {
-                    alert('Firebase config JSON буруу байна: ' + e.message);
-                  }
-                }}
-              >
-                ✓ Firebase хадгалах
-              </button>
-              <button
-                className="btn btn-red btn-sm"
-                onClick={() => { localStorage.removeItem('se_firebase_config'); setFb(''); setFbOk(false); }}
-              >
-                🗑 Устгах
-              </button>
             </div>
           </div>
         </div>
@@ -1611,10 +1569,29 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
   const [qrExam, setQrExam] = useState(null);
   const [cheatSub, setCheatSub] = useState(null);
   const [delExam, setDelExam] = useState(null);
+  const [rtdbSubs, setRtdbSubs] = useState(null);
   const [, forceUpdate] = useState(0);
 
+  // Realtime submissions across devices (optional)
+  useEffect(() => {
+    if (view?.type !== 'results' || !view?.exam?.id) { setRtdbSubs(null); return; }
+    const db = getDb();
+    if (!db) { setRtdbSubs(null); return; }
+    try {
+      const ref = db.ref('se/submissions/' + view.exam.id);
+      const handler = ref.on('value', (snap) => {
+        const val = snap.val() || {};
+        const list = Object.values(val).filter(Boolean);
+        setRtdbSubs(list);
+      });
+      return () => { try { ref.off('value', handler); } catch {} };
+    } catch {
+      setRtdbSubs(null);
+    }
+  }, [view?.type, view?.exam?.id]);
+
   if (view?.type === 'results') {
-    const subs = submissions.filter(s => s.examId === view.exam.id);
+    const subs = Array.isArray(rtdbSubs) ? rtdbSubs : submissions.filter(s => s.examId === view.exam.id);
     const avg = subs.length ? Math.round(subs.reduce((a, s) => a + s.score, 0) / subs.length) : 0;
     const passed = subs.filter(s => s.score >= view.exam.passingScore).length;
     return (
@@ -2050,7 +2027,7 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
     const score = total > 0 ? Math.round((correct / total) * 100) : 0;
     const timeSpentSec = Math.round((Date.now() - startMsRef.current) / 1000);
     setSubmitted(true);
-    onSubmit({
+    const submission = {
       id: uid(),
       examId: exam.id,
       studentName,
@@ -2064,7 +2041,17 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
       variantLabel: exam.variantLabel || alpha(exam.variantIndex ?? 0),
       cheatLog: cheatLogRef.current,
       submittedAt: new Date().toISOString()
-    });
+    };
+
+    // Persist to Firebase RTDB so teacher sees results across devices
+    const db = getDb();
+    if (db) {
+      try {
+        db.ref('se/submissions/' + exam.id + '/' + submission.id).set(submission);
+      } catch {}
+    }
+
+    onSubmit(submission);
   }, [answers, exam, orderedQuestions, studentName, studentClass, onSubmit]);
 
   const answered = Object.keys(answers).length;
@@ -2258,7 +2245,7 @@ function QRStudentLogin({ exam, onStart, onBack }) {
     const db = getDb();
     if (db) {
       try {
-        db.ref('se/joins/' + exam.id + '/' + deviceId).set({
+        db.ref('se/joins/' + exam.id).push({
           name: n,
           cls: c || '',
           at: firebase.database.ServerValue.TIMESTAMP
