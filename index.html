@@ -688,6 +688,7 @@ h1,h2,h3,h4 { font-family: 'Outfit', sans-serif; }
 }
 .cheat-event:last-child { border-bottom: none; }
 
+@media (max-width: 720px) {
   .form-row { grid-template-columns: 1fr; }
   .options-grid { grid-template-columns: 1fr; }
   .exam-grid { grid-template-columns: 1fr; }
@@ -727,6 +728,36 @@ const useLS = (key, init) => {
 };
 
 const fmt = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+
+// ─── QR PAYLOAD (compact) ─────────────────────────────────────────────────────
+// Keep QR short enough to be reliably scannable.
+const packExamForQR = (exam) => ({
+  i: exam.id,
+  t: exam.title,
+  s: exam.subject,
+  d: exam.duration,
+  p: exam.passingScore,
+  q: (exam.questions || []).map(q => ([
+    q.text || '',
+    (q.options || []).map(o => o.text || ''),
+    q.answer ?? null
+  ]))
+});
+
+const unpackExamFromQR = (packed) => ({
+  id: packed.i,
+  title: packed.t,
+  subject: packed.s,
+  duration: packed.d,
+  passingScore: packed.p,
+  questions: (packed.q || []).map((row, idx) => ({
+    id: idx + 1,
+    text: row?.[0] || '',
+    options: ['A','B','C','D'].map((key, oi) => ({ key, text: row?.[1]?.[oi] || '' })),
+    answer: row?.[2] ?? null
+  })),
+  published: true
+});
 
 // ─── AI PARSER (Groq) ─────────────────────────────────────────────────────────
 const parseTestWithAI = async (rawText, apiKey) => {
@@ -1210,14 +1241,15 @@ function QRModal({ exam, onClose }) {
     if (step !== 'qr' || !qrRef.current) return;
     qrRef.current.innerHTML = '';
     try {
-      const base = window.location.href.split('#')[0];
-      const data = LZString.compressToEncodedURIComponent(JSON.stringify(exam));
+      const base = window.location.origin + window.location.pathname;
+      const packed = packExamForQR(exam);
+      const data = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
       const url = base + '#qr=' + data;
       new QRCode(qrRef.current, {
         text: url,
         width: 240, height: 240,
         colorDark: '#1e293b', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
+        correctLevel: QRCode.CorrectLevel.L
       });
     } catch(e) { qrRef.current.innerHTML = '<div style="color:red">QR үүсгэхэд алдаа гарлаа</div>'; }
   }, [step]);
@@ -1493,7 +1525,7 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
               const subs = submissions.filter(s => s.examId === exam.id);
               const avg = subs.length ? Math.round(subs.reduce((a,s) => a+s.score, 0) / subs.length) : null;
               return (
-                <div className="exam-card" key={exam.id}>
+                <div className="exam-card" key={exam.id} onClick={() => setQrExam(exam)} style={{cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
                     <div className="exam-card-title">{exam.title}</div>
                     <span className="badge badge-green" style={{flexShrink:0,marginLeft:8}}>✓ Нийтлэгдсэн</span>
@@ -1511,8 +1543,8 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                     🔑 Тестийн код: <strong style={{fontFamily:'monospace',color:'var(--primary)',fontSize:'0.9rem'}}>{exam.id}</strong>
                   </div>
                   <div className="exam-card-actions">
-                    <button className="btn btn-outline btn-sm" onClick={() => setView({type:'results', exam})}>📊 Үр дүн</button>
-                    <button className="btn btn-violet btn-sm" onClick={() => setQrExam(exam)}>📱 QR код</button>
+                    <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); setView({type:'results', exam}); }}>📊 Үр дүн</button>
+                    <button className="btn btn-violet btn-sm" onClick={(e) => { e.stopPropagation(); setQrExam(exam); }}>📱 QR код</button>
                   </div>
                 </div>
               );
@@ -1724,6 +1756,30 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
     });
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => obs.disconnect();
+  }, [logCheat]);
+
+  // Anti-cheat: suspicious resize / split-screen (best-effort heuristic)
+  useEffect(() => {
+    let last = { w: window.innerWidth, h: window.innerHeight };
+    const onResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const dw = Math.abs(w - last.w);
+      const dh = Math.abs(h - last.h);
+      last = { w, h };
+      const sw = window.screen?.width || w;
+      const sh = window.screen?.height || h;
+      const ratioW = w / sw;
+      const ratioH = h / sh;
+      if (dw + dh < 140) return; // ignore tiny resizes
+      if (ratioW < 0.78 || ratioH < 0.78) {
+        logCheat('SPLIT_SCREEN', '🪟 Дэлгэц хуваасан / цонх жижигрүүлсэн — чит сэжиг!');
+      } else {
+        logCheat('RESIZE', '↔️ Цонхны хэмжээ өөрчилсөн — чит сэжиг!');
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, [logCheat]);
 
   const doSubmit = useCallback((extraAnswers) => {
@@ -1983,7 +2039,8 @@ function App() {
       try {
         const compressed = hash.slice(4);
         const json = LZString.decompressFromEncodedURIComponent(compressed);
-        const exam = JSON.parse(json);
+        const packed = JSON.parse(json);
+        const exam = unpackExamFromQR(packed);
         if (exam && exam.id) {
           setQrExam(exam);
           setPage({ type: 'qrStudent', exam });
