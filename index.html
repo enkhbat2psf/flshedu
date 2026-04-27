@@ -3,3071 +3,2121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="google" content="notranslate">
-<title>AI Флаш Карт</title>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<!-- qrcode.js + Firebase v8 (Realtime Database) -->
+<title>SmartEXAM — Ухаалаг Шалгалтын Систем</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- QR Scanner (mobile-friendly) -->
-<script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:        #0f0f17;
-    --surface:   #16161f;
-    --card:      #1e1e2e;
-    --border:    #2a2a3d;
-    --accent:    #7c6af7;
-    --accent2:   #50d2c2;
-    --accent3:   #f7a06a;
-    --know:      #3ddc97;
-    --unknow:    #f05e5e;
-    --text:      #e2e0f0;
-    --muted:     #6b6880;
-    --radius:    14px;
-  }
+:root {
+  --bg: #f0f4ff;
+  --surface: #ffffff;
+  --surface2: #f8faff;
+  --border: #e2e8f5;
+  --primary: #3b5bdb;
+  --primary-light: #e8ecff;
+  --primary-dark: #2f4bc4;
+  --violet: #7c3aed;
+  --violet-light: #f0ebff;
+  --green: #059669;
+  --green-light: #ecfdf5;
+  --red: #dc2626;
+  --red-light: #fef2f2;
+  --amber: #d97706;
+  --amber-light: #fffbeb;
+  --text: #1e293b;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(59,91,219,.06);
+  --shadow-lg: 0 8px 32px rgba(59,91,219,.12);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+h1,h2,h3,h4 { font-family: 'Outfit', sans-serif; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ─── LAYOUT ─────────────────────────────────── */
+.app { min-height: 100vh; }
+.container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+.container-sm { max-width: 680px; margin: 0 auto; padding: 0 20px; }
+.container-lg { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
 
-  body {
-    font-family: 'Sora', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 24px 20px 60px;
-  -webkit-text-size-adjust: 100%;
-  }
+/* ─── TOPBAR ─────────────────────────────────── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 0 var(--border);
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--primary);
+  cursor: pointer;
+}
+.brand-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary), var(--violet));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: -.5px;
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-user {
+  font-size: 0.85rem;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
 
-html, body { touch-action: manipulation; }
+/* ─── BUTTONS ────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .18s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(59,91,219,.35); transform: translateY(-1px); }
+.btn-violet { background: var(--violet); color: white; }
+.btn-violet:hover:not(:disabled) { background: #6d28d9; box-shadow: 0 4px 12px rgba(124,58,237,.35); transform: translateY(-1px); }
+.btn-green { background: var(--green); color: white; }
+.btn-green:hover:not(:disabled) { background: #047857; transform: translateY(-1px); }
+.btn-outline { background: white; color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.btn-ghost { background: transparent; color: var(--text2); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-red { background: var(--red-light); color: var(--red); }
+.btn-red:hover:not(:disabled) { background: var(--red); color: white; }
+.btn-lg { padding: 12px 24px; font-size: 1rem; border-radius: 10px; }
+.btn-sm { padding: 6px 12px; font-size: 0.8rem; }
 
-  /* ─── LOGIN GATE ─── */
-  #loginGate {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    z-index: 200;
-    padding: 20px;
-  }
-  .login-box {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 40px 36px;
-    width: 100%;
-    max-width: 380px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.6);
-    animation: fadeUp .4s ease both;
-  }
-  .login-logo {
-    width: 56px; height: 56px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 16px;
-    display: grid; place-items: center;
-    font-size: 26px;
-    margin: 0 auto 20px;
-  }
-  .login-box h2 {
-    text-align: center;
-    font-size: 1.3rem;
-    font-weight: 700;
-    margin-bottom: 6px;
-    letter-spacing: -0.4px;
-  }
-  .login-box p {
-    text-align: center;
-    color: var(--muted);
-    font-size: .82rem;
-    margin-bottom: 28px;
-    font-weight: 300;
-  }
-  .login-field-label {
-    font-size: .78rem;
-    color: var(--muted);
-    margin-bottom: 8px;
-    font-weight: 600;
-    letter-spacing: .3px;
-  }
-  .login-input {
-    width: 100%;
-    padding: 13px 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: 'Sora', sans-serif;
-    font-size: .95rem;
-    outline: none;
-    transition: border-color .2s, box-shadow .2s;
-    margin-bottom: 20px;
-  }
-  .login-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(124,106,247,.15);
-  }
-  .login-btn {
-    width: 100%;
-    padding: 13px;
-    background: linear-gradient(135deg, var(--accent), #5a4dcc);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius);
-    font-family: 'Sora', sans-serif;
-    font-size: .95rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all .2s;
-    box-shadow: 0 4px 16px rgba(124,106,247,.35);
-    letter-spacing: .2px;
-  }
-  .login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,106,247,.5); }
-  .login-btn:active { transform: translateY(0); }
-  .login-error {
-    margin-top: 14px;
-    padding: 10px 14px;
-    background: rgba(240,94,94,.1);
-    border: 1px solid rgba(240,94,94,.3);
-    border-radius: 10px;
-    color: var(--unknow);
-    font-size: .82rem;
-    text-align: center;
-    display: none;
-  }
-  .login-error.visible { display: block; }
+/* ─── CARDS ──────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-header {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-body { padding: 22px; }
+.card-title { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1rem; color: var(--text); }
 
-  /* ─── MAIN APP ─── */
-  #mainApp { display: none; }
+/* ─── FORM ───────────────────────────────────── */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 0.825rem; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: white;
+  transition: border-color .15s;
+  outline: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,91,219,.1); }
+.form-textarea { resize: vertical; min-height: 140px; line-height: 1.6; }
+.form-hint { font-size: 0.78rem; color: var(--text3); margin-top: 5px; }
+.form-error { font-size: 0.78rem; color: var(--red); margin-top: 5px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-  /* ─── Header ─── */
-  header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 32px;
-  }
-  .logo {
-    width: 42px; height: 42px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 12px;
-    display: grid; place-items: center;
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-  header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
-  header span { color: var(--muted); font-size: .8rem; font-weight: 300; }
-  .header-user {
-    margin-left: auto;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .user-badge {
-    padding: 5px 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: .78rem;
-    color: var(--accent2);
-    font-weight: 600;
-  }
-  .logout-btn {
-    padding: 5px 10px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--muted);
-    font-size: .75rem;
-    cursor: pointer;
-    font-family: 'Sora', sans-serif;
-    transition: all .2s;
-  }
-  .logout-btn:hover { border-color: var(--unknow); color: var(--unknow); }
+/* ─── BADGE ──────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 4px;
+}
+.badge-blue { background: var(--primary-light); color: var(--primary); }
+.badge-violet { background: var(--violet-light); color: var(--violet); }
+.badge-green { background: var(--green-light); color: var(--green); }
+.badge-red { background: var(--red-light); color: var(--red); }
+.badge-amber { background: var(--amber-light); color: var(--amber); }
+.badge-gray { background: #f1f5f9; color: var(--text2); }
 
-  .room-btn {
-    padding: 6px 10px;
-    background: linear-gradient(135deg, rgba(80,210,194,.18), rgba(124,106,247,.16));
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    font-size: .76rem;
-    cursor: pointer;
-    font-family: 'Sora', sans-serif;
-    font-weight: 700;
-    transition: transform .15s, box-shadow .15s;
-    box-shadow: 0 8px 22px rgba(0,0,0,.22);
-  }
-  .room-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,.28); }
+/* ─── LANDING ────────────────────────────────── */
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: linear-gradient(160deg, #eef2ff 0%, #f0f4ff 40%, #f5f0ff 100%);
+  position: relative;
+  overflow: hidden;
+}
+.landing::before {
+  content: '';
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(124,58,237,.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.landing::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -80px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(59,91,219,.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.landing-hero { text-align: center; margin-bottom: 48px; }
+.logo-big {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--violet) 100%);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 12px 32px rgba(59,91,219,.3);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 1.4rem;
+  color: white;
+  letter-spacing: -1px;
+}
+.landing-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 2.8rem;
+  color: var(--text);
+  letter-spacing: -1.5px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.landing-sub {
+  font-size: 1rem;
+  color: var(--primary);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.landing-desc { font-size: 0.95rem; color: var(--text2); max-width: 420px; }
+.role-cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.role-card {
+  width: 220px;
+  padding: 32px 24px;
+  border-radius: 18px;
+  border: 2px solid transparent;
+  background: white;
+  cursor: pointer;
+  text-align: center;
+  transition: all .22s ease;
+  box-shadow: var(--shadow);
+}
+.role-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.role-card.teacher:hover { border-color: var(--primary); }
+.role-card.student:hover { border-color: var(--violet); }
+.role-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.role-title { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.2rem; color: var(--text); margin-bottom: 6px; }
+.role-desc { font-size: 0.82rem; color: var(--text2); }
 
-  /* ─── Tabs ─── */
-  .tabs {
-    display: flex; gap: 6px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 5px;
-    margin-bottom: 24px;
-  }
-  .tab {
-    flex: 1; padding: 9px;
-    border: none; border-radius: 10px;
-    background: transparent; color: var(--muted);
-    font-family: 'Sora', sans-serif;
-    font-size: .78rem; font-weight: 600;
-    cursor: pointer; transition: all .2s;
-  }
-  .tab.active {
-    background: var(--card);
-    color: var(--text);
-    box-shadow: 0 2px 8px rgba(0,0,0,.4);
-  }
+/* ─── PAGE HEADER ────────────────────────────── */
+.page-header {
+  padding: 28px 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.page-title { font-weight: 800; font-size: 1.6rem; color: var(--text); }
+.page-sub { font-size: 0.875rem; color: var(--text2); margin-top: 3px; }
 
-  /* ─── Exam Room UI ─── */
-  .room-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-  }
-  .seg {
-    display: inline-flex;
-    gap: 6px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 5px;
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    font-family: 'Sora', sans-serif;
-    font-size: .78rem;
-    font-weight: 700;
-    padding: 8px 12px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .seg button.active {
-    background: var(--card);
-    color: var(--text);
-    box-shadow: 0 2px 8px rgba(0,0,0,.35);
-  }
-  .pill {
-    padding: 6px 12px;
-    background: rgba(255,255,255,.02);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    font-size: .78rem;
-    color: var(--muted);
-    display: inline-flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .pill strong { color: var(--text); }
-  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-  .room-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    align-items: start;
-  }
-  @media (max-width: 900px) { .room-grid { grid-template-columns: 1fr; } }
-  .box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 16px;
-  }
-  .box h3 {
-    font-size: 1rem;
-    margin-bottom: 10px;
-    letter-spacing: -.3px;
-  }
-  .hint {
-    color: var(--muted);
-    font-size: .84rem;
-    line-height: 1.5;
-  }
-  .field-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  @media (max-width: 640px) { .field-row { grid-template-columns: 1fr; } }
-  .inp, .sel {
-    width: 100%;
-    padding: 12px 14px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    outline: none;
-    font-family: 'Sora', sans-serif;
-  }
-  .radio-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-  .radio {
-    display: inline-flex; gap: 8px; align-items: center;
-    padding: 9px 10px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: rgba(255,255,255,.02);
-    cursor: pointer;
-    user-select: none;
-    color: var(--muted);
-    font-size: .82rem;
-    font-weight: 700;
-  }
-  .radio input { accent-color: var(--accent2); }
-  .radio.active { border-color: rgba(80,210,194,.45); color: var(--text); }
-  .qrBox {
-    display: grid;
-    gap: 10px;
-    justify-items: start;
-    align-items: start;
-  }
-  .qrCanvas {
-    background: white;
-    padding: 10px;
-    border-radius: 12px;
-  }
-  .list {
-    display: grid;
-    gap: 8px;
-  }
-  .stu {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: rgba(255,255,255,.02);
-  }
-  .stu .n { font-weight: 800; }
-  .stu .c { color: var(--unknow); font-weight: 800; }
-  .stu .actions { display:flex; gap:8px; align-items:center; }
-  .btn-mini {
-    padding: 7px 10px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: rgba(255,255,255,.02);
-    color: var(--text);
-    font-family: 'Sora', sans-serif;
-    font-size: .78rem;
-    font-weight: 800;
-    cursor: pointer;
-  }
-  .btn-mini:hover { border-color: rgba(80,210,194,.45); }
-  .stu.locked { border-color: rgba(240,94,94,.55); background: rgba(240,94,94,.06); }
-  .stu .lock { color: var(--unknow); font-weight: 900; }
+/* ─── EXAM CARDS GRID ────────────────────────── */
+.exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.exam-card {
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: all .18s;
+  cursor: default;
+  box-shadow: var(--shadow);
+}
+.exam-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+.exam-card-title { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+.exam-card-meta { font-size: 0.8rem; color: var(--text2); display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0 12px; }
+.exam-card-meta span { display: flex; align-items: center; gap: 4px; }
+.exam-card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 
-  /* Anti-copy/select helpers */
-  .no-select, .no-select * {
-    user-select: none !important;
-    -webkit-user-select: none !important;
-    -webkit-touch-callout: none !important; /* Long-press callout block */
-  }
-  .exam-locked #studentStage { filter: blur(12px); pointer-events: none; }
-  .exam-locked #studentStage::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-  }
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(15,15,23,.82);
-    backdrop-filter: blur(6px);
-    display: none;
-    align-items: flex-start;
-    justify-content: center;
-    z-index: 300;
-    padding: 20px;
-    overflow: auto;
-  }
-  .overlay.visible { display: flex; }
-  .overlay .card {
-    width: 100%;
-    max-width: 520px;
-    background: var(--card);
-    border: 1px solid rgba(240,94,94,.35);
-    border-radius: 18px;
-    padding: 18px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.6);
-    margin: 16px 0;
-  }
-  .overlay .card h3 { margin-bottom: 8px; }
-  .overlay .card p { color: var(--muted); line-height: 1.55; font-size: .88rem; }
+/* ─── STEP INDICATOR ─────────────────────────── */
+.steps { display: flex; gap: 0; margin-bottom: 28px; }
+.step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text3);
+}
+.step.active { color: var(--primary); }
+.step.done { color: var(--green); }
+.step-num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.step.active .step-num { background: var(--primary); color: white; }
+.step.done .step-num { background: var(--green); color: white; }
+.step-line { flex: 1; height: 1px; background: var(--border); margin: 0 10px; }
+.step:last-child .step-line { display: none; }
 
-  /* QR scanner */
-  .scanModal {
-    position: fixed;
-    inset: 0;
-    background: rgba(15,15,23,.82);
-    backdrop-filter: blur(6px);
-    display: none;
-    align-items: flex-start;
-    justify-content: center;
-    z-index: 350;
-    padding: 18px;
-    overflow: auto;
-  }
-  .scanModal.visible { display: flex; }
-  .scanCard {
-    width: 100%;
-    max-width: 520px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 14px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.6);
-    margin: 16px 0;
-  }
-  .scanCard h3 { margin-bottom: 8px; }
-  .scanVideo {
-    width: 100%;
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    background: #000;
-    aspect-ratio: 3 / 4;
-    object-fit: cover;
-  }
-  #qrReader {
-    width: 100%;
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    overflow: hidden;
-    background: #000;
-  }
+/* ─── AI PARSER ──────────────────────────────── */
+.ai-hint-box {
+  background: linear-gradient(135deg, var(--violet-light), #f0f4ff);
+  border: 1.5px solid #d8c8ff;
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+.ai-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+.ai-hint-text { font-size: 0.85rem; color: #4c3db0; line-height: 1.5; }
+.ai-hint-text strong { color: var(--violet); }
+.parsing-overlay {
+  text-align: center;
+  padding: 48px 24px;
+}
+.spinner {
+  width: 44px; height: 44px;
+  border: 3px solid var(--violet-light);
+  border-top-color: var(--violet);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ─── Panels ─── */
-  .panel { display: none; }
-  .panel.active { display: block; }
+/* ─── QUESTION PREVIEW ───────────────────────── */
+.question-item {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  background: white;
+  margin-bottom: 12px;
+  transition: border-color .15s;
+}
+.question-item:hover { border-color: var(--primary); }
+.q-num { display: inline-block; background: var(--primary-light); color: var(--primary); font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-bottom: 8px; }
+.q-text { font-size: 0.9rem; color: var(--text); line-height: 1.6; margin-bottom: 12px; }
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.option-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--surface2);
+  font-size: 0.82rem;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all .12s;
+}
+.option-item.correct { background: var(--green-light); border-color: #6ee7b7; }
+.option-key {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text2);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.option-item.correct .option-key { background: var(--green); border-color: var(--green); color: white; }
 
-  /* ─── Generate Panel ─── */
-  .input-wrap { position: relative; margin-bottom: 14px; }
-  textarea {
-    width: 100%;
-    height: 160px;
-    padding: 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: 'Sora', sans-serif;
-    font-size: .9rem;
-    resize: vertical;
-    transition: border-color .2s;
-    outline: none;
-  }
-  textarea:focus { border-color: var(--accent); }
-  .char-count {
-    position: absolute; bottom: 10px; right: 14px;
-    font-size: .72rem; color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
+/* ─── ANSWER SELECT ──────────────────────────── */
+.answer-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.answer-label { font-size: 0.78rem; color: var(--text2); font-weight: 600; }
+.ans-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .12s;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2);
+}
+.ans-btn.selected { background: var(--green); border-color: var(--green); color: white; }
+.ans-btn:hover:not(.selected) { border-color: var(--primary); color: var(--primary); }
 
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 11px 22px;
-    border: none; border-radius: 10px;
-    font-family: 'Sora', sans-serif;
-    font-size: .88rem; font-weight: 600;
-    cursor: pointer; transition: all .2s;
-  }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), #5a4dcc);
-    color: #fff;
-    box-shadow: 0 4px 16px rgba(124,106,247,.35);
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,106,247,.5); }
-  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-  .btn-sm {
-    padding: 7px 14px;
-    font-size: .78rem;
-    background: var(--surface);
-    color: var(--muted);
-    border: 1px solid var(--border);
-  }
-  .btn-sm:hover { color: var(--text); border-color: var(--accent); }
-  .btn-danger { color: var(--unknow) !important; }
-  .btn-danger:hover { border-color: var(--unknow) !important; }
-  .btn-export {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-  }
-  .btn-export:hover { border-color: var(--accent2); color: var(--accent2); }
+/* ─── STUDENT EXAM ───────────────────────────── */
+.exam-header-bar {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 60px;
+  z-index: 50;
+}
+.exam-title-bar { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1rem; }
+.timer-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.timer-badge.warn { background: var(--amber-light); color: var(--amber); }
+.timer-badge.danger { background: var(--red-light); color: var(--red); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.7; } }
 
-  .status-bar {
-    margin-top: 12px; padding: 12px 16px;
-    background: var(--surface); border-radius: 10px;
-    font-size: .82rem; color: var(--muted);
-    border-left: 3px solid var(--accent);
-    display: none;
-  }
-  .status-bar.visible { display: block; }
-  .status-bar.error { border-color: var(--unknow); color: var(--unknow); }
+.exam-question-wrapper {
+  padding: 24px 0;
+}
+.question-block {
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  margin-bottom: 14px;
+  transition: border-color .15s;
+}
+.question-block.answered { border-color: #a5f3d8; }
+.student-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  margin-bottom: 7px;
+  font-size: 0.875rem;
+  transition: all .15s;
+  text-align: left;
+  width: 100%;
+}
+.student-option:hover { border-color: var(--primary); background: var(--primary-light); }
+.student-option.selected { border-color: var(--primary); background: var(--primary-light); }
+.student-option.correct-show { border-color: var(--green); background: var(--green-light); }
+.student-option.wrong-show { border-color: var(--red); background: var(--red-light); }
+.opt-radio {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.student-option.selected .opt-radio { border-color: var(--primary); background: var(--primary); }
+.student-option.selected .opt-radio::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: white; }
+.student-option.correct-show .opt-radio { border-color: var(--green); background: var(--green); }
+.student-option.wrong-show .opt-radio { border-color: var(--red); background: var(--red); }
 
-  /* ─── Stats strip ─── */
-  .stats-strip {
-    display: flex; gap: 10px;
-    margin-bottom: 20px;
-  }
-  .stat-pill {
-    flex: 1; padding: 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    text-align: center;
-  }
-  .stat-pill .num {
-    font-size: 1.4rem; font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .stat-pill .lbl { font-size: .7rem; color: var(--muted); margin-top: 2px; }
-  .stat-pill.know .num { color: var(--know); }
-  .stat-pill.unknow .num { color: var(--unknow); }
+/* ─── PROGRESS BAR ───────────────────────────── */
+.progress-bar-wrap { background: var(--border); border-radius: 6px; height: 6px; overflow: hidden; margin-bottom: 6px; }
+.progress-bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--primary), var(--violet)); transition: width .3s ease; }
 
-  /* ─── Card Grid ─── */
-  .toolbar {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
-  }
-  .toolbar-left { display: flex; gap: 8px; flex-wrap: wrap; }
+/* ─── RESULT PAGE ────────────────────────────── */
+.result-hero {
+  text-align: center;
+  padding: 36px 24px 28px;
+  background: linear-gradient(135deg, #eef2ff, #f5f0ff);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+}
+.score-circle {
+  width: 110px; height: 110px;
+  border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  font-family: 'Outfit', sans-serif;
+}
+.score-circle.pass { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border: 4px solid var(--green); }
+.score-circle.fail { background: linear-gradient(135deg, #fee2e2, #fecaca); border: 4px solid var(--red); }
+.score-pct { font-size: 2rem; font-weight: 900; line-height: 1; }
+.score-circle.pass .score-pct { color: var(--green); }
+.score-circle.fail .score-pct { color: var(--red); }
+.score-label { font-size: 0.7rem; font-weight: 600; color: var(--text2); }
 
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 14px;
-  }
+/* ─── SUBMISSIONS TABLE ──────────────────────── */
+.sub-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.sub-table th {
+  padding: 10px 14px;
+  background: var(--surface2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text2);
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+}
+.sub-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+.sub-table tr:last-child td { border-bottom: none; }
+.sub-table tr:hover td { background: var(--surface2); }
 
-  /* ─── Flip Card ─── */
-  .flip-wrap {
-    height: 180px;
-    perspective: 900px;
-    cursor: pointer;
-  }
-  .flip-inner {
-    position: relative; width: 100%; height: 100%;
-    transform-style: preserve-3d;
-    transition: transform .55s cubic-bezier(.4,0,.2,1);
-  }
-  .flip-wrap.flipped .flip-inner { transform: rotateY(180deg); }
+/* ─── SETTINGS MODAL ─────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,15,35,.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+.modal {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+  animation: modalIn .2s ease;
+}
+@keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.modal-head {
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-body { padding: 22px 24px; }
+.modal-foot { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
 
-  .flip-front, .flip-back {
-    position: absolute; inset: 0;
-    backface-visibility: hidden;
-    border-radius: var(--radius);
-    padding: 20px;
-    display: flex; flex-direction: column;
-    border: 1px solid var(--border);
-  }
-  .flip-front {
-    background: var(--card);
-    background-image: radial-gradient(circle at 80% 20%, rgba(124,106,247,.08), transparent 60%);
-  }
-  .flip-back {
-    background: var(--surface);
-    background-image: radial-gradient(circle at 20% 80%, rgba(80,210,194,.08), transparent 60%);
-    transform: rotateY(180deg);
-  }
+/* ─── EMPTY STATE ────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 56px 24px;
+  color: var(--text2);
+}
+.empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: .6; }
+.empty-title { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--text); margin-bottom: 6px; }
+.empty-sub { font-size: 0.875rem; margin-bottom: 20px; }
 
-  .card-badge {
-    font-size: .65rem; font-weight: 700; letter-spacing: 1px;
-    text-transform: uppercase; color: var(--accent);
-    font-family: 'JetBrains Mono', monospace;
-    margin-bottom: 10px;
-  }
-  .flip-back .card-badge { color: var(--accent2); }
+/* ─── STATS STRIP ────────────────────────────── */
+.stats-strip { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-card {
+  flex: 1; min-width: 130px;
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+.stat-val { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.8rem; line-height: 1; color: var(--text); }
+.stat-lbl { font-size: 0.78rem; color: var(--text2); font-weight: 600; margin-top: 4px; }
 
-  .card-text {
-    flex: 1;
-    font-size: .9rem; line-height: 1.55;
-    overflow: auto;
-  }
+/* ─── MISC ───────────────────────────────────── */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.text-sm { font-size: 0.85rem; }
+.text-muted { color: var(--text2); }
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.mt-1 { margin-top: 4px; }
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-3 { margin-bottom: 14px; }
+.mb-4 { margin-bottom: 20px; }
+.text-right { text-align: right; }
+.fw-bold { font-weight: 700; }
 
-  .card-actions {
-    display: flex; gap: 6px;
-    margin-top: 10px;
-    opacity: 0; transition: opacity .2s;
-  }
-  .flip-wrap:hover .card-actions { opacity: 1; }
+/* ─── API KEY BANNER ─────────────────────────── */
+.apikey-banner {
+  background: var(--amber-light);
+  border: 1.5px solid #fcd34d;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #92400e;
+  margin-bottom: 18px;
+}
+.apikey-banner button { margin-left: auto; flex-shrink: 0; }
 
-  .card-tag {
-    width: 8px; height: 8px; border-radius: 50%;
-    margin-left: auto; align-self: flex-start;
-    background: var(--border);
-    transition: background .2s;
-  }
-  .card-tag.know { background: var(--know); }
-  .card-tag.unknow { background: var(--unknow); }
+/* ─── CHEAT WARNING ──────────────────────────────── */
+.cheat-warning {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 12px 22px;
+  border-radius: 40px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  z-index: 9999;
+  box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideDown .25s ease;
+  white-space: nowrap;
+}
+@keyframes slideDown { from { opacity:0; transform:translateX(-50%) translateY(-12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+.cheat-badge {
+  background: #dc2626;
+  color: white;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.cheat-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(220,38,38,.18);
+  pointer-events: none;
+  z-index: 8888;
+  animation: flash .4s ease;
+}
+@keyframes flash { 0%,100% { opacity:0; } 50% { opacity:1; } }
 
-  /* ─── Edit modal ─── */
-  .modal-bg {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
-    z-index: 100; place-items: center;
-  }
-  .modal-bg.open { display: grid; }
-  .modal {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 28px; width: 90%; max-width: 480px;
-  }
-  .modal h3 { font-size: 1.1rem; margin-bottom: 18px; }
-  .field-label { font-size: .78rem; color: var(--muted); margin-bottom: 6px; }
-  .modal textarea {
-    height: 90px; margin-bottom: 14px; font-size: .88rem;
-  }
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+/* ─── QR MODAL ───────────────────────────────────── */
+.qr-wrap {
+  display: inline-block;
+  padding: 18px;
+  background: white;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow-lg);
+}
+.cheat-row-bad { background: #fff5f5 !important; }
+.cheat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cheat-pill-0 { background: var(--green-light); color: var(--green); }
+.cheat-pill-warn { background: var(--amber-light); color: var(--amber); }
+.cheat-pill-danger { background: var(--red-light); color: var(--red); }
+.cheat-detail-modal { max-height: 380px; overflow-y: auto; }
+.cheat-event {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.cheat-event:last-child { border-bottom: none; }
 
-  /* ─── Study Mode ─── */
-  .study-wrap {
-    display: flex; flex-direction: column; align-items: center;
-    min-height: 60vh; padding: 10px 0;
-  }
-  .study-progress {
-    width: 100%; max-width: 520px;
-    margin-bottom: 20px;
-  }
-  .prog-track {
-    height: 4px; background: var(--border); border-radius: 99px;
-    overflow: hidden; margin-bottom: 8px;
-  }
-  .prog-fill {
-    height: 100%; border-radius: 99px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    transition: width .4s ease;
-  }
-  .prog-label {
-    display: flex; justify-content: space-between;
-    font-size: .75rem; color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .study-card-wrap {
-    width: 100%; max-width: 520px;
-    height: 280px;
-    perspective: 1000px;
-    cursor: pointer;
-    margin-bottom: 24px;
-  }
-  .study-inner {
-    position: relative; width: 100%; height: 100%;
-    transform-style: preserve-3d;
-    transition: transform .6s cubic-bezier(.4,0,.2,1);
-  }
-  .study-card-wrap.flipped .study-inner { transform: rotateY(180deg); }
-
-  .study-front, .study-back {
-    position: absolute; inset: 0;
-    backface-visibility: hidden;
-    border-radius: 20px;
-    padding: 32px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    text-align: center;
-    border: 1px solid var(--border);
-  }
-  .study-front {
-    background: linear-gradient(135deg, var(--card), #1a1a2e);
-    box-shadow: 0 8px 32px rgba(0,0,0,.4);
-  }
-  .study-back {
-    background: linear-gradient(135deg, #131d24, var(--surface));
-    box-shadow: 0 8px 32px rgba(0,0,0,.4);
-    transform: rotateY(180deg);
-  }
-  .study-badge { font-size: .7rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 14px; }
-  .study-back .study-badge { color: var(--accent2); }
-  .study-q { font-size: 1.1rem; line-height: 1.6; font-weight: 500; }
-  .study-hint { font-size: .75rem; color: var(--muted); margin-top: 16px; }
-
-  .study-btns {
-    display: flex; gap: 14px;
-    opacity: 0; pointer-events: none;
-    transition: opacity .3s;
-  }
-  .study-btns.visible { opacity: 1; pointer-events: all; }
-
-  .btn-know {
-    padding: 13px 32px;
-    background: rgba(61,220,151,.12);
-    border: 1.5px solid var(--know);
-    color: var(--know);
-    font-family: 'Sora', sans-serif;
-    font-weight: 700; font-size: .9rem;
-    border-radius: 12px; cursor: pointer;
-    transition: all .2s;
-  }
-  .btn-know:hover { background: rgba(61,220,151,.25); transform: translateY(-1px); }
-  .btn-unknow {
-    padding: 13px 32px;
-    background: rgba(240,94,94,.12);
-    border: 1.5px solid var(--unknow);
-    color: var(--unknow);
-    font-family: 'Sora', sans-serif;
-    font-weight: 700; font-size: .9rem;
-    border-radius: 12px; cursor: pointer;
-    transition: all .2s;
-  }
-  .btn-unknow:hover { background: rgba(240,94,94,.25); transform: translateY(-1px); }
-
-  .study-done {
-    display: none; text-align: center;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 20px; padding: 40px 30px;
-    width: 100%; max-width: 520px;
-  }
-  .study-done h2 { font-size: 1.6rem; margin-bottom: 10px; }
-  .study-done p { color: var(--muted); font-size: .9rem; margin-bottom: 24px; }
-  .done-score { font-size: 3rem; font-weight: 700; margin: 20px 0;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-  /* ─── QUIZ MODE ─── */
-  .quiz-wrap {
-    display: flex; flex-direction: column; align-items: center;
-    min-height: 60vh; padding: 10px 0;
-  }
-  .quiz-start-box {
-    width: 100%; max-width: 520px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 40px 32px;
-    text-align: center;
-  }
-  .quiz-start-box .emoji { font-size: 3.5rem; margin-bottom: 16px; }
-  .quiz-start-box h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; }
-  .quiz-start-box p { color: var(--muted); font-size: .88rem; line-height: 1.6; margin-bottom: 28px; }
-  .quiz-info-row {
-    display: flex; gap: 10px; justify-content: center;
-    margin-bottom: 28px;
-  }
-  .quiz-info-pill {
-    padding: 6px 14px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: .78rem;
-    color: var(--accent2);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .quiz-card {
-    width: 100%; max-width: 520px;
-    background: linear-gradient(135deg, var(--card), #1a1a2e);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px;
-    text-align: center;
-    margin-bottom: 20px;
-    box-shadow: 0 8px 32px rgba(0,0,0,.4);
-    min-height: 140px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-  }
-  .quiz-question {
-    font-size: 1.1rem;
-    line-height: 1.65;
-    font-weight: 500;
-  }
-
-  .quiz-options {
-    width: 100%; max-width: 520px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  @media (max-width: 480px) {
-    .quiz-options { grid-template-columns: 1fr; }
-  }
-  .quiz-option {
-    padding: 16px 14px;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: 'Sora', sans-serif;
-    font-size: .86rem;
-    font-weight: 500;
-    line-height: 1.5;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color .15s, background .15s, transform .1s;
-    position: relative;
-  }
-  .quiz-option:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: rgba(124,106,247,.08);
-    transform: translateY(-1px);
-  }
-  .quiz-option:disabled { cursor: not-allowed; }
-  .quiz-option.correct {
-    border-color: var(--know) !important;
-    background: rgba(61,220,151,.15) !important;
-    color: var(--know) !important;
-    font-weight: 600;
-  }
-  .quiz-option.wrong {
-    border-color: var(--unknow) !important;
-    background: rgba(240,94,94,.15) !important;
-    color: var(--unknow) !important;
-  }
-  .quiz-option .opt-label {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px; height: 22px;
-    background: var(--border);
-    border-radius: 6px;
-    font-size: .7rem;
-    font-weight: 700;
-    margin-right: 8px;
-    font-family: 'JetBrains Mono', monospace;
-    flex-shrink: 0;
-    vertical-align: middle;
-    transition: background .15s;
-  }
-  .quiz-option.correct .opt-label { background: rgba(61,220,151,.3); }
-  .quiz-option.wrong .opt-label { background: rgba(240,94,94,.3); }
-
-  .quiz-feedback {
-    width: 100%; max-width: 520px;
-    padding: 12px 18px;
-    border-radius: 10px;
-    font-size: .85rem;
-    font-weight: 600;
-    text-align: center;
-    margin-bottom: 16px;
-    display: none;
-  }
-  .quiz-feedback.correct-fb {
-    background: rgba(61,220,151,.12);
-    border: 1px solid rgba(61,220,151,.3);
-    color: var(--know);
-    display: block;
-  }
-  .quiz-feedback.wrong-fb {
-    background: rgba(240,94,94,.12);
-    border: 1px solid rgba(240,94,94,.3);
-    color: var(--unknow);
-    display: block;
-  }
-
-  .quiz-score-bar {
-    width: 100%; max-width: 520px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-  }
-  .quiz-score-display {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: .8rem;
-    color: var(--accent3);
-    font-weight: 600;
-  }
-
-  .quiz-done {
-    display: none; text-align: center;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 20px; padding: 40px 30px;
-    width: 100%; max-width: 520px;
-  }
-  .quiz-done h2 { font-size: 1.5rem; margin-bottom: 8px; }
-  .quiz-done p { color: var(--muted); font-size: .88rem; margin-top: 8px; margin-bottom: 24px; }
-  .quiz-done-score {
-    font-size: 2.8rem; font-weight: 700; margin: 16px 0 4px;
-    background: linear-gradient(135deg, var(--accent3), var(--accent));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .quiz-done-sub {
-    font-size: .85rem; color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .quiz-done-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
-  .quiz-result-row {
-    display: flex; gap: 12px; justify-content: center;
-    margin: 16px 0;
-  }
-  .quiz-result-pill {
-    padding: 8px 16px;
-    border-radius: 10px;
-    font-size: .82rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
-  }
-  .quiz-result-pill.good {
-    background: rgba(61,220,151,.12);
-    border: 1px solid rgba(61,220,151,.3);
-    color: var(--know);
-  }
-  .quiz-result-pill.bad {
-    background: rgba(240,94,94,.12);
-    border: 1px solid rgba(240,94,94,.3);
-    color: var(--unknow);
-  }
-
-  /* ─── Empty state ─── */
-  .empty-state {
-    text-align: center; padding: 60px 20px;
-    color: var(--muted); font-size: .9rem;
-  }
-  .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
-
-  /* ─── Anims ─── */
-  @keyframes fadeUp {
-    from { opacity:0; transform: translateY(12px); }
-    to   { opacity:1; transform: translateY(0); }
-  }
-  .flip-wrap { animation: fadeUp .3s ease both; }
-
-  @keyframes pulse {
-    0%,100% { transform: scale(1); }
-    50% { transform: scale(1.04); }
-  }
-  .quiz-option.correct { animation: pulse .3s ease; }
+  .form-row { grid-template-columns: 1fr; }
+  .options-grid { grid-template-columns: 1fr; }
+  .exam-grid { grid-template-columns: 1fr; }
+  .landing-title { font-size: 2rem; }
+  .stats-strip { flex-direction: column; }
+  .role-cards { flex-direction: column; }
+  .role-card { width: 100%; max-width: 320px; }
+  .steps { flex-wrap: wrap; gap: 6px; }
+  .step-line { display: none; }
+}
 </style>
 </head>
 <body>
+<div id="root"></div>
 
-<!-- ═══ LOGIN GATE ═══ -->
-<div id="loginGate">
-  <div class="login-box">
-    <div class="login-logo">🧠</div>
-    <h2>AI Флаш Карт</h2>
-    <p>Нэрээ оруулаад нэвтрэнэ үү</p>
-    <div class="login-field-label">Таны нэр</div>
-    <input
-      type="text"
-      id="loginNameInput"
-      class="login-input"
-      placeholder="Нэрээ оруулна уу…"
-      onkeydown="if(event.key==='Enter') doLogin()"
-      autocomplete="off"
-    />
-    <button class="login-btn" onclick="doLogin()">✦ Нэвтрэх</button>
-    <div class="login-error" id="loginError"></div>
-  </div>
-</div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-<!-- ═══ MAIN APP ═══ -->
-<div id="mainApp">
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-<header>
-  <div class="logo">🧠</div>
-  <div>
-    <h1>AI Флаш Карт</h1>
-    <span>Google Apps Script холболт</span>
-  </div>
-  <div class="header-user">
-    <span class="user-badge" id="userBadge"></span>
-    <button class="room-btn" onclick="openExamRoom()" title="Шалгалтын өрөө">🏫 Шалгалтын өрөө</button>
-    <button class="logout-btn" onclick="doLogout()">Гарах</button>
-  </div>
-</header>
-
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('gen')">✨ Үүсгэх</button>
-  <button class="tab" onclick="switchTab('cards')" id="tab-cards">🃏 Картууд</button>
-  <button class="tab" onclick="switchTab('quiz')" id="tab-quiz">🧪 Тест</button>
-  <button class="tab" onclick="switchTab('study')" id="tab-study">📚 Судлах</button>
-</div>
-
-<!-- ═══ GENERATE ═══ -->
-<div class="panel active" id="panel-gen">
-  <div class="input-wrap">
-    <textarea id="inputText" placeholder="Флаш карт болгох текстээ энд буулгана уу…" oninput="updateChar()"></textarea>
-    <span class="char-count" id="charCount">0 тэмдэгт</span>
-  </div>
-  <button class="btn btn-primary" id="genBtn" onclick="generateFlashcards()">
-    <span>✦</span> Флаш карт үүсгэх
-  </button>
-  <div class="status-bar" id="statusBar"></div>
-</div>
-
-<!-- ═══ CARDS ═══ -->
-<div class="panel" id="panel-cards">
-  <div class="stats-strip">
-    <div class="stat-pill">
-      <div class="num" id="totalCount">0</div>
-      <div class="lbl">Нийт карт</div>
-    </div>
-    <div class="stat-pill know">
-      <div class="num" id="knowCount">0</div>
-      <div class="lbl">Мэддэг</div>
-    </div>
-    <div class="stat-pill unknow">
-      <div class="num" id="unknowCount">0</div>
-      <div class="lbl">Давтах</div>
-    </div>
-  </div>
-
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <button class="btn btn-sm" onclick="exportJSON()">⬇ JSON</button>
-      <button class="btn btn-sm btn-export" onclick="exportCSV()">⬇ CSV</button>
-      <button class="btn btn-sm btn-danger" onclick="clearAll()">🗑 Бүгдийг устгах</button>
-    </div>
-    <button class="btn btn-sm" onclick="resetStatus()">↺ Төлөв арилгах</button>
-  </div>
-
-  <div class="cards-grid" id="cardsGrid">
-    <div class="empty-state">
-      <div class="emoji">📭</div>
-      <p>Одоохондоо карт байхгүй байна.<br>«Үүсгэх» таб дээр текст оруулна уу.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ QUIZ ═══ -->
-<div class="panel" id="panel-quiz">
-  <div class="quiz-wrap" id="quizWrap">
-    <div class="empty-state">
-      <div class="emoji">🧪</div>
-      <p>Тест эхлэхийн тулд карт үүсгэнэ үү.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ STUDY ═══ -->
-<div class="panel" id="panel-study">
-  <div class="study-wrap" id="studyWrap">
-    <div class="empty-state">
-      <div class="emoji">📚</div>
-      <p>Эхлэхийн тулд карт үүсгэнэ үү.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ EXAM ROOM (FULLSCREEN) ═══ -->
-<div class="overlay" id="examRoomOverlay">
-  <div class="card" style="max-width: 1100px; border-color: var(--border); background: var(--bg)">
-    <div class="room-top" style="margin-bottom: 10px">
-      <div>
-        <div style="font-size:1.25rem;font-weight:900;letter-spacing:-.5px">🏫 Шалгалтын өрөө</div>
-        <div class="hint">Багш 5 алхмаар тохируулга хийнэ → QR/PIN → сурагчид нэгдэнэ → эхлүүлэх үед хүүхэд бүрийн тест тусдаа AI-аар бэлтгэгдэнэ.</div>
-      </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
-        <div class="seg">
-          <button id="roleTeacher" class="active" type="button" onclick="setRoomRole('teacher')">Багш</button>
-          <button id="roleStudent" type="button" onclick="setRoomRole('student')">Сурагч</button>
-        </div>
-        <span class="pill"><span>Firebase</span> <strong id="fbState" class="mono">…</strong></span>
-        <span class="pill"><span>Өрөө</span> <strong id="roomPin" class="mono">—</strong></span>
-        <button class="btn btn-ghost" type="button" onclick="closeExamRoom()">✕ Хаах</button>
-      </div>
-    </div>
-
-    <div class="room-grid">
-      <!-- Teacher side -->
-      <div class="box" id="roomTeacherBox">
-        <h3>Багш — Өрөө үүсгэх (5 алхам)</h3>
-        <div class="hint">Эндээс дэлгэц дүүрэн тохируулга бөглөж дуусмагц QR/PIN гарна.</div>
-
-        <div style="height:12px"></div>
-        <div class="box" style="padding:14px">
-          <div class="field-row">
-            <div>
-              <div class="field-label">1) Хичээлийн нэр</div>
-              <input class="inp" id="ex_subject" type="text" placeholder="Ж: Англи хэл" />
-            </div>
-            <div>
-              <div class="field-label">2) Шалгалтын сэдэв</div>
-              <input class="inp" id="ex_topic" type="text" placeholder="Ж: Past Simple" />
-            </div>
-          </div>
-          <div style="height:10px"></div>
-          <div class="field-row">
-            <div>
-              <div class="field-label">3) Тестийн тоо (max 27)</div>
-              <input class="inp" id="ex_count" type="number" min="1" max="27" value="10" />
-            </div>
-            <div>
-              <div class="field-label">4) Түвшин</div>
-              <select class="sel" id="ex_level">
-                <option>Амархан</option>
-                <option selected>Дунд</option>
-                <option>Хэцүү</option>
-              </select>
-            </div>
-          </div>
-          <div style="height:10px"></div>
-          <div>
-            <div class="field-label">5) Асуулт бэлтгэх арга</div>
-            <div class="radio-row">
-              <label class="radio active" id="mode_ai_lbl"><input type="radio" name="ex_mode" value="ai" checked /> AI-аар зохиолгох</label>
-              <label class="radio" id="mode_manual_lbl"><input type="radio" name="ex_mode" value="manual" /> Миний тест</label>
-            </div>
-            <div class="hint" style="margin-top:8px">“Миний тест” сонговол доор JSON paste хийнэ.</div>
-            <textarea id="ex_manual" style="margin-top:8px; display:none" placeholder='[{"prompt":"...","options":["A","B","C","D"],"answerIndex":0}]'></textarea>
-          </div>
-          <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap">
-            <button class="btn btn-primary" type="button" onclick="createRoomFromForm()">✦ Өрөө үүсгэх</button>
-            <button class="btn btn-ghost" type="button" onclick="resetRoomForm()">Цэвэрлэх</button>
-          </div>
-          <div class="status-bar" id="roomTeacherStatus"></div>
-        </div>
-
-        <div style="height:14px"></div>
-        <div class="box" style="padding:14px">
-          <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center">
-            <div>
-              <div style="font-weight:900">QR / PIN</div>
-              <div class="hint">Сурагчид QR уншуулж (эсвэл PIN) нэгдэнэ.</div>
-            </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap">
-              <button class="btn btn-ghost" onclick="teacherStartExam()" id="btnTeacherStartExam" disabled>▶ Эхлүүлэх</button>
-              <button class="btn btn-ghost" onclick="teacherEndExam()" id="btnTeacherEndExam" disabled>⏹ Дуусгах</button>
-            </div>
-          </div>
-          <div style="height:12px"></div>
-          <div class="qrBox">
-            <div id="roomQr" class="qrCanvas"></div>
-            <div class="hint">PIN: <strong class="mono" id="roomPin2">—</strong> · QR: <span class="mono" id="roomQrText">—</span></div>
-          </div>
-          <div style="height:12px"></div>
-          <div class="list" id="teacherStudentList"><div class="hint">Одоогоор сурагч алга.</div></div>
-        </div>
-
-      <div style="height:14px"></div>
-      <div class="box" style="padding:14px">
-        <div style="font-weight:900">Ирсэн дүн (Realtime)</div>
-        <div class="hint">Сурагч “Дуусгах” дармагц энд оноо нь орж ирнэ.</div>
-        <div style="height:10px"></div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px">
-          <button class="btn-mini" type="button" onclick="exportExamResultsCSV()">⬇ Excel (CSV) татах</button>
-          <span class="pill"><span>Rows</span> <strong class="mono" id="subRowCount">0</strong></span>
-        </div>
-        <div class="list" id="teacherSubmissionList"><div class="hint">Одоогоор дүн алга.</div></div>
-      </div>
-      </div>
-
-      <!-- Student side -->
-      <div class="box" id="roomStudentBox" style="display:none">
-        <h3>Сурагч — Нэвтрэх</h3>
-        <div class="hint">QR/PIN-оор орно. Багш эхлүүлмэгц “Эхлэх” товч гарна. Дармагц тухайн сурагчийн тест AI-аар тусдаа бэлтгэгдэж ирнэ.</div>
-        <div style="height:12px"></div>
-        <div class="field-row">
-          <div>
-            <div class="field-label">Нэр</div>
-            <input class="inp" id="stuName" type="text" placeholder="Нэрээ оруул…" />
-          </div>
-          <div>
-            <div class="field-label">PIN (4 оронтой)</div>
-            <input class="inp" id="stuPin" type="text" inputmode="numeric" placeholder="1234" />
-          </div>
-        </div>
-        <div style="margin-top:10px">
-          <div class="field-label">QR‑аас уншсан текст (сонголтоор)</div>
-          <input class="inp" id="stuQrText" type="text" placeholder="edu://exam?pin=1234 (эсвэл 1234)" />
-        </div>
-        <div style="display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap">
-          <button class="btn btn-ghost" type="button" onclick="startQrScan()">📷 QR унших</button>
-          <button class="btn btn-primary" type="button" onclick="studentJoinRoom()">Нэвтрэх</button>
-          <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
-        </div>
-        <div class="status-bar" id="roomStudentStatus"></div>
-        <div style="height:14px"></div>
-        <div id="studentStage"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ EDIT MODAL ═══ -->
-<div class="modal-bg" id="editModal">
-  <div class="modal">
-    <h3>✏️ Карт засах</h3>
-    <div class="field-label">Асуулт</div>
-    <textarea id="editQ"></textarea>
-    <div class="field-label">Хариулт</div>
-    <textarea id="editA"></textarea>
-    <div class="modal-actions">
-      <button class="btn btn-sm" onclick="closeModal()">Цуцлах</button>
-      <button class="btn btn-primary" onclick="saveEdit()">Хадгалах</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ QR SCAN MODAL ═══ -->
-<div class="scanModal" id="scanModal">
-  <div class="scanCard">
-    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom: 10px">
-      <div>
-        <h3 style="margin:0">📷 QR унших</h3>
-        <div class="hint">Утасны camera-аа ашиглаж QR руу чиглүүлнэ. (HTTPS шаардлагатай)</div>
-      </div>
-      <button class="btn btn-ghost" type="button" onclick="stopQrScan()">✕ Хаах</button>
-    </div>
-    <div id="qrReader"></div>
-    <video id="scanVideo" class="scanVideo" autoplay playsinline muted style="display:none"></video>
-    <div class="status-bar" id="scanStatus"></div>
-  </div>
-</div>
-
-</div><!-- /mainApp -->
-
-<script>
-// ══════════════════════════════════════════
-// ── Backend URL + Firebase config ──
-// ══════════════════════════════════════════
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4oMaDbE06FRtwVoC0mnCssCsb9cEvR1pi9Aa2ngg19EWyPjlJUYCReVtDqFrP2twdxw/exec";
-// TODO: Firebase Realtime Database config-оо энд тавина
-const firebaseConfig = {
-  apiKey: "AIzaSyANAj5ys_RlIewVbRBKchzhH64-BZ4bhDc",
-  authDomain: "flashcard-60ecb.firebaseapp.com",
-  databaseURL: "https://flashcard-60ecb-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "flashcard-60ecb",
-  storageBucket: "flashcard-60ecb.firebasestorage.app",
-  messagingSenderId: "245589035739",
-  appId: "1:245589035739:web:f1e6166b79c216ecd91afe",
-  measurementId: "G-1S12JQ6XKL",
+const useLS = (key, init) => {
+  const [val, setVal] = useState(() => {
+    try {
+      const s = localStorage.getItem(key);
+      return s ? JSON.parse(s) : init;
+    } catch { return init; }
+  });
+  const set = useCallback(v => {
+    setVal(prev => {
+      const next = typeof v === 'function' ? v(prev) : v;
+      try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [key]);
+  return [val, set];
 };
 
-let rtdb = null;
-try {
-  firebase.initializeApp(firebaseConfig);
-  rtdb = firebase.database();
-  const el = document.getElementById('fbState');
-  if (el) el.textContent = 'connected';
+const fmt = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
 
-  // Show realtime connection state (helps diagnose "Өрөө үүсгэж байна…" hangs)
-  try {
-    rtdb.ref('.info/connected').on('value', (snap) => {
-      const ok = !!snap.val();
-      const e1 = document.getElementById('fbState');
-      if (e1) e1.textContent = ok ? 'online' : 'offline';
-    });
-  } catch {}
-} catch (e) {
-  console.warn('Firebase init failed:', e);
-  const el = document.getElementById('fbState');
-  if (el) el.textContent = 'config?';
+// ─── AI PARSER (Groq) ─────────────────────────────────────────────────────────
+const parseTestWithAI = async (rawText, apiKey) => {
+  const sys = `You are an exam question parser. Parse the multiple-choice questions from the given text and return ONLY a valid JSON array. Nothing else — no markdown, no explanation, just the JSON array.
+
+Schema for each item:
+{
+  "id": <number, 1-based>,
+  "text": "<question text, use ________ for blanks>",
+  "options": [
+    {"key": "A", "text": "<option text>"},
+    {"key": "B", "text": "<option text>"},
+    {"key": "C", "text": "<option text>"},
+    {"key": "D", "text": "<option text>"}
+  ],
+  "answer": "<correct key letter like A/B/C/D, or null if not marked>"
 }
 
-// ══════════════════════════════════════════
-// ── State ──
-// ══════════════════════════════════════════
-let cards       = JSON.parse(localStorage.getItem('fc_cards') || '[]');
-let userName    = '';
-let editIdx     = null;
-let studyDeck   = [];
-let studyIdx    = 0;
-let studyFlipped= false;
+Rules:
+- Normalize any format to the schema above
+- Clean up whitespace and formatting
+- If a question has a marked answer (asterisk, ✓, (correct), etc.), capture it
+- Always include exactly 4 options per question; if missing, create plausible distractors
+- Return ONLY the JSON array`;
 
-// Quiz state
-let quizDeck     = [];
-let quizIdx      = 0;
-let quizScore    = 0;
-let quizWrong    = 0;
-let quizAnswered = false;
-
-// ══════════════════════════════════════════
-// ── Login / Logout ──
-// ══════════════════════════════════════════
-function doLogin() {
-  const nameInput = document.getElementById('loginNameInput');
-  const name = nameInput.value.trim();
-  const errEl = document.getElementById('loginError');
-  if (!name) {
-    errEl.textContent = '⚠️ Нэрээ оруулна уу!';
-    errEl.classList.add('visible');
-    nameInput.focus();
-    return;
-  }
-  errEl.classList.remove('visible');
-  userName = name;
-  document.getElementById('userBadge').textContent = '👤 ' + userName;
-  document.getElementById('loginGate').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
-  updateStats();
-
-  // If opened from QR (?...exam=1&pin=XXXX) -> open exam room as student and prefill PIN
-  try {
-    const params = new URLSearchParams(location.search || '');
-    const pin = params.get('pin');
-    const exam = params.get('exam');
-    if (exam === '1') {
-      openExamRoom();
-      setRoomRole('student');
-      if (pin) {
-        document.getElementById('stuPin').value = String(pin);
-        document.getElementById('roomPin').textContent = String(pin);
-        document.getElementById('roomPin2').textContent = String(pin);
-      }
-    }
-  } catch {}
-}
-
-function doLogout() {
-  userName = '';
-  document.getElementById('loginNameInput').value = '';
-  document.getElementById('loginError').classList.remove('visible');
-  document.getElementById('mainApp').style.display = 'none';
-  document.getElementById('loginGate').style.display = 'flex';
-}
-
-// ══════════════════════════════════════════
-// ── Persist ──
-// ══════════════════════════════════════════
-function save() {
-  localStorage.setItem('fc_cards', JSON.stringify(cards));
-  updateStats();
-}
-
-// ── Tab switch ──
-const TAB_IDS   = ['gen','cards','quiz','study'];
-const PANEL_IDS = ['panel-gen','panel-cards','panel-quiz','panel-study'];
-
-function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el, i) =>
-    el.classList.toggle('active', TAB_IDS[i] === t)
-  );
-  document.querySelectorAll('.panel').forEach((el, i) =>
-    el.classList.toggle('active', PANEL_IDS[i] === 'panel-' + t)
-  );
-  if (t === 'cards') renderCards();
-  if (t === 'quiz')  initQuiz();
-  if (t === 'study') initStudy();
-}
-
-// ══════════════════════════════════════════
-// ── EXAM ROOM (Teacher + Student) ──
-// Firebase schema:
-// activeRooms/{roomId}: { pin, subjectName, topic, count, level, mode, status, createdAt, startedAt, teacherName }
-// roomsByPin/{pin}: roomId
-// activeRooms/{roomId}/students/{stuId}: { name, joinedAt, cheatCount, status }
-// activeRooms/{roomId}/exam/questions: [ {prompt, options[4], answerIndex, explanation?} ]
-// activeRooms/{roomId}/submissions/{stuId}: { answers:{i:choice}, score, submittedAt, cheated }
-// ══════════════════════════════════════════
-let roomRole = 'teacher';
-let activeRoomId = '';
-let activePin = '';
-let studentId = '';
-let studentJoined = false;
-let studentWarnings = 0;
-let studentAutoSubmitted = false;
-let roomUnsubs = [];
-let teacherRequestUnsubs = [];
-let roomConfig = null;
-let cheatArmed = false; // counts only when exam started
-let examLockedUntil = 0;
-let hardLock = false; // (deprecated) kept to avoid breaking old logic
-let totalCheat = 0;
-let aiTranslateStrikes = 0;
-let warnedTotalCheat = false;
-let lastCheatAt = 0;
-let blurAt = 0;
-let blurFailTimer = null;
-let teacherStudentsCache = {}; // stuId -> {name, ...}
-let teacherSubmissionsCache = []; // normalized for export
-
-function openExamRoom() {
-  const ov = document.getElementById('examRoomOverlay');
-  if (!ov) return;
-  ov.classList.add('visible');
-  initRoom();
-}
-
-function closeExamRoom() {
-  const ov = document.getElementById('examRoomOverlay');
-  if (!ov) return;
-  ov.classList.remove('visible');
-}
-
-function setRoomRole(role) {
-  roomRole = role;
-  document.getElementById('roleTeacher').classList.toggle('active', role === 'teacher');
-  document.getElementById('roleStudent').classList.toggle('active', role === 'student');
-  document.getElementById('roomTeacherBox').style.display = role === 'teacher' ? '' : 'none';
-  document.getElementById('roomStudentBox').style.display = role === 'student' ? '' : 'none';
-  initRoom();
-}
-
-function initRoom() {
-  // keep last entered name/pin
-  const nameEl = document.getElementById('stuName');
-  const pinEl  = document.getElementById('stuPin');
-  if (nameEl && !nameEl.value) nameEl.value = userName || '';
-  if (pinEl && activePin) pinEl.value = activePin;
-
-  // show start UI for student stage if not joined
-  if (roomRole === 'student') {
-    renderStudentStageWaiting('PIN/QR оруулаад нэвтэрнэ үү.');
-  }
-
-  // hook radio UI
-  const modeRadios = document.querySelectorAll('input[name="ex_mode"]');
-  modeRadios.forEach(r => r.addEventListener('change', () => {
-    const isManual = document.querySelector('input[name="ex_mode"]:checked')?.value === 'manual';
-    document.getElementById('ex_manual').style.display = isManual ? '' : 'none';
-    document.getElementById('mode_ai_lbl').classList.toggle('active', !isManual);
-    document.getElementById('mode_manual_lbl').classList.toggle('active', isManual);
-  }));
-}
-
-function resetRoomForm() {
-  document.getElementById('ex_subject').value = '';
-  document.getElementById('ex_topic').value = '';
-  document.getElementById('ex_count').value = 10;
-  document.getElementById('ex_level').value = 'Дунд';
-  document.querySelector('input[name="ex_mode"][value="ai"]').checked = true;
-  document.getElementById('ex_manual').value = '';
-  document.getElementById('ex_manual').style.display = 'none';
-  document.getElementById('mode_ai_lbl').classList.add('active');
-  document.getElementById('mode_manual_lbl').classList.remove('active');
-  roomStatus('roomTeacherStatus', 'Цэвэрлэгдлээ.');
-}
-
-function createRoomFromForm() {
-  const subjectName = (document.getElementById('ex_subject').value || '').trim();
-  const topic = (document.getElementById('ex_topic').value || '').trim();
-  let count = Number(document.getElementById('ex_count').value || 10);
-  count = Math.max(1, Math.min(27, Math.floor(count)));
-  const level = document.getElementById('ex_level').value || 'Дунд';
-  const mode = document.querySelector('input[name="ex_mode"]:checked')?.value || 'ai';
-  const manualRaw = (document.getElementById('ex_manual').value || '').trim();
-  if (!subjectName) return roomStatus('roomTeacherStatus', '⚠️ Хичээлийн нэр оруул.', true);
-  if (!topic) return roomStatus('roomTeacherStatus', '⚠️ Сэдэв оруул.', true);
-
-  createRoom({ subjectName, topic, count, level, mode, manualRaw });
-}
-
-function roomStatus(elId, msg, isErr) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.className = 'status-bar visible' + (isErr ? ' err' : '');
-  el.textContent = msg;
-}
-
-function lockExam(ms, title, msg) {
-  examLockedUntil = Math.max(examLockedUntil, Date.now() + ms);
-  document.body.classList.add('exam-locked');
-  showOverlay(title || 'Түгжигдлээ', msg || 'Tab/апп солих оролдлого илэрлээ.');
-  const tick = () => {
-    const left = examLockedUntil - Date.now();
-    if (left <= 0) {
-      document.body.classList.remove('exam-locked');
-      hideOverlay();
-      return;
-    }
-    // keep overlay visible with countdown
-    const s = Math.ceil(left / 1000);
-    const mEl = document.getElementById('ovMsg');
-    if (mEl) mEl.textContent = `${msg || 'Хориотой үйлдэл илэрлээ.'} (${s}s)`;
-    setTimeout(tick, 250);
-  };
-  tick();
-}
-
-function sanitizePin(pin) {
-  return String(pin || '').trim().replace(/\D/g,'').slice(0,4);
-}
-
-function parsePinFromText(t) {
-  const s = String(t || '').trim();
-  const m1 = s.match(/pin=(\d{4})/i);
-  if (m1) return m1[1];
-  const m2 = s.match(/\b(\d{4})\b/);
-  return m2 ? m2[1] : '';
-}
-
-function genPin() {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
-
-function dbRef(path) {
-  if (!rtdb) throw new Error('Firebase config дутуу байна.');
-  return rtdb.ref(path);
-}
-
-function unsubAllRoom() {
-  roomUnsubs.forEach(fn => { try { fn(); } catch {} });
-  roomUnsubs = [];
-}
-
-function on(ref, evt, fn) {
-  ref.on(evt, fn);
-  roomUnsubs.push(() => ref.off(evt, fn));
-}
-
-// ── Teacher wizard (5 questions) ──
-async function createRoom(cfg) {
-  try {
-    roomStatus('roomTeacherStatus', '⏳ Өрөө үүсгэж байна…');
-    unsubAllRoom();
-
-    if (!rtdb) {
-      roomStatus('roomTeacherStatus', '⚠️ Firebase холбогдоогүй байна (config/rules шалга).', true);
-      return;
-    }
-
-    const pin = genPin();
-    activePin = pin;
-    document.getElementById('roomPin').textContent = pin;
-    document.getElementById('roomPin2').textContent = pin;
-
-    roomConfig = {
-      subjectName: cfg.subjectName,
-      topic: cfg.topic,
-      count: cfg.count,
-      level: cfg.level,
-      mode: cfg.mode,
-      manualRaw: cfg.manualRaw || '',
-    };
-
-    // create room in Firebase
-    const roomId = dbRef('activeRooms').push().key;
-    activeRoomId = roomId;
-
-    const roomObj = {
-      pin,
-      subjectName: cfg.subjectName,
-      topic: cfg.topic,
-      count: cfg.count,
-      level: cfg.level,
-      mode: cfg.mode,
-      status: 'waiting',
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      teacherName: userName || 'Багш',
-    };
-
-    const updates = {};
-    // Realtime DB: нэг update() дотор ancestor + child path давхар бичихийг хориглодог.
-    // Тиймээс exam/questions-г roomObj дотор нэгтгээд нэг зам дээр хадгална.
-    updates[`activeRooms/${roomId}`] = { ...roomObj, exam: { mode: cfg.mode, manualRaw: cfg.manualRaw || '' } };
-    updates[`roomsByPin/${pin}`] = roomId;
-
-    roomStatus('roomTeacherStatus', '⏳ Firebase руу хадгалж байна…');
-    await withTimeout(rtdb.ref().update(updates), 8000, 'firebase.update');
-
-    renderRoomQr(pin);
-    // Auto scroll to QR after room is created (no need to zoom)
-    try { document.getElementById('roomQr')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
-    document.getElementById('btnTeacherStartExam').disabled = false;
-    document.getElementById('btnTeacherEndExam').disabled = false;
-    roomStatus('roomTeacherStatus', `✅ Өрөө үүслээ. PIN: ${pin}. Сурагчдыг QR/PIN-оор оруулна уу.`);
-
-    listenTeacherRoom(roomId);
-    listenTeacherRequests(roomId);
-    listenTeacherSubmissions(roomId);
-  } catch (e) {
-    console.error(e);
-    roomStatus('roomTeacherStatus', '❌ ' + (e.message || 'Алдаа'), true);
-  }
-}
-
-function listenTeacherRequests(roomId) {
-  // When student clicks "Эхлэх", they create a request → teacher generates individualized test and writes back.
-  teacherRequestUnsubs.forEach(fn => { try { fn(); } catch {} });
-  teacherRequestUnsubs = [];
-  const reqRef = dbRef(`activeRooms/${roomId}/requests`);
-  const handler = async (snap) => {
-    const req = snap.val();
-    const stuId = snap.key;
-    if (!req || !stuId) return;
-    // ignore if already generated
-    const doneSnap = await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).get();
-    if (doneSnap.exists()) return;
-
-    try {
-      // Immediately write status so student sees progress (not "stuck")
-      await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).set({
-        status: 'queued',
-        queuedAt: firebase.database.ServerValue.TIMESTAMP,
-      });
-
-      const cfgSnap = await dbRef(`activeRooms/${roomId}`).get();
-      const room = cfgSnap.val() || {};
-      const stuSnap = await dbRef(`activeRooms/${roomId}/students/${stuId}`).get();
-      const stu = stuSnap.val() || {};
-
-      let questions = [];
-      if ((room.exam && room.exam.mode) === 'manual' && room.exam.manualRaw) {
-        await dbRef(`activeRooms/${roomId}/studentTests/${stuId}/status`).set('generating');
-        let data;
-        try { data = JSON.parse(room.exam.manualRaw); } catch { data = null; }
-        questions = normalizeExamQuestions(data, room.count);
-      } else {
-        await dbRef(`activeRooms/${roomId}/studentTests/${stuId}/status`).set('generating');
-        const seed = req.seed || stuId;
-        const inputText = [
-          `Хичээл: ${room.subjectName || ''}`,
-          `Сэдэв: ${room.topic || ''}`,
-          `Түвшин: ${room.level || 'Дунд'}`,
-          `Тестийн тоо: ${room.count || 10} (max 27)`,
-          `Сурагч: ${stu.name || ''}`,
-          `Seed: ${seed}`,
-          "",
-          "Олон сонголтот тест зохио. Сурагч бүр дээр өөр хувилбар гаргахын тулд seed-ийг ашигла.",
-          "ЗӨВХӨН JSON буцаа. Тайлбар, markdown, нэмэлт текст БИЧИХГҮЙ.",
-          "Формат: {\"questions\":[{\"q\":\"...\",\"correct\":\"...\",\"wrong\":[\"...\",\"...\",\"...\"]}]}",
-        ].join("\n");
-
-        // Abort long network waits so we can surface errors
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 90000); // 90s
-        const out = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'test', inputText, count: room.count || 10 }),
-          signal: ctrl.signal,
-        });
-        clearTimeout(timer);
-        if (!out.ok) {
-          const t = await out.text().catch(()=>'');
-          throw new Error('SCRIPT_URL error ' + out.status + ': ' + t.slice(0,200));
-        }
-        const data = await out.json();
-        questions = normalizeExamQuestions(data, room.count);
-      }
-
-      if (!questions.length) throw new Error('AI-аас асуулт ирсэнгүй.');
-
-      await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).set({
-        status: 'ready',
-        questions,
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-      });
-      await dbRef(`activeRooms/${roomId}/students/${stuId}`).update({ status: 'ready' });
-    } catch (e) {
-      console.error(e);
-      await dbRef(`activeRooms/${roomId}/studentTests/${stuId}`).set({ error: e.message || 'error' });
-    }
-  };
-  reqRef.on('child_added', handler);
-  teacherRequestUnsubs.push(() => reqRef.off('child_added', handler));
-}
-
-function normalizeExamQuestions(data, maxCount) {
-  // Accept shapes:
-  // 1) [{prompt, options[4], answerIndex}]
-  // 2) { questions: [{prompt, options[4], answerIndex}] }
-  // 3) { questions: [{q, correct, wrong:["..","..",".."]}] }  (таны Code.gs)
-  let qs = [];
-  if (Array.isArray(data)) qs = data;
-  else if (data && Array.isArray(data.questions)) qs = data.questions;
-  else if (data && data.exam && Array.isArray(data.exam.questions)) qs = data.exam.questions;
-
-  const normalized = [];
-  for (const q of qs) {
-    // Format A: prompt/options/answerIndex
-    if (q && typeof q.prompt === 'string' && Array.isArray(q.options) && q.options.length >= 4) {
-      const opts = q.options.slice(0, 4).map((x) => String(x));
-      const ai = Number(q.answerIndex);
-      if (Number.isInteger(ai) && ai >= 0 && ai < 4) {
-        normalized.push({
-          prompt: String(q.prompt).trim(),
-          options: opts,
-          answerIndex: ai,
-          explanation: q.explanation ? String(q.explanation) : '',
-        });
-      }
-      continue;
-    }
-
-    // Format B: q/correct/wrong[]
-    if (q && typeof q.q === 'string' && typeof q.correct === 'string' && Array.isArray(q.wrong)) {
-      const prompt = String(q.q).trim();
-      const correct = String(q.correct).trim();
-      const wrongs = q.wrong.slice(0, 3).map((x) => String(x).trim()).filter(Boolean);
-      // pad wrongs if missing
-      while (wrongs.length < 3) wrongs.push('—');
-      const opts = shuffle4([correct, ...wrongs]);
-      const ai = opts.indexOf(correct);
-      if (prompt && ai >= 0) {
-        normalized.push({
-          prompt,
-          options: opts,
-          answerIndex: ai,
-          explanation: '',
-        });
-      }
-    }
-  }
-
-  return normalized.slice(0, Math.min(27, maxCount || 27));
-}
-
-function shuffle4(arr) {
-  const a = arr.slice(0, 4);
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function renderRoomQr(pin) {
-  const el = document.getElementById('roomQr');
-  if (!el) return;
-  // Use an https URL so any phone camera / Google Lens can open it directly.
-  // This avoids custom-scheme ("edu://") which often won't open automatically.
-  const base = `${location.origin}${location.pathname}`;
-  const text = `${base}?exam=1&pin=${encodeURIComponent(pin)}`;
-  document.getElementById('roomQrText').textContent = text;
-  el.innerHTML = '';
-  // eslint-disable-next-line no-undef
-  new QRCode(el, { text, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
-}
-
-function listenTeacherRoom(roomId) {
-  const listEl = document.getElementById('teacherStudentList');
-  const r = dbRef(`activeRooms/${roomId}/students`);
-  on(r, 'value', snap => {
-    const val = snap.val() || null;
-    const items = val && typeof val === 'object' ? Object.entries(val).map(([id, v]) => ({ id, ...(v||{}) })) : [];
-    teacherStudentsCache = {};
-    items.forEach(s => { teacherStudentsCache[s.id] = s; });
-    if (!items.length) {
-      listEl.innerHTML = `<div class="hint">Одоогоор сурагч алга.</div>`;
-      return;
-    }
-    listEl.innerHTML = items
-      .sort((a,b)=>(b.joinedAt||0)-(a.joinedAt||0))
-      .map(s => `
-        <div class="stu">
-          <div>
-            <div class="n">${esc(s.name || '—')}</div>
-            <div class="hint" style="margin-top:4px">
-              Cheat: <span class="mono">${Number(s.cheatCount||0)}</span>
-            </div>
-          </div>
-          <div class="actions"></div>
-        </div>
-      `).join('');
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 4096,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: rawText }
+      ]
+    })
   });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content?.trim() || '';
+  const clean = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  return JSON.parse(clean);
+};
+
+// ─── TOPBAR ───────────────────────────────────────────────────────────────────
+function Topbar({ userName, role, onHome, onSettings }) {
+  return (
+    <div className="topbar">
+      <div className="topbar-brand" onClick={onHome}>
+        <div className="brand-badge">SE</div>
+        SmartEXAM
+      </div>
+      <div className="topbar-right">
+        {userName && (
+          <div className="topbar-user">
+            <div className="avatar">{userName[0]?.toUpperCase()}</div>
+            <span>{userName}</span>
+            {role && <span className="badge badge-blue" style={{marginLeft:4}}>{role === 'teacher' ? '👩‍🏫 Багш' : '🎓 Сурагч'}</span>}
+          </div>
+        )}
+        {onSettings && (
+          <button className="btn btn-ghost btn-sm" onClick={onSettings}>⚙ Тохиргоо</button>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function listenTeacherSubmissions(roomId) {
-  const el = document.getElementById('teacherSubmissionList');
-  if (!el) return;
-  const r = dbRef(`activeRooms/${roomId}/submissions`);
-  on(r, 'value', snap => {
-    const val = snap.val() || null;
-    const items = val && typeof val === 'object' ? Object.entries(val).map(([id, v]) => ({ id, ...(v||{}) })) : [];
-    if (!items.length) {
-      el.innerHTML = `<div class="hint">Одоогоор дүн алга.</div>`;
-      teacherSubmissionsCache = [];
-      const cnt = document.getElementById('subRowCount');
-      if (cnt) cnt.textContent = '0';
-      return;
-    }
-    const normalized = items
-      .sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0))
-      .map(s => {
-        const stu = teacherStudentsCache[s.id] || {};
-        return {
-          stuId: s.id,
-          name: stu.name || '—',
-          score: Number(s.score || 0),
-          total: Number(s.total || 0),
-          cheated: !!s.cheated,
-          submittedAt: s.submittedAt || 0,
-        };
-      });
+// ─── LANDING PAGE ─────────────────────────────────────────────────────────────
+function LandingPage({ onSelect }) {
+  return (
+    <div className="landing">
+      <div className="landing-hero">
+        <div className="logo-big">SE</div>
+        <h1 className="landing-title">SmartEXAM</h1>
+        <div className="landing-sub">Ухаалаг Шалгалтын Систем</div>
+        <p className="landing-desc" style={{margin:'8px auto 0'}}>
+          AI-д суурилсан тест зохиох, шалгалт авах, дүн дүгнэх иж бүрэн платформ
+        </p>
+      </div>
+      <div className="role-cards">
+        <button className="role-card teacher" onClick={() => onSelect('teacher')}>
+          <div className="role-icon">📝</div>
+          <div className="role-title">Багш</div>
+          <div className="role-desc">Тест үүсгэх, шалгалт зохион байгуулах, үр дүн дүгнэх</div>
+        </button>
+        <button className="role-card student" onClick={() => onSelect('student')}>
+          <div className="role-icon">🎓</div>
+          <div className="role-title">Сурагч</div>
+          <div className="role-desc">Шалгалтад оролцох, хариулт бичих, дүн харах</div>
+        </button>
+      </div>
+      <p style={{marginTop:32,fontSize:'0.78rem',color:'var(--text3)'}}>
+        Phase 1 — localStorage хувилбар · Firebase интеграц удахгүй
+      </p>
+    </div>
+  );
+}
 
-    teacherSubmissionsCache = normalized;
-    const cnt = document.getElementById('subRowCount');
-    if (cnt) cnt.textContent = String(normalized.length);
+// ─── TEACHER LOGIN ─────────────────────────────────────────────────────────────
+function TeacherLogin({ onLogin }) {
+  const [name, setName] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('se_apikey') || '');
+  const [showKey, setShowKey] = useState(false);
 
-    el.innerHTML = normalized
-      .map(s => `
-        <div class="stu">
-          <div>
-            <div class="n">${esc(s.name)} <span class="hint mono" style="margin-left:8px">${esc(s.stuId)}</span></div>
-            <div class="hint" style="margin-top:4px">
-              Оноо: <span class="mono">${s.score} / ${s.total}</span>
-              ${s.cheated ? ' · <span class="lock">CHEATED</span>' : ''}
+  const handle = () => {
+    if (!name.trim()) return;
+    if (apiKey) localStorage.setItem('se_apikey', apiKey);
+    onLogin(name.trim(), apiKey.trim());
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <div className="modal-head">
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:'1.4rem'}}>📝</span>
+            <div>
+              <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>Багшийн нэвтрэлт</div>
+              <div style={{fontSize:'0.8rem',color:'var(--text2)'}}>SmartEXAM систем</div>
             </div>
           </div>
         </div>
-      `).join('');
-  });
-}
-
-function exportExamResultsCSV() {
-  if (!teacherSubmissionsCache || !teacherSubmissionsCache.length) {
-    alert('Одоогоор татах дүн алга.');
-    return;
-  }
-  const rows = [
-    ['Нэр','Оноо','Нийт','Cheated','StuId','SubmittedAt'],
-    ...teacherSubmissionsCache.map(r => [
-      `"${String(r.name).replace(/"/g,'""')}"`,
-      String(r.score),
-      String(r.total),
-      r.cheated ? 'YES' : 'NO',
-      `"${String(r.stuId).replace(/"/g,'""')}"`,
-      r.submittedAt ? new Date(r.submittedAt).toISOString() : '',
-    ]),
-  ];
-  const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'exam-results.csv';
-  a.click();
-}
-
-// unlockStudent removed (no hard-lock)
-
-async function teacherStartExam() {
-  if (!activeRoomId) return roomStatus('roomTeacherStatus', '⚠️ Эхлээд өрөө үүсгэнэ үү.', true);
-  await dbRef(`activeRooms/${activeRoomId}`).update({
-    status: 'live',
-    startedAt: firebase.database.ServerValue.TIMESTAMP,
-  });
-  roomStatus('roomTeacherStatus', '▶ Шалгалт эхэллээ. Сурагчдын дэлгэц дээр асуултууд гарна.');
-}
-
-async function teacherEndExam() {
-  if (!activeRoomId) return;
-  await dbRef(`activeRooms/${activeRoomId}`).update({
-    status: 'ended',
-    endedAt: firebase.database.ServerValue.TIMESTAMP,
-  });
-  roomStatus('roomTeacherStatus', '⏹ Шалгалт дууслаа.');
-}
-
-// ── Student flow ──
-async function studentJoinRoom() {
-  if (!rtdb) return roomStatus('roomStudentStatus', '⚠️ Firebase config дутуу байна.', true);
-
-  const nm = (document.getElementById('stuName').value || '').trim() || userName || '';
-  let pin = sanitizePin(document.getElementById('stuPin').value);
-  const qrText = document.getElementById('stuQrText').value || '';
-  if (qrText) {
-    const p = parsePinFromText(qrText);
-    if (p) pin = p;
-  }
-  if (!nm) return roomStatus('roomStudentStatus', '⚠️ Нэрээ оруул.', true);
-  if (!pin) return roomStatus('roomStudentStatus', '⚠️ PIN оруул.', true);
-
-  roomStatus('roomStudentStatus', '⏳ Өрөө хайж байна…');
-  unsubAllRoom();
-  studentWarnings = 0;
-  studentAutoSubmitted = false;
-  cheatArmed = false;
-  hardLock = false;
-  totalCheat = 0;
-  aiTranslateStrikes = 0;
-  warnedTotalCheat = false;
-
-  const roomIdSnap = await dbRef(`roomsByPin/${pin}`).get();
-  const roomId = roomIdSnap.val();
-  if (!roomId) return roomStatus('roomStudentStatus', '❌ Энэ PIN-тай өрөө олдсонгүй.', true);
-
-  activePin = pin;
-  activeRoomId = roomId;
-  document.getElementById('roomPin').textContent = pin;
-  document.getElementById('roomPin2').textContent = pin;
-
-  // create student entry
-  const stuRef = dbRef(`activeRooms/${roomId}/students`).push();
-  studentId = stuRef.key;
-  await stuRef.set({
-    name: nm,
-    joinedAt: firebase.database.ServerValue.TIMESTAMP,
-    cheatCount: 0,
-    status: 'waiting',
-    locked: false,
-  });
-  studentJoined = true;
-
-  roomStatus('roomStudentStatus', `✅ Холбогдлоо. PIN: ${pin}. Багш эхлүүлэхийг хүлээнэ үү.`);
-  // Install anti-cheat in background now (counts only after exam starts)
-  installAntiCheat(roomId, studentId);
-  listenStudentRoom(roomId, studentId);
-}
-
-function studentLeaveRoom() {
-  unsubAllRoom();
-  studentJoined = false;
-  studentId = '';
-  activeRoomId = '';
-  renderStudentStageWaiting('PIN/QR оруулаад нэвтэрнэ үү.');
-  roomStatus('roomStudentStatus', 'Гарлаа.');
-  disableAntiCheat();
-}
-
-function listenStudentRoom(roomId, stuId) {
-  const roomRef = dbRef(`activeRooms/${roomId}/status`);
-  on(roomRef, 'value', snap => {
-    const st = snap.val() || 'waiting';
-    if (st === 'waiting') renderStudentStageWaiting('Хүлээлгийн өрөө — багш эхлүүлэхийг хүлээнэ үү…');
-    if (st === 'live') renderStudentStartButton(roomId, stuId);
-    if (st === 'ended') renderStudentStageWaiting('Шалгалт дууссан байна.');
-  });
-
-  // (no hard-lock now) — teacher unlock UI removed from logic
-}
-
-function renderStudentStartButton(roomId, stuId) {
-  const stage = document.getElementById('studentStage');
-  stage.innerHTML = `
-    <div class="quiz-start-box">
-      <div class="emoji">🧪</div>
-      <h2>Шалгалт эхлэхэд бэлэн</h2>
-      <p>“Эхлэх” дармагц таны тест AI‑аар бэлтгэгдэж ирнэ.</p>
-      <div class="hint" style="margin:10px 0 0">
-        Санамж: Хүүхэд бүрт асуулт болон сонголтын дараалал <strong>өөр</strong> очих тул хуулах оролдлого хийхгүй байхыг анхаарна уу.
-      </div>
-      <button class="btn btn-primary" style="width:100%" type="button" onclick="studentRequestTest()">▶ Эхлэх</button>
-      <div class="hint" style="margin-top:10px">Анхаар: Шалгалт эхэлмэгц anti‑cheat идэвхжинэ.</div>
-    </div>
-  `;
-  window.__examRoom = { roomId, stuId };
-}
-
-async function studentRequestTest() {
-  const ctx = window.__examRoom;
-  if (!ctx) return;
-  roomStatus('roomStudentStatus', '⏳ Тестийн хүсэлт илгээлээ…');
-  const stage = document.getElementById('studentStage');
-  if (stage) {
-    stage.innerHTML = `
-      <div class="quiz-start-box">
-        <div class="emoji">⏳</div>
-        <h2>Тест бэлтгэж байна…</h2>
-        <p>Багшийн компьютер AI‑аар таны тестийг бэлтгээд Firebase‑ээр илгээнэ.<br>Хэт удах юм бол багшийн tab нээлттэй эсэхийг шалга.</p>
-        <div class="quiz-info-row">
-          <span class="quiz-info-pill" id="stuGenStatus">status: —</span>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Багшийн нэр</label>
+            <input
+              className="form-input"
+              placeholder="Таны нэр"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handle()}
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Groq API түлхүүр <span style={{fontWeight:400,textTransform:'none'}}>(AI задлан шинжилгээнд шаардлагатай)</span></label>
+            <div style={{display:'flex',gap:8}}>
+              <input
+                className="form-input"
+                type={showKey ? 'text' : 'password'}
+                placeholder="gsk_..."
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                style={{flex:1}}
+              />
+              <button className="btn btn-outline btn-sm" onClick={() => setShowKey(s => !s)} style={{flexShrink:0}}>
+                {showKey ? '🙈' : '👁'}
+              </button>
+            </div>
+            <div className="form-hint">API түлхүүргүйгээр тест гараар оруулах боломжтой</div>
+          </div>
         </div>
-        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
-          <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
-          <button class="btn btn-ghost" type="button" onclick="studentRequestTest()">Дахин хүсэх</button>
-        </div>
-      </div>
-    `;
-  }
-  // Request teacher to generate unique test
-  const seed = Math.random().toString(16).slice(2);
-  await dbRef(`activeRooms/${ctx.roomId}/requests/${ctx.stuId}`).set({
-    requestedAt: firebase.database.ServerValue.TIMESTAMP,
-    seed,
-  });
-
-  // Wait for test
-  const testRef = dbRef(`activeRooms/${ctx.roomId}/studentTests/${ctx.stuId}`);
-  const handler = (snap) => {
-    const val = snap.val();
-    if (!val) return;
-    const stEl = document.getElementById('stuGenStatus');
-    if (stEl) stEl.textContent = 'status: ' + String(val.status || '…');
-    if (val.error) {
-      roomStatus('roomStudentStatus', '❌ ' + val.error, true);
-      return;
-    }
-    if (val.questions) {
-      testRef.off('value', handler);
-      startStudentExam(ctx.roomId, ctx.stuId, val.questions);
-    }
-  };
-  testRef.on('value', handler);
-}
-
-async function startStudentExam(roomId, stuId, qs) {
-  if (!Array.isArray(qs) || !qs.length) {
-    renderStudentStageWaiting('Асуулт олдсонгүй.');
-    return;
-  }
-
-  // Lock down (anti-cheat) — already installed on join, now ARM it
-  armAntiCheat(roomId, stuId);
-
-  // Randomize question order + option order per student
-  const shuffled = qs
-    .map((q) => ({
-      prompt: q.prompt,
-      options: Array.isArray(q.options) ? q.options.slice(0, 4) : [],
-      answerIndex: Number(q.answerIndex),
-      explanation: q.explanation || '',
-    }))
-    .sort(() => Math.random() - 0.5)
-    .map((q) => {
-      const opts = q.options.map((t, idx) => ({ t, correct: idx === q.answerIndex }));
-      const mixed = opts.sort(() => Math.random() - 0.5);
-      const newIdx = mixed.findIndex((x) => x.correct);
-      return { ...q, options: mixed.map((x) => x.t), answerIndex: newIdx };
-    });
-
-  // Render exam
-  const stage = document.getElementById('studentStage');
-  stage.innerHTML = `
-    <div class="quiz-start-box" style="text-align:left">
-      <div class="study-badge">Шалгалт</div>
-      <div class="hint">Анхаар: Tab/апп сольвол cheat тоологдоно. 6 удаа хүртэл зөвхөн сануулга өгнө.</div>
-    </div>
-    <div id="examQs"></div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 12px">
-      <button class="btn btn-primary" type="button" onclick="studentSubmit()">Дуусгах</button>
-      <span class="pill"><span>Warning</span> <strong id="warnCount" class="mono">0</strong></span>
-    </div>
-  `;
-
-  // store questions in window for submit
-  window.__examQuestions = shuffled;
-  window.__examAnswers = {};
-  window.__examRoom = { roomId, stuId };
-
-  const wrap = document.getElementById('examQs');
-  wrap.innerHTML = shuffled.map((q, qi) => `
-    <div class="quiz-card" style="margin-top:12px">
-      <div class="study-badge">Асуулт ${qi+1}</div>
-      <div class="quiz-question"><canvas class="qCanvas" data-text="${escAttr(q.prompt || '')}"></canvas></div>
-      <div class="quiz-options">
-        ${(q.options||[]).slice(0,4).map((opt, oi) => `
-          <button class="quiz-option" type="button" onclick="pick(${qi},${oi})">
-            <span class="opt-label">${String.fromCharCode(65+oi)}</span>
-            <canvas class="oCanvas" data-text="${escAttr(opt)}"></canvas>
+        <div className="modal-foot">
+          <button className="btn btn-primary btn-lg" onClick={handle} disabled={!name.trim()}>
+            ▶ Нэвтрэх
           </button>
-        `).join('')}
-      </div>
-    </div>
-  `).join('');
-
-  // Render question/option text via Canvas (reduce Select/Translate/Gemini text extraction)
-  try { renderExamCanvases(); } catch {}
-
-  // update student status
-  await dbRef(`activeRooms/${roomId}/students/${stuId}`).update({ status: 'in_progress' });
-}
-
-function escAttr(s) {
-  return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#039;');
-}
-
-function renderExamCanvases() {
-  const qCanv = Array.from(document.querySelectorAll('canvas.qCanvas'));
-  const oCanv = Array.from(document.querySelectorAll('canvas.oCanvas'));
-
-  const draw = (canvas, text, fontSize, bold) => {
-    const parent = canvas.parentElement;
-    const maxW = Math.max(260, Math.min(740, (parent?.clientWidth || 360) - 4));
-    const padding = 6;
-    const font = `${bold ? 800 : 600} ${fontSize}px Sora, system-ui, sans-serif`;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.font = font;
-
-    // wrap text
-    const words = String(text || '').split(/\s+/).filter(Boolean);
-    const lines = [];
-    let line = '';
-    for (const w of words) {
-      const test = line ? line + ' ' + w : w;
-      if (ctx.measureText(test).width > (maxW - padding * 2) && line) {
-        lines.push(line);
-        line = w;
-      } else {
-        line = test;
-      }
-    }
-    if (line) lines.push(line);
-    const lineH = Math.round(fontSize * 1.35);
-    const h = Math.max(lineH + padding * 2, lines.length * lineH + padding * 2);
-
-    // set size (hiDPI)
-    const dpr = window.devicePixelRatio || 1;
-    canvas.style.width = maxW + 'px';
-    canvas.style.height = h + 'px';
-    canvas.width = Math.floor(maxW * dpr);
-    canvas.height = Math.floor(h * dpr);
-    ctx.scale(dpr, dpr);
-
-    // clear
-    ctx.clearRect(0, 0, maxW, h);
-    ctx.font = font;
-    ctx.fillStyle = '#e2e0f0';
-    ctx.textBaseline = 'top';
-
-    let y = padding;
-    for (const ln of lines) {
-      ctx.fillText(ln, padding, y);
-      y += lineH;
-    }
-  };
-
-  qCanv.forEach((c) => draw(c, c.dataset.text || '', 18, true));
-  oCanv.forEach((c) => draw(c, c.dataset.text || '', 15, false));
-}
-
-function pick(qi, oi) {
-  if (hardLock) return;
-  if (!window.__examAnswers) return;
-  window.__examAnswers[qi] = oi;
-  // light UI mark: highlight selected option
-  const card = document.querySelectorAll('#examQs .quiz-card')[qi];
-  if (!card) return;
-  card.querySelectorAll('.quiz-option').forEach((b, idx) => {
-    b.style.borderColor = idx === oi ? 'rgba(80,210,194,.65)' : '';
-  });
-}
-
-async function studentSubmit(forcedCheat) {
-  if (hardLock) return;
-  if (studentAutoSubmitted) return;
-  const ctx = window.__examRoom;
-  const qs = window.__examQuestions || [];
-  const ans = window.__examAnswers || {};
-  if (!ctx || !ctx.roomId || !ctx.stuId) return;
-
-  // score
-  let correct = 0;
-  for (let i=0;i<qs.length;i++) {
-    if (Number(ans[i]) === Number(qs[i].answerIndex)) correct++;
-  }
-
-  studentAutoSubmitted = true;
-  disarmAntiCheat();
-
-  await dbRef(`activeRooms/${ctx.roomId}/submissions/${ctx.stuId}`).set({
-    answers: ans,
-    score: correct,
-    total: qs.length,
-    cheated: !!forcedCheat,
-    grade: forcedCheat ? 'F' : null,
-    submittedAt: firebase.database.ServerValue.TIMESTAMP,
-  });
-  await dbRef(`activeRooms/${ctx.roomId}/students/${ctx.stuId}`).update({
-    status: forcedCheat ? 'cheated' : 'submitted',
-  });
-
-  const stage = document.getElementById('studentStage');
-  stage.innerHTML = `
-    <div class="quiz-done">
-      <div style="font-size:3rem">${forcedCheat ? '⛔' : '🏁'}</div>
-      <h2>${forcedCheat ? 'Cheated' : 'Дууслаа'}</h2>
-      <div class="quiz-done-score">${correct} / ${qs.length}</div>
-      <p>${forcedCheat ? 'Tab/апп сольсон тул автоматаар илгээлээ.' : 'Амжилттай илгээлээ.'}</p>
-      <div class="quiz-done-actions">
-        <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
-      </div>
-    </div>
-  `;
-}
-
-async function forceFail(grade, reasonMsg) {
-  if (studentAutoSubmitted) return;
-  const ctx = window.__examRoom;
-  const qs = window.__examQuestions || [];
-  if (!ctx || !ctx.roomId || !ctx.stuId) return;
-  studentAutoSubmitted = true;
-  disarmAntiCheat();
-  const stage = document.getElementById('studentStage');
-  if (stage) {
-    stage.innerHTML = `
-      <div class="quiz-done">
-        <div style="font-size:3rem">⛔</div>
-        <h2>Шалгалт хаагдлаа</h2>
-        <div class="quiz-done-score">${grade}</div>
-        <p>${esc(reasonMsg || '')}</p>
-        <div class="quiz-done-actions">
-          <button class="btn btn-ghost" type="button" onclick="studentLeaveRoom()">Гарах</button>
         </div>
       </div>
-    `;
-  }
-  await dbRef(`activeRooms/${ctx.roomId}/submissions/${ctx.stuId}`).set({
-    answers: {},
-    score: 0,
-    total: qs.length,
-    cheated: true,
-    grade: grade || 'F',
-    reason: reasonMsg || 'forced fail',
-    submittedAt: firebase.database.ServerValue.TIMESTAMP,
-  });
-  await dbRef(`activeRooms/${ctx.roomId}/students/${ctx.stuId}`).update({
-    status: 'submitted',
-  });
-}
-
-function renderStudentStageWaiting(text) {
-  const stage = document.getElementById('studentStage');
-  if (!stage) return;
-  stage.innerHTML = `
-    <div class="empty-state">
-      <div class="emoji">⏳</div>
-      <p>${esc(text || '')}</p>
     </div>
-  `;
+  );
 }
 
-// ── Anti-cheat (student only) ──
-function installAntiCheat(roomId, stuId) {
-  document.body.classList.add('no-select');
-  cheatArmed = false;
-
-  // hard block selection/copy
-  document.addEventListener('copy', blockEvt, true);
-  document.addEventListener('cut', blockEvt, true);
-  document.addEventListener('contextmenu', blockEvt, true);
-  document.addEventListener('selectstart', blockEvt, true);
-  document.addEventListener('pointerdown', onPointerDown, true);
-  document.addEventListener('pointerup', onPointerUp, true);
-  document.addEventListener('pointercancel', onPointerUp, true);
-
-  // block some shortcuts (best-effort)
-  document.addEventListener('keydown', onKey, true);
-
-  // focus/visibility
-  // IMPORTANT: Do NOT warn on every blur.
-  // We only act after returning focus, based on how long they were away.
-  window.addEventListener('blur', () => {
-    if (!cheatArmed) return; // before exam: ignore completely (no spam)
-    blurAt = Date.now();
-    if (blurFailTimer) clearTimeout(blurFailTimer);
-    blurFailTimer = setTimeout(() => {
-      // If still not focused after 10s -> force fail with grade F
-      try {
-        if (!document.hasFocus()) forceFail('F', '10 секундээс дээш цонхноос гарсан тул F дүнтэй хаалаа.');
-      } catch {}
-    }, 10000);
-  }, true);
-  window.addEventListener('focus', () => {
-    if (!cheatArmed) { blurAt = 0; return; }
-    if (blurFailTimer) { clearTimeout(blurFailTimer); blurFailTimer = null; }
-    if (!blurAt) return;
-    const durMs = Date.now() - blurAt;
-    blurAt = 0;
-    // 0.8s+ away = tab/app switch (general cheat)
-    if (durMs >= 800) onCheat('tab');
-    // 3s+ away = assist menu (Ask Gemini / Page tools) strike
-    if (durMs >= 3000) onCheat('assist_menu');
-  }, true);
-  document.addEventListener('visibilitychange', () => {
-    if (!cheatArmed) return;
-    if (document.hidden) onCheat('assist_menu');
-  }, true);
-  window.addEventListener('pagehide', () => onCheat('assist_menu'), true);
-
-  // fullscreen exit detection (when armed)
-  document.addEventListener('fullscreenchange', () => {
-    if (!cheatArmed) return;
-    if (!document.fullscreenElement) onCheat('tab');
-  }, true);
-
-  // split screen / resize + viewport changes (assist menu can shrink viewport height)
-  window.addEventListener('resize', onResize, true);
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportResize, true);
-
-  function blockEvt(e) { e.preventDefault(); }
-  let lpT = null;
-  function onPointerDown(e) {
-    if (!cheatArmed) return;
-    // long-press often triggers Circle-to-Search / assist menus
-    if (lpT) clearTimeout(lpT);
-    lpT = setTimeout(() => { onCheat('assist_menu'); }, 650);
-  }
-  function onPointerUp() {
-    if (lpT) clearTimeout(lpT);
-    lpT = null;
-  }
-  function onKey(e) {
-    // Don't count before exam; but once armed, try to block common "escape" shortcuts
-    if (!cheatArmed) return;
-    const k = (e.key || '').toLowerCase();
-    if (e.ctrlKey && ['c','x','v','p','s','u','l','t','w','r','f'].includes(k)) e.preventDefault();
-    if (e.metaKey && ['c','x','v','p','s','l','t','w','r','f'].includes(k)) e.preventDefault();
-  }
-  function onResize() {
-    // heuristic: split-screen detection; ignore zoom changes
-    if (window.visualViewport && window.visualViewport.scale && window.visualViewport.scale !== 1) return;
-    const sw = screen.availWidth || screen.width || window.innerWidth;
-    const sh = screen.availHeight || screen.height || window.innerHeight;
-    if (window.innerWidth < sw * 0.68 || window.innerHeight < sh * 0.68) onCheat('split');
-  }
-
-  let lastVh = window.visualViewport ? window.visualViewport.height : 0;
-  function onViewportResize() {
-    if (!cheatArmed) return;
-    if (!window.visualViewport) return;
-    // Ignore zoom
-    if (window.visualViewport.scale && window.visualViewport.scale !== 1) return;
-    const vh = window.visualViewport.height;
-    if (lastVh && (lastVh - vh) > 110) {
-      onCheat('assist_menu');
-    }
-    lastVh = vh;
-  }
-
-  async function onCheat(reason) {
-    if (studentAutoSubmitted) return;
-    // Before exam starts: block/notify but DO NOT count as cheat
-    if (!cheatArmed) {
-      // Don't count; just pause UI shortly
-      lockExam(1600, 'Анхаар', 'Шалгалт эхлэхээс өмнө энэ хуудсаас гарах/Tab солихыг хориглоно.');
-      return;
-    }
-
-    // Debounce (Safari fires multiple events quickly)
-    const now = Date.now();
-    if (now - lastCheatAt < 1200) return;
-    lastCheatAt = now;
-
-    // Assist menu / AI tools rule (Ask Gemini / Page tools / Translate UI):
-    // 1st time -> warning, 2nd time -> end exam.
-    if (reason === 'assist_menu') {
-      aiTranslateStrikes++;
-      if (aiTranslateStrikes === 1) {
-        lockExam(3500, 'Сэрэмжлүүлэг', 'Та туслах цэс (Ask Gemini / Page tools / Translate) ашиглаж байна! Дахин давтагдвал шалгалт дуусна.');
-        return;
-      }
-      // second strike -> end exam (auto submit current answers)
-      lockExam(2500, 'Шалгалт дууслаа', 'Туслах цэс 2 удаа илэрсэн тул шалгалтыг дуусгалаа.');
-      await studentSubmit(true);
-      return;
-    }
-
-    // General cheats (tab switch / split screen)
-    if (reason === 'tab' || reason === 'split') {
-      totalCheat++;
-      const wEl = document.getElementById('warnCount');
-      if (wEl) wEl.textContent = String(totalCheat);
-      await dbRef(`activeRooms/${roomId}/students/${stuId}/cheatCount`).transaction(v => (Number(v||0) + 1));
-
-      if (!warnedTotalCheat && totalCheat > 3) {
-        warnedTotalCheat = true;
-        lockExam(2500, 'Сэрэмжлүүлэг', 'Анхаар: Tab/апп солих, split хийх зэрэг нийт cheat 3-аас давлаа.');
-      }
-    }
-  }
-
-  // stash handlers for cleanup
-  window.__antiCheatCleanup = () => {
-    document.body.classList.remove('no-select');
-    document.removeEventListener('copy', blockEvt, true);
-    document.removeEventListener('cut', blockEvt, true);
-    document.removeEventListener('contextmenu', blockEvt, true);
-    document.removeEventListener('selectstart', blockEvt, true);
-    document.removeEventListener('pointerdown', onPointerDown, true);
-    document.removeEventListener('pointerup', onPointerUp, true);
-    document.removeEventListener('pointercancel', onPointerUp, true);
-    document.removeEventListener('keydown', onKey, true);
-    window.removeEventListener('blur', onCheat, true);
-    window.removeEventListener('resize', onResize, true);
-    if (window.visualViewport) window.visualViewport.removeEventListener('resize', onResize, true);
-  };
+// ─── SETTINGS MODAL ───────────────────────────────────────────────────────────
+function SettingsModal({ apiKey, onSave, onClose }) {
+  const [key, setKey] = useState(apiKey || '');
+  const [show, setShow] = useState(false);
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-head">
+          <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>⚙ Тохиргоо</div>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Groq API түлхүүр</label>
+            <div style={{display:'flex',gap:8}}>
+              <input
+                className="form-input"
+                type={show ? 'text' : 'password'}
+                placeholder="gsk_..."
+                value={key}
+                onChange={e => setKey(e.target.value)}
+                style={{flex:1}}
+              />
+              <button className="btn btn-outline btn-sm" onClick={() => setShow(s => !s)}>{show ? '🙈' : '👁'}</button>
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-outline" onClick={onClose}>Болих</button>
+          <button className="btn btn-primary" onClick={() => { onSave(key.trim()); onClose(); }}>Хадгалах</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function armAntiCheat(roomId, stuId) {
-  // Ensure installed
-  if (!window.__antiCheatCleanup) installAntiCheat(roomId, stuId);
-  cheatArmed = true;
+// ─── AI PARSE STEP ─────────────────────────────────────────────────────────────
+function AIParseStep({ apiKey, onParsed, onManual, onBack }) {
+  const [raw, setRaw] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const [err, setErr] = useState('');
 
-  // Require fullscreen (best-effort). If user exits fullscreen -> counts as cheat.
-  try {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
-  } catch {}
-}
-
-function disarmAntiCheat() {
-  cheatArmed = false;
-}
-
-function disableAntiCheat() {
-  if (window.__antiCheatCleanup) {
-    try { window.__antiCheatCleanup(); } catch {}
-    window.__antiCheatCleanup = null;
-  }
-  hideOverlay();
-}
-
-function showOverlay(title, msg) {
-  let ov = document.getElementById('antiCheatOverlay');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'antiCheatOverlay';
-    ov.className = 'overlay';
-    ov.innerHTML = `<div class="card"><h3 id="ovTitle"></h3><p id="ovMsg"></p></div>`;
-    document.body.appendChild(ov);
-  }
-  document.getElementById('ovTitle').textContent = title;
-  document.getElementById('ovMsg').textContent = msg;
-  ov.classList.add('visible');
-}
-function hideOverlay() {
-  const ov = document.getElementById('antiCheatOverlay');
-  if (ov) ov.classList.remove('visible');
-}
-
-function esc(s) {
-  return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#039;');
-}
-
-function withTimeout(promise, ms, label) {
-  let t;
-  const timeout = new Promise((_, rej) => {
-    t = setTimeout(() => rej(new Error(`${label} timeout (${ms}ms)`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
-}
-
-// ── QR scan (camera) ──
-let __scanStream = null;
-let __scanTimer = null;
-
-function setScanStatus(msg, isErr) {
-  const el = document.getElementById('scanStatus');
-  if (!el) return;
-  el.className = 'status-bar visible' + (isErr ? ' err' : '');
-  el.textContent = msg;
-}
-
-async function startQrScan() {
-  const modal = document.getElementById('scanModal');
-  const video = document.getElementById('scanVideo');
-  const reader = document.getElementById('qrReader');
-  if (!modal || !video) return;
-
-  modal.classList.add('visible');
-  setScanStatus('⏳ Camera нээж байна…');
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setScanStatus('❌ Энэ төхөөрөмж/хөтөч camera дэмжихгүй байна.', true);
-    return;
-  }
-  if (!window.isSecureContext) {
-    setScanStatus('❌ Camera ажиллахын тулд HTTPS хэрэгтэй (GitHub Pages дээр OK).', true);
-    return;
-  }
-
-  try {
-    // Preferred: html5-qrcode (better mobile support)
-    if (window.Html5Qrcode && reader) {
-      reader.innerHTML = '';
-      video.style.display = 'none';
-      const qr = new Html5Qrcode('qrReader');
-      window.__html5qr = qr;
-      setScanStatus('QR-г camera-д ойртуулж чиглүүлээрэй.');
-      await qr.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        (decodedText) => {
-          const pin = parsePinFromText(decodedText);
-          document.getElementById('stuQrText').value = decodedText || '';
-          if (pin) document.getElementById('stuPin').value = pin;
-          setScanStatus(pin ? `✅ Оллоо. PIN: ${pin}` : 'QR уншлаа, гэхдээ PIN олдсонгүй.', !pin);
-          setTimeout(() => stopQrScan(), 450);
-        },
-        () => {},
-      );
-      return;
-    }
-
-    // Fallback: BarcodeDetector
-    if (!('BarcodeDetector' in window)) {
-      setScanStatus('❌ Энэ browser QR уншигч дэмжихгүй байна. QR текстээ paste хийж ашигла.', true);
-      return;
-    }
-
-    __scanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' },
-      audio: false,
-    });
-    video.srcObject = __scanStream;
-    await video.play();
-    video.style.display = '';
-    if (reader) reader.innerHTML = '';
-
-    const detector = new BarcodeDetector({ formats: ['qr_code'] });
-    setScanStatus('QR-г camera-д ойртуулж чиглүүлээрэй.');
-
-    __scanTimer = setInterval(async () => {
-      try {
-        const barcodes = await detector.detect(video);
-        if (!barcodes || !barcodes.length) return;
-        const raw = barcodes[0].rawValue || '';
-        const pin = parsePinFromText(raw);
-        if (pin) {
-          document.getElementById('stuPin').value = pin;
-          document.getElementById('stuQrText').value = raw;
-          setScanStatus(`✅ Оллоо. PIN: ${pin}`);
-          setTimeout(() => stopQrScan(), 500);
-        } else {
-          document.getElementById('stuQrText').value = raw;
-          setScanStatus('QR уншлаа, гэхдээ PIN олдсонгүй. QR текстийг шалга.', true);
-        }
-      } catch {}
-    }, 350);
-  } catch (e) {
-    console.error(e);
-    setScanStatus('❌ Camera permission denied / алдаа гарлаа.', true);
-  }
-}
-
-function stopQrScan() {
-  const modal = document.getElementById('scanModal');
-  if (modal) modal.classList.remove('visible');
-
-  // stop html5-qrcode if running
-  if (window.__html5qr) {
+  const doParse = async () => {
+    if (!raw.trim()) return;
+    if (!apiKey) { setErr('API түлхүүр байхгүй. Тохиргоо→ API key оруулна уу.'); return; }
+    setParsing(true); setErr('');
     try {
-      window.__html5qr.stop().catch(() => {}).finally(() => {
-        try { window.__html5qr.clear(); } catch {}
-        window.__html5qr = null;
-      });
-    } catch {}
-  }
-  if (__scanTimer) {
-    clearInterval(__scanTimer);
-    __scanTimer = null;
-  }
-  if (__scanStream) {
-    __scanStream.getTracks().forEach((t) => t.stop());
-    __scanStream = null;
-  }
-  const reader = document.getElementById('qrReader');
-  if (reader) reader.innerHTML = '';
-  const video = document.getElementById('scanVideo');
-  if (video) video.srcObject = null;
+      const qs = await parseTestWithAI(raw, apiKey);
+      if (!Array.isArray(qs) || qs.length === 0) throw new Error('Асуулт илрэхгүй байна');
+      onParsed(qs);
+    } catch (e) {
+      setErr('Алдаа: ' + e.message);
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="ai-hint-box">
+        <div className="ai-icon">✨</div>
+        <div className="ai-hint-text">
+          <strong>AI автомат задлан шинжилгээ</strong><br/>
+          Тестийн текстийг доорх талбарт paste хийнэ үү. Ямар ч формат болно —
+          нэг мөрт, markdown, дугаарлалттай, нэргүй. AI таны тестийг автоматаар стандарт формат руу хөрвүүлнэ.
+        </div>
+      </div>
+
+      {!apiKey && (
+        <div className="apikey-banner">
+          ⚠️ API түлхүүр оруулаагүй — AI задлан шинжилгээ ажиллахгүй.
+          <button className="btn btn-outline btn-sm" onClick={() => alert('Дээрх ⚙ Тохиргоо товчоор API key оруулна уу')}>Тохиргоо</button>
+        </div>
+      )}
+
+      {parsing ? (
+        <div className="parsing-overlay">
+          <div className="spinner"></div>
+          <div style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1.1rem',marginBottom:8}}>AI задлан шинжилж байна...</div>
+          <div style={{fontSize:'0.85rem',color:'var(--text2)'}}>Тестийн асуулт, хариултуудыг автоматаар таних</div>
+        </div>
+      ) : (
+        <>
+          <div className="form-group">
+            <label className="form-label">Тестийн текст</label>
+            <textarea
+              className="form-textarea"
+              style={{minHeight:240,fontFamily:'monospace',fontSize:'0.82rem'}}
+              placeholder={"Тестийн текстийг энд paste хийнэ үү...\n\n1. The police ________ the thief...\n* A) catched\n* B) caught\n* C) caughted\n* D) had catch\n..."}
+              value={raw}
+              onChange={e => setRaw(e.target.value)}
+            />
+            {err && <div className="form-error">⚠ {err}</div>}
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
+            <button className="btn btn-outline" onClick={onBack}>← Буцах</button>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-outline" onClick={onManual}>✏ Гараар оруулах</button>
+              <button className="btn btn-violet" onClick={doParse} disabled={!raw.trim() || !apiKey}>
+                ✨ AI задлан шинжлэх
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
-// ── Char count ──
-function updateChar() {
-  const v = document.getElementById('inputText').value.length;
-  document.getElementById('charCount').textContent = v.toLocaleString() + ' тэмдэгт';
-}
-
-// ══════════════════════════════════════════
-// ── Generate ──
-// ══════════════════════════════════════════
-async function generateFlashcards() {
-  const inputText = document.getElementById('inputText').value.trim();
-  const statusBar = document.getElementById('statusBar');
-  const btn       = document.getElementById('genBtn');
-
-  if (!inputText) { alert('Текстээ оруулна уу!'); return; }
-
-  btn.disabled = true;
-  statusBar.className = 'status-bar visible';
-  statusBar.textContent = '⏳ AI бодож байна… түр хүлээнэ үү.';
-
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ userName, inputText })
+// ─── QUESTION EDITOR ──────────────────────────────────────────────────────────
+function QuestionEditor({ questions, onChange }) {
+  const setQ = (idx, field, val) => {
+    const next = questions.map((q, i) => i === idx ? {...q, [field]: val} : q);
+    onChange(next);
+  };
+  const setOpt = (qi, oi, val) => {
+    const next = questions.map((q, i) => {
+      if (i !== qi) return q;
+      const opts = q.options.map((o, j) => j === oi ? {...o, text: val} : o);
+      return {...q, options: opts};
     });
+    onChange(next);
+  };
+  const addQ = () => {
+    onChange([...questions, {
+      id: questions.length + 1,
+      text: '',
+      options: [{key:'A',text:''},{key:'B',text:''},{key:'C',text:''},{key:'D',text:''}],
+      answer: null
+    }]);
+  };
+  const removeQ = idx => onChange(questions.filter((_, i) => i !== idx));
 
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-
-    if (data.error) {
-      statusBar.className = 'status-bar visible error';
-      statusBar.textContent = '❌ ' + data.error;
-      return;
-    }
-
-    let parsed = [];
-
-    if (Array.isArray(data.cards) && data.cards.length) {
-      parsed = data.cards.map(c => ({
-        q: (c.q || c.question || c.front || '').toString().trim(),
-        a: (c.a || c.answer  || c.back  || '').toString().trim()
-      })).filter(c => c.q && c.a && c.q !== c.a);
-    }
-
-    if (!parsed.length && Array.isArray(data) && data.length) {
-      parsed = data.map(c => ({
-        q: (c.q || c.question || c.front || '').toString().trim(),
-        a: (c.a || c.answer  || c.back  || '').toString().trim()
-      })).filter(c => c.q && c.a && c.q !== c.a);
-    }
-
-    if (!parsed.length) {
-      const raw = typeof data === 'string' ? data
-                : (data.result || data.output || data.text || '');
-      if (raw) parsed = parseRawText(raw);
-    }
-
-    if (!parsed.length) {
-      throw new Error('Карт задлах боломжгүй. Backend-ийн хариуг шалгана уу.');
-    }
-
-    const newCards = parsed.map(c => ({ q: c.q, a: c.a, status: 'none' }));
-    cards.push(...newCards);
-    save();
-
-    statusBar.className = 'status-bar visible';
-    statusBar.textContent = `✅ ${newCards.length} карт амжилттай үүслээ!`;
-    document.getElementById('inputText').value = '';
-    updateChar();
-
-    setTimeout(() => { switchTab('cards'); }, 800);
-
-  } catch(e) {
-    statusBar.className = 'status-bar visible error';
-    statusBar.textContent = '❌ Алдаа: ' + e.message;
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-// ══════════════════════════════════════════
-// ── Raw text parser (backup) ──
-// ══════════════════════════════════════════
-function parseRawText(raw) {
-  let parsed = [];
-
-  // 1) JSON array
-  try {
-    const match = raw.match(/\[[\s\S]*?\]/);
-    if (match) {
-      const arr = JSON.parse(match[0]);
-      if (Array.isArray(arr) && arr.length) parsed = arr;
-    }
-  } catch {}
-
-  // 2) "Асуулт: ... Хариулт: ..."
-  if (!parsed.length) {
-    const blocks = raw.split(/\n\s*\n/);
-    for (const block of blocks) {
-      const qm = block.match(/(?:Асуулт|Q)\s*[:\-]\s*(.+)/i);
-      const am = block.match(/(?:Хариулт|A)\s*[:\-]\s*([\s\S]+)/i);
-      if (qm && am) {
-        parsed.push({ q: qm[1].trim(), a: am[1].trim().split('\n')[0].trim() });
-      }
-    }
-  }
-
-  // 3) Line-by-line
-  if (!parsed.length) {
-    const lines = raw.split('\n');
-    let cur = {};
-    for (const l of lines) {
-      const t = l.trim();
-      const qm = t.match(/^(?:Асуулт|Q)\s*[:\-]\s*(.+)/i);
-      const am = t.match(/^(?:Хариулт|A)\s*[:\-]\s*(.+)/i);
-      if (qm) { cur.q = qm[1].trim(); }
-      else if (am && cur.q) { cur.a = am[1].trim(); parsed.push({...cur}); cur = {}; }
-    }
-  }
-
-  // 4) **Front:** ... **Back:** ...
-  if (!parsed.length) {
-    const blocks = raw.split(/\n\s*\n|(?=\*\*Front:|Here is|Flashcard \d)/i);
-    for (const block of blocks) {
-      const qm = block.match(/\*{0,2}(?:Front|Question)\*{0,2}\s*:?\*{0,2}\s*(.+)/i);
-      const am = block.match(/\*{0,2}(?:Back|Answer)\*{0,2}\s*:?\*{0,2}\s*(.+)/i);
-      if (qm && am) parsed.push({ q: qm[1].trim(), a: am[1].trim() });
-    }
-  }
-
-  return parsed.map(c => ({ q: c.q || '', a: c.a || '' }))
-               .filter(c => c.q && c.a && c.q !== c.a);
-}
-
-// ══════════════════════════════════════════
-// ── Render cards ──
-// ══════════════════════════════════════════
-function renderCards() {
-  const grid = document.getElementById('cardsGrid');
-  if (!cards.length) {
-    grid.innerHTML = `<div class="empty-state"><div class="emoji">📭</div><p>Одоохондоо карт байхгүй байна.<br>«Үүсгэх» таб дээр текст оруулна уу.</p></div>`;
-    return;
-  }
-  grid.innerHTML = cards.map((c, i) => `
-    <div class="flip-wrap ${c.flipped?'flipped':''}" onclick="flipCard(event,${i})" style="animation-delay:${i*0.04}s">
-      <div class="flip-inner">
-        <div class="flip-front">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div class="card-badge">Асуулт · ${i+1}</div>
-            <div class="card-tag ${c.status==='know'?'know':c.status==='unknow'?'unknow':''}"></div>
+  return (
+    <div>
+      {questions.map((q, qi) => (
+        <div className="question-item" key={qi} style={{marginBottom:16}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+            <span className="q-num">#{q.id}</span>
+            <button className="btn btn-red btn-sm" onClick={() => removeQ(qi)}>✕ Устгах</button>
           </div>
-          <div class="card-text">${esc(c.q)}</div>
-          <div class="card-actions">
-            <button class="btn btn-sm" onclick="openEdit(event,${i})">✏️ Засах</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteCard(event,${i})">🗑</button>
+          <textarea
+            className="form-textarea"
+            style={{minHeight:60,fontSize:'0.875rem',marginBottom:10}}
+            placeholder="Асуултын текст..."
+            value={q.text}
+            onChange={e => setQ(qi, 'text', e.target.value)}
+          />
+          <div className="options-grid" style={{marginBottom:10}}>
+            {q.options.map((opt, oi) => (
+              <div key={opt.key} style={{display:'flex',gap:7,alignItems:'center'}}>
+                <div className="option-key" style={{background: q.answer===opt.key ? 'var(--green)' : undefined, color: q.answer===opt.key ? 'white' : undefined, border: q.answer===opt.key ? '1.5px solid var(--green)' : undefined}}>{opt.key}</div>
+                <input
+                  className="form-input"
+                  style={{flex:1,padding:'6px 10px',fontSize:'0.82rem'}}
+                  placeholder={`${opt.key} хариулт...`}
+                  value={opt.text}
+                  onChange={e => setOpt(qi, oi, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="answer-select-row">
+            <span className="answer-label">Зөв хариулт:</span>
+            {q.options.map(opt => (
+              <button
+                key={opt.key}
+                className={`ans-btn ${q.answer === opt.key ? 'selected' : ''}`}
+                onClick={() => setQ(qi, 'answer', q.answer === opt.key ? null : opt.key)}
+              >{opt.key}</button>
+            ))}
+            {!q.answer && <span style={{fontSize:'0.75rem',color:'var(--text3)',marginLeft:6}}>— оноогүй</span>}
           </div>
         </div>
-        <div class="flip-back">
-          <div class="card-badge">Хариулт</div>
-          <div class="card-text">${esc(c.a)}</div>
+      ))}
+      <button className="btn btn-outline" style={{width:'100%',justifyContent:'center',padding:'11px'}} onClick={addQ}>
+        + Асуулт нэмэх
+      </button>
+    </div>
+  );
+}
+
+// ─── CREATE EXAM ──────────────────────────────────────────────────────────────
+function CreateExam({ apiKey, onSave, onCancel }) {
+  const [step, setStep] = useState(1); // 1=info, 2=parse, 3=review
+  const [info, setInfo] = useState({ title: '', subject: 'Англи хэл', duration: 45, passingScore: 60 });
+  const [questions, setQuestions] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  const stepLabels = ['Мэдээлэл', 'Тест оруулах', 'Хянах & нийтлэх'];
+
+  const handleParsed = qs => {
+    setQuestions(qs);
+    setStep(3);
+  };
+
+  const handleManual = () => {
+    setQuestions([{id:1,text:'',options:[{key:'A',text:''},{key:'B',text:''},{key:'C',text:''},{key:'D',text:''}],answer:null}]);
+    setStep(3);
+  };
+
+  const handlePublish = () => {
+    const validQs = questions.filter(q => q.text.trim());
+    if (validQs.length === 0) { alert('Дор хаяж нэг асуулт оруулна уу'); return; }
+    setSaving(true);
+    setTimeout(() => {
+      const exam = {
+        id: uid(),
+        ...info,
+        questions: validQs.map((q, i) => ({...q, id: i + 1})),
+        createdAt: new Date().toISOString(),
+        published: true,
+        submissionCount: 0
+      };
+      onSave(exam);
+    }, 300);
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <h2 className="page-title">✏ Шинэ тест үүсгэх</h2>
+      </div>
+
+      {/* Steps */}
+      <div className="steps mb-4">
+        {stepLabels.map((lbl, i) => (
+          <React.Fragment key={i}>
+            <div className={`step ${step === i+1 ? 'active' : step > i+1 ? 'done' : ''}`}>
+              <div className="step-num">{step > i+1 ? '✓' : i+1}</div>
+              <span>{lbl}</span>
+            </div>
+            {i < stepLabels.length - 1 && <div className="step-line" />}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          {step === 1 && (
+            <div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Шалгалтын нэр</label>
+                  <input className="form-input" placeholder="жн: Simple Past Tense" value={info.title} onChange={e => setInfo(p => ({...p, title: e.target.value}))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Хичээл</label>
+                  <input className="form-input" placeholder="жн: Англи хэл" value={info.subject} onChange={e => setInfo(p => ({...p, subject: e.target.value}))} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Хугацаа (минут)</label>
+                  <input className="form-input" type="number" min="5" max="180" value={info.duration} onChange={e => setInfo(p => ({...p, duration: +e.target.value}))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Тэнцэх онооны босго (%)</label>
+                  <input className="form-input" type="number" min="0" max="100" value={info.passingScore} onChange={e => setInfo(p => ({...p, passingScore: +e.target.value}))} />
+                </div>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',marginTop:8}}>
+                <button className="btn btn-outline" onClick={onCancel}>Болих</button>
+                <button className="btn btn-primary" onClick={() => setStep(2)} disabled={!info.title.trim()}>Дараах →</button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <AIParseStep
+              apiKey={apiKey}
+              onParsed={handleParsed}
+              onManual={handleManual}
+              onBack={() => setStep(1)}
+            />
+          )}
+
+          {step === 3 && (
+            <div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+                <div>
+                  <div className="card-title">{info.title}</div>
+                  <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:3}}>
+                    {questions.filter(q=>q.text).length} асуулт · {info.duration} мин · {info.subject}
+                    {' · '}<span style={{color: questions.filter(q=>q.answer).length === questions.filter(q=>q.text).length ? 'var(--green)' : 'var(--amber)'}}>
+                      {questions.filter(q=>q.answer).length}/{questions.filter(q=>q.text).length} хариулт тохируулсан
+                    </span>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:10}}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setStep(2)}>← Засах</button>
+                  <button className="btn btn-green" onClick={handlePublish} disabled={saving}>
+                    {saving ? '...' : '🚀 Нийтлэх'}
+                  </button>
+                </div>
+              </div>
+              <QuestionEditor questions={questions} onChange={setQuestions} />
+            </div>
+          )}
         </div>
       </div>
     </div>
-  `).join('');
-  updateStats();
+  );
 }
 
-function flipCard(e, i) {
-  if (e.target.closest('button')) return;
-  cards[i].flipped = !cards[i].flipped;
-  const wrap = document.querySelectorAll('.flip-wrap')[i];
-  wrap.classList.toggle('flipped', cards[i].flipped);
-}
+// ─── QR MODAL ─────────────────────────────────────────────────────────────────
+function QRModal({ exam, onClose }) {
+  const [step, setStep] = useState('confirm');
+  const qrRef = useRef(null);
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+  useEffect(() => {
+    if (step !== 'qr' || !qrRef.current) return;
+    qrRef.current.innerHTML = '';
+    try {
+      const base = window.location.href.split('#')[0];
+      const data = LZString.compressToEncodedURIComponent(JSON.stringify(exam));
+      const url = base + '#qr=' + data;
+      new QRCode(qrRef.current, {
+        text: url,
+        width: 240, height: 240,
+        colorDark: '#1e293b', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch(e) { qrRef.current.innerHTML = '<div style="color:red">QR үүсгэхэд алдаа гарлаа</div>'; }
+  }, [step]);
 
-// ── Stats ──
-function updateStats() {
-  document.getElementById('totalCount').textContent  = cards.length;
-  document.getElementById('knowCount').textContent   = cards.filter(c=>c.status==='know').length;
-  document.getElementById('unknowCount').textContent = cards.filter(c=>c.status==='unknow').length;
-  const label = cards.length > 0 ? `🃏 Картууд (${cards.length})` : '🃏 Картууд';
-  document.getElementById('tab-cards').textContent = label;
-  const qLabel = cards.length >= 4 ? `🧪 Тест (${cards.length})` : '🧪 Тест';
-  document.getElementById('tab-quiz').textContent = qLabel;
-}
-
-// ── Edit ──
-function openEdit(e, i) {
-  e.stopPropagation();
-  editIdx = i;
-  document.getElementById('editQ').value = cards[i].q;
-  document.getElementById('editA').value = cards[i].a;
-  document.getElementById('editModal').classList.add('open');
-}
-function closeModal() { document.getElementById('editModal').classList.remove('open'); }
-function saveEdit() {
-  cards[editIdx].q = document.getElementById('editQ').value.trim();
-  cards[editIdx].a = document.getElementById('editA').value.trim();
-  save(); closeModal(); renderCards();
-}
-
-function deleteCard(e, i) {
-  e.stopPropagation();
-  if (!confirm('Энэ картыг устгах уу?')) return;
-  cards.splice(i, 1);
-  save(); renderCards();
-}
-
-function clearAll() {
-  if (!cards.length) return;
-  if (!confirm('Бүх картыг устгах уу?')) return;
-  cards = []; save(); renderCards();
-}
-
-function resetStatus() {
-  cards.forEach(c => { c.status = 'none'; c.flipped = false; });
-  save(); renderCards();
-}
-
-// ── Export ──
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(cards.map(c=>({question:c.q,answer:c.a})),null,2)], {type:'application/json'});
-  dl(blob, 'flashcards.json');
-}
-function exportCSV() {
-  const rows = [['Асуулт','Хариулт'], ...cards.map(c=>[`"${c.q.replace(/"/g,'""')}"`,`"${c.a.replace(/"/g,'""')}"`])];
-  const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv;charset=utf-8'});
-  dl(blob, 'flashcards.csv');
-}
-function dl(blob, name) {
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = name; a.click();
-}
-
-// ══════════════════════════════════════════
-// ── QUIZ MODE ──
-// ══════════════════════════════════════════
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function initQuiz() {
-  const wrap = document.getElementById('quizWrap');
-
-  if (cards.length < 4) {
-    wrap.innerHTML = `
-      <div class="quiz-start-box">
-        <div class="emoji">🧪</div>
-        <h2>Тест өгөх</h2>
-        <p>Тест эхлэхийн тулд дор хаяж <strong>4 флаш карт</strong> хэрэгтэй.<br>
-           Одоогоор <strong>${cards.length}</strong> карт байна.</p>
-        <button class="btn btn-primary" onclick="switchTab('gen')">✦ Карт үүсгэх</button>
-      </div>`;
-    return;
-  }
-
-  // Show start screen
-  wrap.innerHTML = `
-    <div class="quiz-start-box">
-      <div class="emoji">🧪</div>
-      <h2>Тест өгөх</h2>
-      <p>Флаш картуудаасаа сэдэвлэсэн дөрвөн сонголттой тест.<br>
-         Зөв хариултыг сонгоорой!</p>
-      <div class="quiz-info-row">
-        <span class="quiz-info-pill">📋 ${cards.length} асуулт</span>
-        <span class="quiz-info-pill">✦ 4 сонголт</span>
-      </div>
-      <button class="btn btn-primary" style="width:100%" onclick="startQuiz()">▶ Тест эхлэх</button>
-    </div>`;
-}
-
-function startQuiz() {
-  quizDeck     = shuffle(cards.map((c, i) => ({...c, _origIdx: i})));
-  quizIdx      = 0;
-  quizScore    = 0;
-  quizWrong    = 0;
-  quizAnswered = false;
-
-  const wrap = document.getElementById('quizWrap');
-  wrap.innerHTML = `
-    <div class="study-progress" style="width:100%;max-width:520px">
-      <div class="prog-track"><div class="prog-fill" id="qProgFill" style="width:0%"></div></div>
-      <div class="prog-label">
-        <span id="qProgTxt">1 / ${quizDeck.length}</span>
-        <span class="quiz-score-display" id="qScoreDisplay">⭐ 0</span>
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        {step === 'confirm' ? (
+          <>
+            <div className="modal-head">
+              <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>📱 QR код үүсгэх</div>
+            </div>
+            <div className="modal-body">
+              <div style={{fontSize:'0.95rem',marginBottom:10}}>
+                <strong>"{exam.title}"</strong> шалгалтын QR кодыг үүсгэх үү?
+              </div>
+              <div style={{fontSize:'0.85rem',color:'var(--text2)',lineHeight:1.7}}>
+                Сурагчид QR кодыг уншуулахад шалгалт шууд нээгдэнэ.<br/>
+                Нэр, анги оруулахад тест автоматаар эхэлнэ.
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-outline" onClick={onClose}>Болих</button>
+              <button className="btn btn-primary" onClick={() => setStep('qr')}>✓ Тийм, үүсгэх</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="modal-head">
+              <div>
+                <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>📱 {exam.title}</div>
+                <div style={{fontSize:'0.8rem',color:'var(--text2)'}}>Сурагчид доорх QR кодыг уншуулна уу</div>
+              </div>
+            </div>
+            <div className="modal-body" style={{textAlign:'center',padding:'28px 24px'}}>
+              <div className="qr-wrap" style={{marginBottom:16}}>
+                <div ref={qrRef} />
+              </div>
+              <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:8}}>
+                ❓ {exam.questions.length} асуулт &nbsp;·&nbsp; ⏱ {exam.duration} мин &nbsp;·&nbsp; 📚 {exam.subject}
+              </div>
+              <div style={{marginTop:12,fontSize:'0.78rem',color:'var(--text3)'}}>
+                Сурагч уншуулмагц нэр, ангиа оруулаад шалгалт эхэлнэ
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-primary" onClick={onClose}>Хаах</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
-
-    <div class="quiz-card" id="quizCard">
-      <div class="study-badge">Асуулт</div>
-      <div class="quiz-question" id="quizQ"></div>
-    </div>
-
-    <div class="quiz-feedback" id="quizFeedback"></div>
-
-    <div class="quiz-options" id="quizOptions"></div>
-
-    <div class="quiz-done" id="quizDone">
-      <div style="font-size:3rem">🏆</div>
-      <h2>Тест дууслаа!</h2>
-      <div class="quiz-done-score" id="quizDoneScore"></div>
-      <div class="quiz-done-sub" id="quizDoneSub"></div>
-      <div class="quiz-result-row">
-        <span class="quiz-result-pill good" id="quizDoneGood">✓ 0 зөв</span>
-        <span class="quiz-result-pill bad"  id="quizDoneBad">✕ 0 буруу</span>
-      </div>
-      <p id="quizDoneTxt"></p>
-      <div class="quiz-done-actions">
-        <button class="btn btn-primary" onclick="startQuiz()">↺ Дахин тест</button>
-        <button class="btn btn-sm" onclick="switchTab('study')">📚 Судлах горим</button>
-      </div>
-    </div>`;
-
-  showQuizQuestion();
+  );
 }
 
-function showQuizQuestion() {
-  if (quizIdx >= quizDeck.length) { showQuizDone(); return; }
-
-  quizAnswered = false;
-  const correct = quizDeck[quizIdx];
-
-  // Build wrong answers from other cards (avoid exact same answer text)
-  const otherAnswers = cards
-    .filter((_, i) => i !== correct._origIdx && cards[i].a !== correct.a)
-    .map(c => c.a);
-
-  const wrongPool = shuffle(otherAnswers).slice(0, 3);
-  // Pad if not enough distinct wrong answers
-  while (wrongPool.length < 3) wrongPool.push('—');
-
-  const LABELS = ['A', 'B', 'C', 'D'];
-  const options = shuffle([
-    { text: correct.a, isCorrect: true },
-    ...wrongPool.map(w => ({ text: w, isCorrect: false }))
-  ]);
-
-  // Update question
-  document.getElementById('quizQ').textContent = correct.q;
-
-  // Update progress
-  const pct = Math.round(quizIdx / quizDeck.length * 100);
-  document.getElementById('qProgFill').style.width = pct + '%';
-  document.getElementById('qProgTxt').textContent = `${quizIdx + 1} / ${quizDeck.length}`;
-  document.getElementById('qScoreDisplay').textContent = `⭐ ${quizScore}`;
-
-  // Clear feedback
-  const fb = document.getElementById('quizFeedback');
-  fb.className = 'quiz-feedback';
-  fb.textContent = '';
-
-  // Render options
-  document.getElementById('quizOptions').innerHTML = options.map((opt, i) => `
-    <button
-      class="quiz-option"
-      onclick="answerQuiz(this, ${opt.isCorrect}, '${escAttr(correct.a)}')"
-      data-correct="${opt.isCorrect}"
-    >
-      <span class="opt-label">${LABELS[i]}</span>${esc(opt.text)}
-    </button>
-  `).join('');
-}
-
-function escAttr(s) {
-  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-}
-
-function answerQuiz(btn, isCorrect, correctAnswerText) {
-  if (quizAnswered) return;
-  quizAnswered = true;
-
-  // Disable all options & mark correct
-  document.querySelectorAll('.quiz-option').forEach(b => {
-    b.disabled = true;
-    b.style.pointerEvents = 'none';
-    if (b.dataset.correct === 'true') b.classList.add('correct');
-  });
-
-  const fb = document.getElementById('quizFeedback');
-
-  if (isCorrect) {
-    quizScore++;
-    document.getElementById('qScoreDisplay').textContent = `⭐ ${quizScore}`;
-    fb.className = 'quiz-feedback correct-fb';
-    fb.textContent = '✓ Зөв! Маш сайн!';
-  } else {
-    quizWrong++;
-    btn.classList.add('wrong');
-    fb.className = 'quiz-feedback wrong-fb';
-    fb.textContent = `✕ Буруу. Зөв хариулт: ${correctAnswerText}`;
-  }
-
-  setTimeout(() => {
-    quizIdx++;
-    showQuizQuestion();
-  }, 1400);
-}
-
-function showQuizDone() {
-  document.getElementById('quizCard').style.display   = 'none';
-  document.getElementById('quizOptions').style.display = 'none';
-  document.getElementById('quizFeedback').style.display = 'none';
-
-  const total = quizDeck.length;
-  const pct   = Math.round(quizScore / total * 100);
-
-  document.getElementById('quizDoneScore').textContent = `${pct}%`;
-  document.getElementById('quizDoneSub').textContent   = `${quizScore} / ${total} асуулт`;
-  document.getElementById('quizDoneGood').textContent  = `✓ ${quizScore} зөв`;
-  document.getElementById('quizDoneBad').textContent   = `✕ ${quizWrong} буруу`;
-
-  let msg = '';
-  if (pct === 100) msg = '🎉 Төгс үр дүн! Та бүх асуултыг зөв хариуллаа!';
-  else if (pct >= 80) msg = '👏 Маш сайн! Та сэдвийг сайн эзэмшсэн байна.';
-  else if (pct >= 60) msg = '📖 Дундаж. Дахин давтаж судлаарай.';
-  else msg = '💪 Цааш давтан сурах хэрэгтэй байна. Бүтэлгүйтэхгүй!';
-
-  document.getElementById('quizDoneTxt').textContent = msg;
-  document.getElementById('quizDone').style.display  = 'block';
-  document.getElementById('qProgFill').style.width   = '100%';
-}
-
-// ══════════════════════════════════════════
-// ── STUDY MODE ──
-// ══════════════════════════════════════════
-function initStudy() {
-  const wrap = document.getElementById('studyWrap');
-  if (!cards.length) {
-    wrap.innerHTML = `<div class="empty-state"><div class="emoji">📚</div><p>Эхлэхийн тулд карт үүсгэнэ үү.</p></div>`;
-    return;
-  }
-  studyDeck = [...cards.map((c,i)=>({...c,_i:i}))].filter(c=>c.status!=='know');
-  if (!studyDeck.length) studyDeck = cards.map((c,i)=>({...c,_i:i}));
-  for (let i=studyDeck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[studyDeck[i],studyDeck[j]]=[studyDeck[j],studyDeck[i]];}
-  studyIdx = 0; studyFlipped = false;
-
-  wrap.innerHTML = `
-    <div class="study-progress">
-      <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
-      <div class="prog-label">
-        <span id="progTxt">1 / ${studyDeck.length}</span>
-        <span id="progPct">0%</span>
-      </div>
-    </div>
-    <div class="study-card-wrap" id="studyCard" onclick="flipStudy()">
-      <div class="study-inner" id="studyInner">
-        <div class="study-front">
-          <div class="study-badge">Асуулт</div>
-          <div class="study-q" id="studyQ"></div>
-          <div class="study-hint">Дарж хариултыг харна уу</div>
+// ─── CHEAT DETAIL MODAL ───────────────────────────────────────────────────────
+function CheatDetailModal({ sub, onClose }) {
+  const log = sub.cheatLog || [];
+  const typeLabels = {
+    TAB_SWITCH: { label: 'Таб сэлгэсэн', icon: '🔀' },
+    WINDOW_BLUR: { label: 'Цонхноос гарсан', icon: '👁' },
+    COPY: { label: 'Текст хуулсан', icon: '📋' },
+    RIGHT_CLICK: { label: 'Баруун товч', icon: '🖱' },
+    TRANSLATE: { label: 'Translate ашигласан', icon: '🌐' },
+  };
+  const counts = log.reduce((acc, e) => { acc[e.type] = (acc[e.type]||0)+1; return acc; }, {});
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{maxWidth:520}}>
+        <div className="modal-head">
+          <div>
+            <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>🔍 Чит тайлан — {sub.studentName}</div>
+            <div style={{fontSize:'0.8rem',color:'var(--text2)'}}>{sub.studentClass} · {log.length} удаа сэжигтэй үйлдэл</div>
+          </div>
         </div>
-        <div class="study-back">
-          <div class="study-badge">Хариулт</div>
-          <div class="study-q" id="studyA"></div>
+        <div className="modal-body" style={{padding:'16px 24px'}}>
+          {log.length === 0 ? (
+            <div style={{textAlign:'center',padding:'24px',color:'var(--green)'}}>
+              <div style={{fontSize:'2rem',marginBottom:8}}>✅</div>
+              <div style={{fontWeight:700}}>Чит илрээгүй</div>
+            </div>
+          ) : (
+            <>
+              <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:16}}>
+                {Object.entries(counts).map(([type, cnt]) => {
+                  const t = typeLabels[type] || {label:type,icon:'⚠'};
+                  return (
+                    <span key={type} style={{background:'var(--red-light)',color:'var(--red)',padding:'4px 12px',borderRadius:20,fontSize:'0.78rem',fontWeight:700}}>
+                      {t.icon} {t.label} × {cnt}
+                    </span>
+                  );
+                })}
+              </div>
+              <div className="cheat-detail-modal">
+                {log.map((e, i) => {
+                  const t = typeLabels[e.type] || {label:e.type,icon:'⚠'};
+                  return (
+                    <div className="cheat-event" key={i}>
+                      <span style={{fontSize:'1rem'}}>{t.icon}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:600,color:'var(--text)'}}>{t.label}</div>
+                        <div style={{color:'var(--text3)',fontSize:'0.75rem'}}>{new Date(e.time).toLocaleTimeString('mn-MN')}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-primary" onClick={onClose}>Хаах</button>
         </div>
       </div>
     </div>
-    <div class="study-btns" id="studyBtns">
-      <button class="btn-unknow" onclick="markStudy('unknow')">✕ Мэдэхгүй</button>
-      <button class="btn-know"   onclick="markStudy('know')">✓ Мэдлээ</button>
+  );
+}
+
+
+function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExam, onApiKey }) {
+  const [view, setView] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeyState, setApiKeyState] = useState(apiKey);
+  const [qrExam, setQrExam] = useState(null);
+  const [cheatSub, setCheatSub] = useState(null);
+  const [, forceUpdate] = useState(0);
+
+  if (view?.type === 'results') {
+    const subs = submissions.filter(s => s.examId === view.exam.id);
+    const avg = subs.length ? Math.round(subs.reduce((a, s) => a + s.score, 0) / subs.length) : 0;
+    const passed = subs.filter(s => s.score >= view.exam.passingScore).length;
+    return (
+      <div>
+        <div className="page-header">
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setView(null)}>← Буцах</button>
+            <div>
+              <h2 className="page-title">{view.exam.title} — Үр дүн</h2>
+              <div className="page-sub">{view.exam.subject} · {subs.length} сурагч өгсөн</div>
+            </div>
+          </div>
+        </div>
+        <div className="container">
+          <div className="stats-strip">
+            <div className="stat-card"><div className="stat-val">{subs.length}</div><div className="stat-lbl">Нийт оролцсон</div></div>
+            <div className="stat-card"><div className="stat-val" style={{color:'var(--green)'}}>{passed}</div><div className="stat-lbl">Тэнцсэн</div></div>
+            <div className="stat-card"><div className="stat-val" style={{color:'var(--red)'}}>{subs.length - passed}</div><div className="stat-lbl">Тэнцээгүй</div></div>
+            <div className="stat-card"><div className="stat-val">{avg}%</div><div className="stat-lbl">Дундаж оноо</div></div>
+          </div>
+
+          {subs.length === 0 ? (
+            <div className="card"><div className="card-body">
+              <div className="empty-state">
+                <div className="empty-icon">📭</div>
+                <div className="empty-title">Одоохондоо хариулт ирээгүй</div>
+                <div className="empty-sub">Сурагчид шалгалтаа өгсний дараа энд харагдана</div>
+              </div>
+            </div></div>
+          ) : (
+            <div className="card">
+              <div className="card-header"><div className="card-title">📋 Сурагчдын хариулт</div></div>
+              <div style={{overflowX:'auto'}}>
+                <table className="sub-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Сурагч</th>
+                      <th>Анги</th>
+                      <th>Оноо</th>
+                      <th>Зөв/Нийт</th>
+                      <th>Дүн</th>
+                      <th>🔍 Чит</th>
+                      <th>Огноо</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subs.sort((a,b) => b.score - a.score).map((s, i) => {
+                      const cheatCnt = (s.cheatLog||[]).length;
+                      const pillCls = cheatCnt === 0 ? 'cheat-pill-0' : cheatCnt <= 2 ? 'cheat-pill-warn' : 'cheat-pill-danger';
+                      return (
+                      <tr key={s.id} className={cheatCnt > 0 ? 'cheat-row-bad' : ''}>
+                        <td style={{color:'var(--text3)',fontWeight:600}}>{i+1}</td>
+                        <td><strong>{s.studentName}</strong></td>
+                        <td>{s.studentClass || '—'}</td>
+                        <td>
+                          <span style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1rem',color: s.score >= view.exam.passingScore ? 'var(--green)' : 'var(--red)'}}>
+                            {s.score}%
+                          </span>
+                        </td>
+                        <td style={{color:'var(--text2)'}}>{s.correctCount}/{s.totalCount}</td>
+                        <td>
+                          <span className={`badge ${s.score >= view.exam.passingScore ? 'badge-green' : 'badge-red'}`}>
+                            {s.score >= view.exam.passingScore ? '✓ Тэнцсэн' : '✗ Тэнцээгүй'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`cheat-pill ${pillCls}`} onClick={() => setCheatSub(s)}>
+                            {cheatCnt === 0 ? '✓ Цэвэр' : `⚠ ${cheatCnt} удаа`}
+                          </span>
+                        </td>
+                        <td style={{color:'var(--text3)',fontSize:'0.8rem'}}>{new Date(s.submittedAt).toLocaleString('mn-MN')}</td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+        {cheatSub && <CheatDetailModal sub={cheatSub} onClose={() => setCheatSub(null)} />}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {qrExam && <QRModal exam={qrExam} onClose={() => setQrExam(null)} />}
+      {cheatSub && <CheatDetailModal sub={cheatSub} onClose={() => setCheatSub(null)} />}
+      {showSettings && (
+        <SettingsModal
+          apiKey={apiKeyState}
+          onSave={k => { setApiKeyState(k); onApiKey(k); localStorage.setItem('se_apikey', k); }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+      <div className="page-header">
+        <div className="container-lg" style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
+          <div>
+            <h2 className="page-title">👋 Сайн байна уу, {teacherName}</h2>
+            <div className="page-sub">Таны шалгалтын хяналтын самбар</div>
+          </div>
+          <div style={{display:'flex',gap:10}}>
+            <button className="btn btn-outline btn-sm" onClick={() => setShowSettings(true)}>⚙ API тохиргоо</button>
+            <button className="btn btn-primary" onClick={onCreateExam}>+ Шинэ тест</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="container-lg">
+        {!apiKey && (
+          <div className="apikey-banner">
+            ⚠️ Anthropic API түлхүүр оруулаагүй тул AI задлан шинжилгээ ажиллахгүй.
+            <button className="btn btn-outline btn-sm" onClick={() => setShowSettings(true)}>Оруулах</button>
+          </div>
+        )}
+
+        <div className="stats-strip">
+          <div className="stat-card"><div className="stat-val">{exams.length}</div><div className="stat-lbl">Нийт тест</div></div>
+          <div className="stat-card"><div className="stat-val">{submissions.length}</div><div className="stat-lbl">Нийт дүн</div></div>
+          <div className="stat-card">
+            <div className="stat-val" style={{color:'var(--green)'}}>
+              {submissions.length ? Math.round(submissions.reduce((a,s) => a+s.score, 0) / submissions.length) : 0}%
+            </div>
+            <div className="stat-lbl">Нийт дундаж</div>
+          </div>
+        </div>
+
+        {exams.length === 0 ? (
+          <div className="card">
+            <div className="card-body">
+              <div className="empty-state">
+                <div className="empty-icon">📋</div>
+                <div className="empty-title">Тест байхгүй байна</div>
+                <div className="empty-sub">Шинэ тест үүсгэж, сурагчдад нийтлэнэ үү</div>
+                <button className="btn btn-primary" onClick={onCreateExam}>+ Шинэ тест үүсгэх</button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="exam-grid">
+            {exams.map(exam => {
+              const subs = submissions.filter(s => s.examId === exam.id);
+              const avg = subs.length ? Math.round(subs.reduce((a,s) => a+s.score, 0) / subs.length) : null;
+              return (
+                <div className="exam-card" key={exam.id}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+                    <div className="exam-card-title">{exam.title}</div>
+                    <span className="badge badge-green" style={{flexShrink:0,marginLeft:8}}>✓ Нийтлэгдсэн</span>
+                  </div>
+                  <div className="exam-card-meta">
+                    <span>📚 {exam.subject}</span>
+                    <span>❓ {exam.questions.length} асуулт</span>
+                    <span>⏱ {exam.duration} мин</span>
+                  </div>
+                  <div style={{display:'flex',gap:12,fontSize:'0.82rem',color:'var(--text2)',marginBottom:10}}>
+                    <span>👥 {subs.length} оролцсон</span>
+                    {avg !== null && <span>📊 Дундаж: <strong style={{color:'var(--text)'}}>{avg}%</strong></span>}
+                  </div>
+                  <div style={{background:'var(--surface2)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:'0.78rem',color:'var(--text2)'}}>
+                    🔑 Тестийн код: <strong style={{fontFamily:'monospace',color:'var(--primary)',fontSize:'0.9rem'}}>{exam.id}</strong>
+                  </div>
+                  <div className="exam-card-actions">
+                    <button className="btn btn-outline btn-sm" onClick={() => setView({type:'results', exam})}>📊 Үр дүн</button>
+                    <button className="btn btn-violet btn-sm" onClick={() => setQrExam(exam)}>📱 QR код</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
-    <div class="study-done" id="studyDone">
-      <div>🎉</div>
-      <h2>Дууслаа!</h2>
-      <div class="done-score" id="doneScore"></div>
-      <p id="doneTxt"></p>
-      <button class="btn btn-primary" onclick="initStudy()" style="margin-top:10px">↺ Дахин эхлэх</button>
+  );
+}
+
+// ─── STUDENT PORTAL ───────────────────────────────────────────────────────────
+function StudentPortal({ exams, onStartExam, onBack }) {
+  const [step, setStep] = useState('login'); // login | pick
+  const [name, setName] = useState('');
+  const [cls, setCls] = useState('');
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState('');
+
+  const handleLogin = () => {
+    if (!name.trim()) return;
+    setStep('pick');
+  };
+
+  const handleStart = () => {
+    if (!code.trim()) { setErr('Тестийн код оруулна уу'); return; }
+    const exam = exams.find(e => e.id === code.trim());
+    if (!exam) { setErr('Тестийн код олдсонгүй. Зөв оруулна уу.'); return; }
+    setErr('');
+    onStartExam(exam, name.trim(), cls.trim());
+  };
+
+  if (step === 'login') {
+    return (
+      <div className="modal-overlay">
+        <div className="modal">
+          <div className="modal-head">
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:'1.4rem'}}>🎓</span>
+              <div>
+                <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>Сурагчийн нэвтрэлт</div>
+                <div style={{fontSize:'0.8rem',color:'var(--text2)'}}>SmartEXAM шалгалт</div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-body">
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Таны нэр</label>
+                <input className="form-input" placeholder="Бүтэн нэр" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && name.trim() && setStep('pick')} autoFocus />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Анги</label>
+                <input className="form-input" placeholder="жн: 8а" value={cls} onChange={e => setCls(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="modal-foot">
+            <button className="btn btn-ghost" onClick={onBack}>← Буцах</button>
+            <button className="btn btn-violet btn-lg" onClick={handleLogin} disabled={!name.trim()}>Үргэлжлүүлэх →</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <div className="modal-head">
+          <div>
+            <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>👋 Сайн байна уу, {name}!</div>
+            <div style={{fontSize:'0.8rem',color:'var(--text2)'}}>Тестийн кодыг оруулж шалгалтдаа орно уу</div>
+          </div>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Тестийн код</label>
+            <input
+              className="form-input"
+              style={{fontSize:'1rem',letterSpacing:1,fontFamily:'monospace'}}
+              placeholder="Багшийн өгсөн кодыг оруулна уу"
+              value={code}
+              onChange={e => { setCode(e.target.value); setErr(''); }}
+              onKeyDown={e => e.key === 'Enter' && handleStart()}
+              autoFocus
+            />
+            {err && <div className="form-error">⚠ {err}</div>}
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-ghost" onClick={() => setStep('login')}>← Буцах</button>
+          <button className="btn btn-violet btn-lg" onClick={handleStart} disabled={!code.trim()}>▶ Шалгалтад орох</button>
+        </div>
+      </div>
     </div>
-  `;
-  showStudyCard();
+  );
 }
 
-function showStudyCard() {
-  if (studyIdx >= studyDeck.length) { showStudyDone(); return; }
-  const c = studyDeck[studyIdx];
-  document.getElementById('studyQ').textContent = c.q;
-  document.getElementById('studyA').textContent = c.a;
-  document.getElementById('studyCard').classList.remove('flipped');
-  document.getElementById('studyBtns').classList.remove('visible');
-  studyFlipped = false;
-
-  const pct = Math.round(studyIdx/studyDeck.length*100);
-  document.getElementById('progFill').style.width = pct+'%';
-  document.getElementById('progTxt').textContent = `${studyIdx+1} / ${studyDeck.length}`;
-  document.getElementById('progPct').textContent = pct+'%';
+// ─── EXAM INTRO ───────────────────────────────────────────────────────────────
+function ExamIntro({ exam, studentName, studentClass, onStart, onBack }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{maxWidth:520}}>
+        <div className="modal-head">
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:44,height:44,borderRadius:12,background:'var(--violet-light)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.5rem'}}>📝</div>
+            <div>
+              <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>{exam.title}</div>
+              <div style={{fontSize:'0.8rem',color:'var(--text2)'}}>{exam.subject}</div>
+            </div>
+          </div>
+        </div>
+        <div className="modal-body">
+          <div style={{background:'var(--surface2)',borderRadius:10,padding:'16px',marginBottom:16,display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            {[
+              ['📋 Асуултын тоо', exam.questions.length + ' асуулт'],
+              ['⏱ Хугацаа', exam.duration + ' минут'],
+              ['✅ Тэнцэх босго', exam.passingScore + '%'],
+              ['👤 Сурагч', studentName + (studentClass ? ' · ' + studentClass : '')],
+            ].map(([lbl,val]) => (
+              <div key={lbl}>
+                <div style={{fontSize:'0.75rem',color:'var(--text3)',fontWeight:600}}>{lbl}</div>
+                <div style={{fontSize:'0.9rem',fontWeight:600,color:'var(--text)',marginTop:2}}>{val}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'var(--amber-light)',border:'1px solid #fcd34d',borderRadius:8,padding:'10px 14px',fontSize:'0.82rem',color:'#92400e'}}>
+            ⚠️ Шалгалт эхэлсэн даруйд хугацааны тоолол эхэлнэ. Анхааралтай уншаарай.
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-ghost" onClick={onBack}>← Буцах</button>
+          <button className="btn btn-violet btn-lg" onClick={onStart}>▶ Эхлэх</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function flipStudy() {
-  if (studyFlipped) return;
-  studyFlipped = true;
-  document.getElementById('studyCard').classList.add('flipped');
-  setTimeout(()=>document.getElementById('studyBtns').classList.add('visible'), 350);
+// ─── EXAM TAKER ───────────────────────────────────────────────────────────────
+function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
+  const [answers, setAnswers] = useState({});
+  const [timeLeft, setTimeLeft] = useState(exam.duration * 60);
+  const [submitted, setSubmitted] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [cheatLog, setCheatLog] = useState([]);
+  const [cheatWarning, setCheatWarning] = useState('');
+  const [showFlash, setShowFlash] = useState(false);
+  const submittedRef = useRef(false);
+  const cheatLogRef = useRef([]);
+
+  const logCheat = useCallback((type, detail) => {
+    if (submittedRef.current) return;
+    const entry = { type, detail, time: new Date().toISOString() };
+    cheatLogRef.current = [...cheatLogRef.current, entry];
+    setCheatLog([...cheatLogRef.current]);
+    setCheatWarning(detail);
+    setShowFlash(true);
+    setTimeout(() => setCheatWarning(''), 3500);
+    setTimeout(() => setShowFlash(false), 400);
+  }, []);
+
+  // Timer
+  useEffect(() => {
+    if (submitted) return;
+    const t = setInterval(() => {
+      setTimeLeft(s => {
+        if (s <= 1) { clearInterval(t); doSubmit({}); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [submitted]);
+
+  // Anti-cheat: tab switch
+  useEffect(() => {
+    const onVis = () => { if (document.hidden) logCheat('TAB_SWITCH', '🔀 Таб сэлгэсэн — чит илрэв!'); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [logCheat]);
+
+  // Anti-cheat: window blur (screen split, other app)
+  useEffect(() => {
+    const onBlur = () => logCheat('WINDOW_BLUR', '👁 Цонхноос гарсан — чит илрэв!');
+    window.addEventListener('blur', onBlur);
+    return () => window.removeEventListener('blur', onBlur);
+  }, [logCheat]);
+
+  // Anti-cheat: copy
+  useEffect(() => {
+    const onCopy = () => logCheat('COPY', '📋 Текст хуулсан — чит илрэв!');
+    document.addEventListener('copy', onCopy);
+    return () => document.removeEventListener('copy', onCopy);
+  }, [logCheat]);
+
+  // Anti-cheat: right click
+  useEffect(() => {
+    const onRC = e => { e.preventDefault(); logCheat('RIGHT_CLICK', '🖱 Баруун товчлуур дарсан — чит илрэв!'); };
+    document.addEventListener('contextmenu', onRC);
+    return () => document.removeEventListener('contextmenu', onRC);
+  }, [logCheat]);
+
+  // Anti-cheat: Google Translate detection
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      const cls = document.documentElement.className;
+      if (cls.includes('translated')) logCheat('TRANSLATE', '🌐 Google Translate ашигласан — чит илрэв!');
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, [logCheat]);
+
+  const doSubmit = useCallback((extraAnswers) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    const ans = { ...answers, ...extraAnswers };
+    const qs = exam.questions.filter(q => q.answer);
+    const correct = qs.filter(q => ans[q.id] === q.answer).length;
+    const total = qs.length || exam.questions.length;
+    const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+    setSubmitted(true);
+    onSubmit({
+      id: uid(),
+      examId: exam.id,
+      studentName,
+      studentClass,
+      answers: ans,
+      score,
+      correctCount: correct,
+      totalCount: total,
+      cheatLog: cheatLogRef.current,
+      submittedAt: new Date().toISOString()
+    });
+  }, [answers, exam, studentName, studentClass, onSubmit]);
+
+  const answered = Object.keys(answers).length;
+  const total = exam.questions.length;
+  const timerClass = timeLeft < 60 ? 'danger' : timeLeft < 300 ? 'warn' : '';
+  const cheatCnt = cheatLog.length;
+
+  return (
+    <div>
+      {/* Cheat flash overlay */}
+      {showFlash && <div className="cheat-overlay" />}
+
+      {/* Cheat warning toast */}
+      {cheatWarning && (
+        <div className="cheat-warning">
+          <span className="cheat-badge">⚠ ЧИТ</span>
+          {cheatWarning}
+        </div>
+      )}
+
+      {/* Confirm dialog */}
+      {showConfirm && (
+        <div className="modal-overlay">
+          <div className="modal" style={{maxWidth:400}}>
+            <div className="modal-head"><div style={{fontFamily:'Outfit',fontWeight:800}}>⚠️ Шалгалт дуусгах уу?</div></div>
+            <div className="modal-body">
+              <p style={{fontSize:'0.9rem',color:'var(--text2)'}}>
+                {answered < total
+                  ? `Та ${total - answered} асуултанд хариулаагүй байна. Шалгалтыг дуусгахуу?`
+                  : 'Бүх асуултанд хариуллаа. Шалгалтыг дуусгахуу?'}
+              </p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-outline" onClick={() => setShowConfirm(false)}>Үргэлжлүүлэх</button>
+              <button className="btn btn-green" onClick={() => doSubmit({})}>✓ Дуусгах</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="exam-header-bar">
+        <div>
+          <div className="exam-title-bar">{exam.title}</div>
+          <div style={{fontSize:'0.78rem',color:'var(--text2)'}}>
+            {answered}/{total} хариуллаа
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {cheatCnt > 0 && (
+            <div style={{background:'var(--red-light)',color:'var(--red)',padding:'5px 12px',borderRadius:20,fontSize:'0.78rem',fontWeight:700}}>
+              ⚠ {cheatCnt} чит
+            </div>
+          )}
+          <div className={`timer-badge ${timerClass}`}>
+            ⏱ {fmt(timeLeft)}
+          </div>
+          <button className="btn btn-green btn-sm" onClick={() => setShowConfirm(true)}>✓ Дуусгах</button>
+        </div>
+      </div>
+
+      {/* Progress */}
+      <div style={{padding:'8px 24px',background:'white',borderBottom:'1px solid var(--border)'}}>
+        <div className="progress-bar-wrap">
+          <div className="progress-bar-fill" style={{width: `${(answered/total)*100}%`}} />
+        </div>
+        <div style={{fontSize:'0.75rem',color:'var(--text3)',textAlign:'right'}}>{answered}/{total}</div>
+      </div>
+
+      <div className="container-sm" style={{padding:'24px 20px'}}>
+        {exam.questions.map((q, qi) => (
+          <div className={`question-block ${answers[q.id] ? 'answered' : ''}`} key={q.id}>
+            <div style={{display:'flex',gap:10,marginBottom:12}}>
+              <span className="q-num">#{q.id}</span>
+              {answers[q.id] && <span style={{fontSize:'0.75rem',color:'var(--green)',fontWeight:600,display:'flex',alignItems:'center',gap:4}}>✓ Хариуллаа</span>}
+            </div>
+            <div className="q-text" style={{fontSize:'0.95rem',marginBottom:14}}>{q.text}</div>
+            {q.options.map(opt => (
+              <button
+                key={opt.key}
+                className={`student-option ${answers[q.id] === opt.key ? 'selected' : ''}`}
+                onClick={() => setAnswers(a => ({...a, [q.id]: opt.key}))}
+              >
+                <div className="opt-radio" />
+                <span style={{fontWeight:600,color:'var(--text2)',minWidth:16}}>{opt.key})</span>
+                <span>{opt.text}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+
+        <div style={{textAlign:'center',padding:'20px 0 40px'}}>
+          <button className="btn btn-green btn-lg" onClick={() => setShowConfirm(true)} style={{minWidth:200}}>
+            ✓ Шалгалт дуусгах
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function markStudy(status) {
-  const c = studyDeck[studyIdx];
-  cards[c._i].status = status;
-  save();
-  studyIdx++;
-  setTimeout(showStudyCard, 150);
+// ─── RESULT PAGE ──────────────────────────────────────────────────────────────
+function ResultPage({ submission, exam, onHome }) {
+  const pass = submission.score >= exam.passingScore;
+  return (
+    <div>
+      <div className="topbar">
+        <div className="topbar-brand"><div className="brand-badge">SE</div>SmartEXAM</div>
+      </div>
+      <div className="container-sm" style={{padding:'32px 20px'}}>
+        <div className="result-hero">
+          <div className={`score-circle ${pass ? 'pass' : 'fail'}`}>
+            <div className="score-pct">{submission.score}%</div>
+            <div className="score-label">{pass ? 'ТЭНЦСЭН' : 'ТЭНЦЭЭГҮЙ'}</div>
+          </div>
+          <h2 style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.3rem',marginBottom:6}}>
+            {pass ? '🎉 Амжилт!' : '📚 Дахин хичээлийн хэрэгтэй'}
+          </h2>
+          <div style={{fontSize:'0.9rem',color:'var(--text2)',marginBottom:14}}>
+            {submission.studentName} · {exam.title}
+          </div>
+          <div style={{display:'flex',justifyContent:'center',gap:24,fontSize:'0.9rem'}}>
+            <span><strong style={{color:'var(--green)'}}>{submission.correctCount}</strong> зөв</span>
+            <span><strong style={{color:'var(--red)'}}>{submission.totalCount - submission.correctCount}</strong> буруу</span>
+            <span>Нийт <strong>{submission.totalCount}</strong></span>
+          </div>
+        </div>
+
+        <div className="card mb-3">
+          <div className="card-header"><div className="card-title">📝 Асуулт тус бүрийн үр дүн</div></div>
+          <div className="card-body" style={{padding:'14px'}}>
+            {exam.questions.map(q => {
+              const ua = submission.answers[q.id];
+              const correct = q.answer ? ua === q.answer : null;
+              return (
+                <div key={q.id} style={{borderBottom:'1px solid var(--border)',paddingBottom:12,marginBottom:12}}>
+                  <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:8}}>
+                    <span className="q-num">#{q.id}</span>
+                    {q.answer && (
+                      <span style={{fontSize:'0.75rem',fontWeight:700,color: correct ? 'var(--green)' : 'var(--red)'}}>
+                        {correct ? '✓ Зөв' : '✗ Буруу'}
+                      </span>
+                    )}
+                    {!q.answer && <span style={{fontSize:'0.75rem',color:'var(--text3)'}}>— Оноогүй асуулт</span>}
+                  </div>
+                  <div style={{fontSize:'0.875rem',color:'var(--text)',marginBottom:10}}>{q.text}</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                    {q.options.map(opt => {
+                      const isUser = ua === opt.key;
+                      const isAnswer = q.answer === opt.key;
+                      let cls = 'student-option';
+                      if (isAnswer) cls += ' correct-show';
+                      else if (isUser && !isAnswer) cls += ' wrong-show';
+                      return (
+                        <div key={opt.key} className={cls} style={{cursor:'default'}}>
+                          <div className="opt-radio" />
+                          <span style={{fontWeight:600,color:'var(--text2)',minWidth:16}}>{opt.key})</span>
+                          <span>{opt.text}</span>
+                          {isAnswer && <span style={{marginLeft:'auto',fontSize:'0.72rem',fontWeight:700,color:'var(--green)'}}>✓ зөв</span>}
+                          {isUser && !isAnswer && <span style={{marginLeft:'auto',fontSize:'0.72rem',fontWeight:700,color:'var(--red)'}}>← таны хариулт</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{textAlign:'center',paddingBottom:40}}>
+          <button className="btn btn-violet btn-lg" onClick={onHome}>🏠 Үндсэн хуудас руу буцах</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function showStudyDone() {
-  document.getElementById('studyCard').style.display='none';
-  document.getElementById('studyBtns').style.display='none';
-  const know = studyDeck.filter(c=>cards[c._i].status==='know').length;
-  const pct = Math.round(know/studyDeck.length*100);
-  document.getElementById('doneScore').textContent = pct+'%';
-  document.getElementById('doneTxt').textContent = `${studyDeck.length} картаас ${know}-г мэдэж байна.`;
-  document.getElementById('studyDone').style.display='block';
-  document.getElementById('progFill').style.width='100%';
+// ─── QR STUDENT LOGIN ─────────────────────────────────────────────────────────
+function QRStudentLogin({ exam, onStart, onBack }) {
+  const [name, setName] = useState('');
+  const [cls, setCls] = useState('');
+
+  return (
+    <div style={{minHeight:'100vh',background:'linear-gradient(160deg,#eef2ff,#f5f0ff)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div className="modal" style={{maxWidth:420}}>
+        <div className="modal-head">
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:48,height:48,borderRadius:12,background:'linear-gradient(135deg,var(--primary),var(--violet))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.4rem'}}>📱</div>
+            <div>
+              <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>QR Шалгалт</div>
+              <div style={{fontSize:'0.8rem',color:'var(--text2)'}}>{exam.title}</div>
+            </div>
+          </div>
+        </div>
+        <div className="modal-body">
+          <div style={{background:'var(--violet-light)',borderRadius:10,padding:'12px 16px',marginBottom:18,fontSize:'0.85rem',color:'#4c3db0',lineHeight:1.6}}>
+            📋 <strong>{exam.questions.length} асуулт</strong> &nbsp;·&nbsp; ⏱ <strong>{exam.duration} мин</strong> &nbsp;·&nbsp; 📚 {exam.subject}
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Таны нэр</label>
+              <input className="form-input" placeholder="Бүтэн нэр" value={name} onChange={e => setName(e.target.value)} autoFocus />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Анги</label>
+              <input className="form-input" placeholder="жн: 8а" value={cls} onChange={e => setCls(e.target.value)} onKeyDown={e => e.key === 'Enter' && name.trim() && onStart(name.trim(), cls.trim())} />
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-ghost" onClick={onBack}>← Буцах</button>
+          <button className="btn btn-violet btn-lg" onClick={() => onStart(name.trim(), cls.trim())} disabled={!name.trim()}>
+            ▶ Шалгалт эхлэх
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+// ─── ROOT APP ─────────────────────────────────────────────────────────────────
+function App() {
+  const [exams, setExams] = useLS('se_exams', []);
+  const [submissions, setSubmissions] = useLS('se_submissions', []);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('se_apikey') || '');
+  const [qrExam, setQrExam] = useState(null); // exam loaded from QR URL
+
+  const [page, setPage] = useState({ type: 'landing' });
+
+  // Handle QR URL hash on load
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#qr=')) {
+      try {
+        const compressed = hash.slice(4);
+        const json = LZString.decompressFromEncodedURIComponent(compressed);
+        const exam = JSON.parse(json);
+        if (exam && exam.id) {
+          setQrExam(exam);
+          setPage({ type: 'qrStudent', exam });
+          window.location.hash = '';
+        }
+      } catch(e) { console.error('QR decode error', e); }
+    }
+  }, []);
+
+  const goHome = () => { setQrExam(null); setPage({ type: 'landing' }); };
+
+  // Result page: special full-page rendering
+  if (page.type === 'result') {
+    return <ResultPage submission={page.submission} exam={page.exam} onHome={goHome} />;
+  }
+
+  // Exam taking: full-page
+  if (page.type === 'exam') {
+    return (
+      <div>
+        <ExamTaker
+          exam={page.exam}
+          studentName={page.studentName}
+          studentClass={page.studentClass}
+          onSubmit={sub => {
+            setSubmissions(s => [...s, sub]);
+            setPage({ type: 'result', submission: sub, exam: page.exam });
+          }}
+          onBack={() => setPage({ type: 'landing' })}
+        />
+      </div>
+    );
+  }
+
+  // Exam intro
+  if (page.type === 'examIntro') {
+    return (
+      <div>
+        <Topbar userName={page.studentName} role="student" onHome={goHome} />
+        <ExamIntro
+          exam={page.exam}
+          studentName={page.studentName}
+          studentClass={page.studentClass}
+          onStart={() => setPage({ ...page, type: 'exam' })}
+          onBack={() => setPage({ type: 'student' })}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      {page.type === 'landing' && (
+        <>
+          <LandingPage onSelect={role => {
+            if (role === 'teacher') setPage({ type: 'teacherLogin' });
+            else setPage({ type: 'student' });
+          }} />
+        </>
+      )}
+
+      {page.type === 'teacherLogin' && (
+        <>
+          <LandingPage onSelect={() => {}} />
+          <TeacherLogin
+            onLogin={(name, key) => {
+              if (key) setApiKey(key);
+              setPage({ type: 'teacherDash', name });
+            }}
+          />
+        </>
+      )}
+
+      {page.type === 'teacherDash' && (
+        <div>
+          <Topbar
+            userName={page.name}
+            role="teacher"
+            onHome={goHome}
+          />
+          <div className="container-lg" style={{paddingTop:8}}>
+            <TeacherDashboard
+              exams={exams}
+              submissions={submissions}
+              apiKey={apiKey}
+              teacherName={page.name}
+              onCreateExam={() => setPage({ ...page, type: 'createExam' })}
+              onApiKey={k => { setApiKey(k); localStorage.setItem('se_apikey', k); }}
+            />
+          </div>
+        </div>
+      )}
+
+      {page.type === 'createExam' && (
+        <div>
+          <Topbar userName={page.name} role="teacher" onHome={goHome} />
+          <div className="container-sm" style={{paddingTop:8, paddingBottom:40}}>
+            <CreateExam
+              apiKey={apiKey}
+              onSave={exam => {
+                setExams(e => [...e, exam]);
+                setPage({ type: 'teacherDash', name: page.name });
+              }}
+              onCancel={() => setPage({ type: 'teacherDash', name: page.name })}
+            />
+          </div>
+        </div>
+      )}
+
+      {page.type === 'student' && (
+        <div>
+          <Topbar onHome={goHome} />
+          <StudentPortal
+            exams={exams}
+            onStartExam={(exam, name, cls) =>
+              setPage({ type: 'examIntro', exam, studentName: name, studentClass: cls })
+            }
+            onBack={goHome}
+          />
+        </div>
+      )}
+
+      {page.type === 'qrStudent' && page.exam && (
+        <QRStudentLogin
+          exam={page.exam}
+          onStart={(name, cls) => setPage({ type: 'examIntro', exam: page.exam, studentName: name, studentClass: cls })}
+          onBack={goHome}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
