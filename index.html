@@ -728,6 +728,36 @@ const useLS = (key, init) => {
 };
 
 const fmt = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+const fmtDur = (sec) => {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (h > 0) return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+  return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+};
+
+const alpha = (i) => String.fromCharCode(65 + (i % 26));
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+const makeVariantOrders = (questionCount, variantCount) => {
+  const base = Array.from({ length: questionCount }, (_, i) => i + 1);
+  const orders = [base];
+  for (let v = 1; v < variantCount; v++) orders.push(shuffle(base));
+  return orders;
+};
+const applyOrder = (questions, order) => {
+  if (!Array.isArray(order) || order.length !== questions.length) return questions;
+  const byId = new Map(questions.map(q => [q.id, q]));
+  const out = order.map(id => byId.get(id)).filter(Boolean);
+  return out.length ? out : questions;
+};
 
 // ─── QR PAYLOAD (compact) ─────────────────────────────────────────────────────
 // Keep QR short enough to be reliably scannable.
@@ -737,6 +767,7 @@ const packExamForQR = (exam) => ({
   s: exam.subject,
   d: exam.duration,
   p: exam.passingScore,
+  o: exam.variantOrders || undefined,
   q: (exam.questions || []).map(q => ([
     q.text || '',
     (q.options || []).map(o => o.text || ''),
@@ -750,6 +781,7 @@ const unpackExamFromQR = (packed) => ({
   subject: packed.s,
   duration: packed.d,
   passingScore: packed.p,
+  variantOrders: packed.o || [Array.from({ length: (packed.q || []).length }, (_, i) => i + 1)],
   questions: (packed.q || []).map((row, idx) => ({
     id: idx + 1,
     text: row?.[0] || '',
@@ -964,7 +996,7 @@ function SettingsModal({ apiKey, onSave, onClose }) {
 }
 
 // ─── AI PARSE STEP ─────────────────────────────────────────────────────────────
-function AIParseStep({ apiKey, onParsed, onManual, onBack }) {
+function AIParseStep({ apiKey, onParsed, onManual, onBack, variantCount, onVariantCountChange }) {
   const [raw, setRaw] = useState('');
   const [parsing, setParsing] = useState(false);
   const [err, setErr] = useState('');
@@ -1024,6 +1056,13 @@ function AIParseStep({ apiKey, onParsed, onManual, onBack }) {
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
             <button className="btn btn-outline" onClick={onBack}>← Буцах</button>
             <div style={{display:'flex',gap:10}}>
+              <button
+                className="btn btn-outline"
+                onClick={() => onVariantCountChange?.(Math.min(10, (variantCount || 1) + 1))}
+                title="Шалгалтын хувилбар нэмэх"
+              >
+                ➕ Хувилбар ({variantCount || 1})
+              </button>
               <button className="btn btn-outline" onClick={onManual}>✏ Гараар оруулах</button>
               <button className="btn btn-violet" onClick={doParse} disabled={!raw.trim() || !apiKey}>
                 ✨ AI задлан шинжлэх
@@ -1115,6 +1154,7 @@ function CreateExam({ apiKey, onSave, onCancel }) {
   const [info, setInfo] = useState({ title: '', subject: 'Англи хэл', duration: 45, passingScore: 60 });
   const [questions, setQuestions] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [variantCount, setVariantCount] = useState(1);
 
   const stepLabels = ['Мэдээлэл', 'Тест оруулах', 'Хянах & нийтлэх'];
 
@@ -1133,10 +1173,13 @@ function CreateExam({ apiKey, onSave, onCancel }) {
     if (validQs.length === 0) { alert('Дор хаяж нэг асуулт оруулна уу'); return; }
     setSaving(true);
     setTimeout(() => {
+      const normalizedQs = validQs.map((q, i) => ({...q, id: i + 1}));
+      const orders = makeVariantOrders(normalizedQs.length, Math.max(1, variantCount || 1));
       const exam = {
         id: uid(),
         ...info,
-        questions: validQs.map((q, i) => ({...q, id: i + 1})),
+        questions: normalizedQs,
+        variantOrders: orders,
         createdAt: new Date().toISOString(),
         published: true,
         submissionCount: 0
@@ -1201,6 +1244,8 @@ function CreateExam({ apiKey, onSave, onCancel }) {
               onParsed={handleParsed}
               onManual={handleManual}
               onBack={() => setStep(1)}
+              variantCount={variantCount}
+              onVariantCountChange={setVariantCount}
             />
           )}
 
@@ -1211,6 +1256,7 @@ function CreateExam({ apiKey, onSave, onCancel }) {
                   <div className="card-title">{info.title}</div>
                   <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:3}}>
                     {questions.filter(q=>q.text).length} асуулт · {info.duration} мин · {info.subject}
+                    {' · '}<span style={{fontWeight:700,color:'var(--violet)'}}>Хувилбар: {variantCount}</span>
                     {' · '}<span style={{color: questions.filter(q=>q.answer).length === questions.filter(q=>q.text).length ? 'var(--green)' : 'var(--amber)'}}>
                       {questions.filter(q=>q.answer).length}/{questions.filter(q=>q.text).length} хариулт тохируулсан
                     </span>
@@ -1416,12 +1462,12 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>Сурагч</th>
+                      <th>Нэр</th>
                       <th>Анги</th>
-                      <th>Оноо</th>
-                      <th>Зөв/Нийт</th>
+                      <th>Хувилбар</th>
                       <th>Дүн</th>
-                      <th>🔍 Чит</th>
+                      <th>Хугацаа</th>
+                      <th>Cheat</th>
                       <th>Огноо</th>
                     </tr>
                   </thead>
@@ -1429,22 +1475,29 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                     {subs.sort((a,b) => b.score - a.score).map((s, i) => {
                       const cheatCnt = (s.cheatLog||[]).length;
                       const pillCls = cheatCnt === 0 ? 'cheat-pill-0' : cheatCnt <= 2 ? 'cheat-pill-warn' : 'cheat-pill-danger';
+                      const took = typeof s.timeSpentSec === 'number' ? fmtDur(s.timeSpentSec) : '—';
+                      const vlabel = s.variantLabel || 'A';
                       return (
                       <tr key={s.id} className={cheatCnt > 0 ? 'cheat-row-bad' : ''}>
                         <td style={{color:'var(--text3)',fontWeight:600}}>{i+1}</td>
                         <td><strong>{s.studentName}</strong></td>
                         <td>{s.studentClass || '—'}</td>
                         <td>
+                          <span className="badge badge-violet" style={{fontFamily:'monospace',fontWeight:800}}>{vlabel}</span>
+                        </td>
+                        <td>
                           <span style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1rem',color: s.score >= view.exam.passingScore ? 'var(--green)' : 'var(--red)'}}>
                             {s.score}%
                           </span>
+                          <div style={{color:'var(--text3)',fontSize:'0.75rem',marginTop:2}}>
+                            {s.correctCount}/{s.totalCount}
+                            {' · '}
+                            <span style={{fontWeight:700,color: s.score >= view.exam.passingScore ? 'var(--green)' : 'var(--red)'}}>
+                              {s.score >= view.exam.passingScore ? 'Тэнцсэн' : 'Тэнцээгүй'}
+                            </span>
+                          </div>
                         </td>
-                        <td style={{color:'var(--text2)'}}>{s.correctCount}/{s.totalCount}</td>
-                        <td>
-                          <span className={`badge ${s.score >= view.exam.passingScore ? 'badge-green' : 'badge-red'}`}>
-                            {s.score >= view.exam.passingScore ? '✓ Тэнцсэн' : '✗ Тэнцээгүй'}
-                          </span>
-                        </td>
+                        <td style={{fontFamily:'monospace',fontSize:'0.9rem',color:'var(--text2)'}}>{took}</td>
                         <td>
                           <span className={`cheat-pill ${pillCls}`} onClick={() => setCheatSub(s)}>
                             {cheatCnt === 0 ? '✓ Цэвэр' : `⚠ ${cheatCnt} удаа`}
@@ -1696,6 +1749,13 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
   const [showFlash, setShowFlash] = useState(false);
   const submittedRef = useRef(false);
   const cheatLogRef = useRef([]);
+  const startMsRef = useRef(Date.now());
+
+  const orderedQuestions = useMemo(() => {
+    const orders = exam.variantOrders || [Array.from({ length: exam.questions.length }, (_, i) => i + 1)];
+    const idx = Math.max(0, Math.min((exam.variantIndex ?? 0), orders.length - 1));
+    return applyOrder(exam.questions, orders[idx]);
+  }, [exam]);
 
   const logCheat = useCallback((type, detail) => {
     if (submittedRef.current) return;
@@ -1786,10 +1846,11 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
     if (submittedRef.current) return;
     submittedRef.current = true;
     const ans = { ...answers, ...extraAnswers };
-    const qs = exam.questions.filter(q => q.answer);
+    const qs = orderedQuestions.filter(q => q.answer);
     const correct = qs.filter(q => ans[q.id] === q.answer).length;
-    const total = qs.length || exam.questions.length;
+    const total = qs.length || orderedQuestions.length;
     const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const timeSpentSec = Math.round((Date.now() - startMsRef.current) / 1000);
     setSubmitted(true);
     onSubmit({
       id: uid(),
@@ -1800,13 +1861,16 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
       score,
       correctCount: correct,
       totalCount: total,
+      timeSpentSec,
+      variantIndex: exam.variantIndex ?? 0,
+      variantLabel: exam.variantLabel || alpha(exam.variantIndex ?? 0),
       cheatLog: cheatLogRef.current,
       submittedAt: new Date().toISOString()
     });
-  }, [answers, exam, studentName, studentClass, onSubmit]);
+  }, [answers, exam, orderedQuestions, studentName, studentClass, onSubmit]);
 
   const answered = Object.keys(answers).length;
-  const total = exam.questions.length;
+  const total = orderedQuestions.length;
   const timerClass = timeLeft < 60 ? 'danger' : timeLeft < 300 ? 'warn' : '';
   const cheatCnt = cheatLog.length;
 
@@ -1848,6 +1912,7 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
           <div className="exam-title-bar">{exam.title}</div>
           <div style={{fontSize:'0.78rem',color:'var(--text2)'}}>
             {answered}/{total} хариуллаа
+            {exam.variantLabel && <span style={{marginLeft:10}}>· Хувилбар: <strong style={{fontFamily:'monospace'}}>{exam.variantLabel}</strong></span>}
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -1872,7 +1937,7 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
       </div>
 
       <div className="container-sm" style={{padding:'24px 20px'}}>
-        {exam.questions.map((q, qi) => (
+        {orderedQuestions.map((q, qi) => (
           <div className={`question-block ${answers[q.id] ? 'answered' : ''}`} key={q.id}>
             <div style={{display:'flex',gap:10,marginBottom:12}}>
               <span className="q-num">#{q.id}</span>
@@ -2032,6 +2097,12 @@ function App() {
 
   const [page, setPage] = useState({ type: 'landing' });
 
+  const withRandomVariant = useCallback((exam) => {
+    const orders = exam.variantOrders || [Array.from({ length: exam.questions.length }, (_, i) => i + 1)];
+    const idx = Math.floor(Math.random() * Math.max(1, orders.length));
+    return { ...exam, variantIndex: idx, variantLabel: alpha(idx) };
+  }, []);
+
   // Handle QR URL hash on load
   useEffect(() => {
     const hash = window.location.hash;
@@ -2156,7 +2227,7 @@ function App() {
           <StudentPortal
             exams={exams}
             onStartExam={(exam, name, cls) =>
-              setPage({ type: 'examIntro', exam, studentName: name, studentClass: cls })
+              setPage({ type: 'examIntro', exam: withRandomVariant(exam), studentName: name, studentClass: cls })
             }
             onBack={goHome}
           />
@@ -2166,7 +2237,7 @@ function App() {
       {page.type === 'qrStudent' && page.exam && (
         <QRStudentLogin
           exam={page.exam}
-          onStart={(name, cls) => setPage({ type: 'examIntro', exam: page.exam, studentName: name, studentClass: cls })}
+          onStart={(name, cls) => setPage({ type: 'examIntro', exam: withRandomVariant(page.exam), studentName: name, studentClass: cls })}
           onBack={goHome}
         />
       )}
