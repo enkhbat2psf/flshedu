@@ -1282,6 +1282,32 @@ function CreateExam({ apiKey, onSave, onCancel }) {
 function QRModal({ exam, onClose }) {
   const [step, setStep] = useState('confirm');
   const qrRef = useRef(null);
+  const [joins, setJoins] = useState([]); // {name, cls, at}
+  const channelRef = useRef(null);
+
+  const addJoin = useCallback((payload) => {
+    if (!payload?.name) return;
+    setJoins(prev => {
+      const key = (payload.name || '') + '|' + (payload.cls || '');
+      if (prev.some(p => (p.name + '|' + p.cls) === key)) return prev;
+      return [{ name: payload.name, cls: payload.cls || '—', at: payload.at || Date.now() }, ...prev].slice(0, 30);
+    });
+  }, []);
+
+  // Listen for students who entered name/class (best-effort: same-origin tabs)
+  useEffect(() => {
+    if (!exam?.id) return;
+    try {
+      const bc = new BroadcastChannel('se_join_' + exam.id);
+      channelRef.current = bc;
+      bc.onmessage = (ev) => {
+        if (ev?.data?.type === 'JOIN') addJoin(ev.data.payload);
+      };
+      return () => { try { bc.close(); } catch {} };
+    } catch {
+      // BroadcastChannel not available -> ignore
+    }
+  }, [exam?.id, addJoin]);
 
   useEffect(() => {
     if (step !== 'qr' || !qrRef.current) return;
@@ -1334,6 +1360,25 @@ function QRModal({ exam, onClose }) {
               <div className="qr-wrap" style={{marginBottom:16}}>
                 <div ref={qrRef} />
               </div>
+
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,margin:'0 auto 10px',maxWidth:360}}>
+                <div style={{fontSize:'0.82rem',color:'var(--text2)',textAlign:'left'}}>
+                  👥 Орсон: <strong style={{color:'var(--text)'}}>{joins.length}</strong>
+                </div>
+                <div style={{fontSize:'0.78rem',color:'var(--text3)'}}>Нэр/анги оруулсан сурагчид</div>
+              </div>
+
+              {joins.length > 0 && (
+                <div style={{maxWidth:360,margin:'0 auto 14px',textAlign:'left',border:'1px solid var(--border)',borderRadius:12,overflow:'hidden'}}>
+                  {joins.slice(0, 8).map((j, idx) => (
+                    <div key={idx} style={{display:'flex',justifyContent:'space-between',gap:10,padding:'8px 12px',background: idx % 2 ? 'var(--surface2)' : 'white'}}>
+                      <div style={{fontWeight:700,fontSize:'0.85rem',color:'var(--text)'}}>{j.name}</div>
+                      <div style={{fontFamily:'monospace',fontSize:'0.82rem',color:'var(--text2)'}}>{j.cls}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:8}}>
                 ❓ {exam.questions.length} асуулт &nbsp;·&nbsp; ⏱ {exam.duration} мин &nbsp;·&nbsp; 📚 {exam.subject}
               </div>
@@ -1346,6 +1391,31 @@ function QRModal({ exam, onClose }) {
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDeleteModal({ title, onCancel, onConfirm }) {
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
+      <div className="modal" style={{maxWidth:420}}>
+        <div className="modal-head">
+          <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>🗑 Устгах уу?</div>
+        </div>
+        <div className="modal-body">
+          <div style={{fontSize:'0.92rem',color:'var(--text2)',lineHeight:1.7}}>
+            <strong style={{color:'var(--text)'}}>{title}</strong> тестийг устгавал буцааж сэргээх боломжгүй.<br/>
+            Итгэлтэй байна уу?
+          </div>
+          <div style={{marginTop:12,fontSize:'0.78rem',color:'var(--text3)'}}>
+            (Тухайн тестийн бүх дүн/хариулт мөн устгагдана)
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-outline" onClick={onCancel}>Болих</button>
+          <button className="btn btn-red" onClick={onConfirm}>✓ Тийм, устгах</button>
+        </div>
       </div>
     </div>
   );
@@ -1415,12 +1485,13 @@ function CheatDetailModal({ sub, onClose }) {
 }
 
 
-function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExam, onApiKey }) {
+function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExam, onApiKey, onDeleteExam }) {
   const [view, setView] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [apiKeyState, setApiKeyState] = useState(apiKey);
   const [qrExam, setQrExam] = useState(null);
   const [cheatSub, setCheatSub] = useState(null);
+  const [delExam, setDelExam] = useState(null);
   const [, forceUpdate] = useState(0);
 
   if (view?.type === 'results') {
@@ -1522,6 +1593,13 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
     <div>
       {qrExam && <QRModal exam={qrExam} onClose={() => setQrExam(null)} />}
       {cheatSub && <CheatDetailModal sub={cheatSub} onClose={() => setCheatSub(null)} />}
+      {delExam && (
+        <ConfirmDeleteModal
+          title={delExam.title}
+          onCancel={() => setDelExam(null)}
+          onConfirm={() => { onDeleteExam?.(delExam); setDelExam(null); }}
+        />
+      )}
       {showSettings && (
         <SettingsModal
           apiKey={apiKeyState}
@@ -1598,6 +1676,7 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                   <div className="exam-card-actions">
                     <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); setView({type:'results', exam}); }}>📊 Үр дүн</button>
                     <button className="btn btn-violet btn-sm" onClick={(e) => { e.stopPropagation(); setQrExam(exam); }}>📱 QR код</button>
+                    <button className="btn btn-red btn-sm" onClick={(e) => { e.stopPropagation(); setDelExam(exam); }}>🗑 Устгах</button>
                   </div>
                 </div>
               );
@@ -2050,6 +2129,14 @@ function QRStudentLogin({ exam, onStart, onBack }) {
   const [name, setName] = useState('');
   const [cls, setCls] = useState('');
 
+  const announceJoin = useCallback((n, c) => {
+    try {
+      const bc = new BroadcastChannel('se_join_' + exam.id);
+      bc.postMessage({ type: 'JOIN', payload: { name: n, cls: c || '', at: Date.now() } });
+      bc.close();
+    } catch {}
+  }, [exam?.id]);
+
   return (
     <div style={{minHeight:'100vh',background:'linear-gradient(160deg,#eef2ff,#f5f0ff)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
       <div className="modal" style={{maxWidth:420}}>
@@ -2079,7 +2166,11 @@ function QRStudentLogin({ exam, onStart, onBack }) {
         </div>
         <div className="modal-foot">
           <button className="btn btn-ghost" onClick={onBack}>← Буцах</button>
-          <button className="btn btn-violet btn-lg" onClick={() => onStart(name.trim(), cls.trim())} disabled={!name.trim()}>
+          <button
+            className="btn btn-violet btn-lg"
+            onClick={() => { const n=name.trim(); const c=cls.trim(); announceJoin(n, c); onStart(n, c); }}
+            disabled={!name.trim()}
+          >
             ▶ Шалгалт эхлэх
           </button>
         </div>
@@ -2122,6 +2213,12 @@ function App() {
   }, []);
 
   const goHome = () => { setQrExam(null); setPage({ type: 'landing' }); };
+
+  const deleteExam = useCallback((exam) => {
+    if (!exam?.id) return;
+    setExams(prev => prev.filter(e => e.id !== exam.id));
+    setSubmissions(prev => prev.filter(s => s.examId !== exam.id));
+  }, [setExams, setSubmissions]);
 
   // Result page: special full-page rendering
   if (page.type === 'result') {
@@ -2200,6 +2297,7 @@ function App() {
               teacherName={page.name}
               onCreateExam={() => setPage({ ...page, type: 'createExam' })}
               onApiKey={k => { setApiKey(k); localStorage.setItem('se_apikey', k); }}
+              onDeleteExam={deleteExam}
             />
           </div>
         </div>
