@@ -690,6 +690,124 @@ h1,h2,h3,h4 { font-family: 'Outfit', sans-serif; }
 }
 .cheat-event:last-child { border-bottom: none; }
 
+/* ─── VERSION INDICATOR ──────────────────────── */
+.version-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, var(--violet-light), #eef2ff);
+  border: 2px solid #c4b5fd;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.version-indicator-icon {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  background: var(--violet);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.version-indicator-text { flex: 1; }
+.version-indicator-label {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #4c1d95;
+}
+.version-indicator-sub {
+  font-size: 0.78rem;
+  color: #6d28d9;
+  margin-top: 2px;
+}
+.version-tab-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.version-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: white;
+  color: var(--text2);
+  transition: all .15s;
+  font-family: 'Outfit', sans-serif;
+}
+.version-tab:hover { border-color: var(--violet); color: var(--violet); }
+.version-tab.active {
+  background: var(--violet);
+  border-color: var(--violet);
+  color: white;
+  box-shadow: 0 2px 8px rgba(124,58,237,.3);
+}
+.version-tab .vtab-count {
+  background: rgba(255,255,255,.25);
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+}
+.version-tab:not(.active) .vtab-count {
+  background: var(--border);
+  color: var(--text3);
+}
+.version-next-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 18px;
+  background: linear-gradient(135deg, var(--violet), #6d28d9);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s;
+}
+.version-next-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124,58,237,.4); }
+.version-next-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.inline-ai-panel {
+  background: linear-gradient(135deg, var(--violet-light), #eef2ff);
+  border: 1.5px solid #c4b5fd;
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.inline-ai-panel .form-textarea { background: white; }
+.variant-stats-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.variant-stat-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--violet-light);
+  border: 1.5px solid #ddd6fe;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--violet);
+}
+.variant-stat-chip .chip-label {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+}
+
 @media (max-width: 720px) {
   .form-row { grid-template-columns: 1fr; }
   .options-grid { grid-template-columns: 1fr; }
@@ -1042,10 +1160,12 @@ function SettingsModal({ apiKey, onSave, onClose }) {
 }
 
 // ─── AI PARSE STEP ─────────────────────────────────────────────────────────────
-function AIParseStep({ apiKey, onParsed, onManual, onBack, variantCount, onVariantCountChange }) {
+function AIParseStep({ apiKey, onParsed, onManual, onBack, variantCount, onVariantCountChange, currentVariantLabel }) {
   const [raw, setRaw] = useState('');
   const [parsing, setParsing] = useState(false);
   const [err, setErr] = useState('');
+
+  const vLabel = currentVariantLabel || 'A';
 
   const doParse = async () => {
     if (!raw.trim()) return;
@@ -1064,10 +1184,26 @@ function AIParseStep({ apiKey, onParsed, onManual, onBack, variantCount, onVaria
 
   return (
     <div>
+      {/* Variant context indicator */}
+      <div className="version-indicator" style={{marginBottom:16}}>
+        <div className="version-indicator-icon">{vLabel}</div>
+        <div className="version-indicator-text">
+          <div className="version-indicator-label">Хувилбар {vLabel}-д асуулт оруулж байна</div>
+          <div className="version-indicator-sub">
+            {variantCount > 1 ? `${variantCount} хувилбарын ${vLabel} хувилбар — текст paste хийх эсвэл гараар оруулна уу` : 'Текст paste хийх эсвэл гараар оруулна уу'}
+          </div>
+        </div>
+        {(variantCount || 1) < 5 && (
+          <button className="btn btn-outline btn-sm" onClick={() => onVariantCountChange?.()} style={{flexShrink:0}}>
+            ➕ Хувилбар нэмэх ({variantCount || 1}/5)
+          </button>
+        )}
+      </div>
+
       <div className="ai-hint-box">
         <div className="ai-icon">✨</div>
         <div className="ai-hint-text">
-          <strong>AI автомат задлан шинжилгээ</strong><br/>
+          <strong>AI автомат задлан шинжилгээ</strong> — Хувилбар {vLabel}<br/>
           Тестийн текстийг доорх талбарт paste хийнэ үү. Ямар ч формат болно —
           нэг мөрт, markdown, дугаарлалттай, нэргүй. AI таны тестийг автоматаар стандарт формат руу хөрвүүлнэ.
         </div>
@@ -1083,17 +1219,17 @@ function AIParseStep({ apiKey, onParsed, onManual, onBack, variantCount, onVaria
       {parsing ? (
         <div className="parsing-overlay">
           <div className="spinner"></div>
-          <div style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1.1rem',marginBottom:8}}>AI задлан шинжилж байна...</div>
+          <div style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1.1rem',marginBottom:8}}>AI задлан шинжилж байна... (Хувилбар {vLabel})</div>
           <div style={{fontSize:'0.85rem',color:'var(--text2)'}}>Тестийн асуулт, хариултуудыг автоматаар таних</div>
         </div>
       ) : (
         <>
           <div className="form-group">
-            <label className="form-label">Тестийн текст</label>
+            <label className="form-label">Хувилбар {vLabel} — Тестийн текст</label>
             <textarea
               className="form-textarea"
               style={{minHeight:240,fontFamily:'monospace',fontSize:'0.82rem'}}
-              placeholder={"Тестийн текстийг энд paste хийнэ үү...\n\n1. The police ________ the thief...\n* A) catched\n* B) caught\n* C) caughted\n* D) had catch\n..."}
+              placeholder={`Хувилбар ${vLabel}-н тестийн текстийг энд paste хийнэ үү...\n\n1. The police ________ the thief...\n* A) catched\n* B) caught\n* C) caughted\n* D) had catch\n...`}
               value={raw}
               onChange={e => setRaw(e.target.value)}
             />
@@ -1102,12 +1238,9 @@ function AIParseStep({ apiKey, onParsed, onManual, onBack, variantCount, onVaria
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
             <button className="btn btn-outline" onClick={onBack}>← Буцах</button>
             <div style={{display:'flex',gap:10}}>
-              <button className="btn btn-outline" onClick={() => onVariantCountChange?.()} title="Шалгалтын хувилбар нэмэх" disabled={(variantCount || 1) >= 5}>
-                ➕ Хувилбар ({variantCount || 1})
-              </button>
               <button className="btn btn-outline" onClick={onManual}>✏ Гараар оруулах</button>
               <button className="btn btn-violet" onClick={doParse} disabled={!raw.trim() || !apiKey}>
-                ✨ AI задлан шинжлэх
+                ✨ AI задлан шинжлэх (Хувилбар {vLabel})
               </button>
             </div>
           </div>
@@ -1197,6 +1330,10 @@ function CreateExam({ apiKey, onSave, onCancel }) {
   const [variants, setVariants] = useState([{ label: 'A', questions: [] }]);
   const [activeVar, setActiveVar] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [showInlineAI, setShowInlineAI] = useState(false);
+  const [inlineRaw, setInlineRaw] = useState('');
+  const [inlineParsing, setInlineParsing] = useState(false);
+  const [inlineErr, setInlineErr] = useState('');
   const variantCount = variants.length;
 
   const stepLabels = ['Мэдээлэл', 'Тест оруулах', 'Хянах & нийтлэх'];
@@ -1219,6 +1356,45 @@ function CreateExam({ apiKey, onSave, onCancel }) {
       return [...prev, { label: alpha(nextIdx), questions: [] }];
     });
     setActiveVar(v => Math.min(v + 1, 4));
+  };
+
+  // Go to next variant (create if needed), hide current questions
+  const goNextVariant = () => {
+    const nextIdx = activeVar + 1;
+    if (nextIdx >= 5) return;
+    setVariants(prev => {
+      const cleared = prev.map((v, idx) =>
+        idx === activeVar ? { ...v, questions: [] } : v
+      );
+      if (nextIdx >= cleared.length) {
+        return [...cleared, { label: alpha(nextIdx), questions: [] }];
+      }
+      return cleared.map((v, idx) =>
+        idx === nextIdx ? { ...v, questions: [] } : v
+      );
+    });
+    setActiveVar(nextIdx);
+    setShowInlineAI(false);
+    setInlineRaw('');
+    setInlineErr('');
+  };
+
+  // Inline AI parse for current variant (in step 3)
+  const doInlineParse = async () => {
+    if (!inlineRaw.trim()) return;
+    if (!apiKey) { setInlineErr('API түлхүүр байхгүй'); return; }
+    setInlineParsing(true); setInlineErr('');
+    try {
+      const qs = await parseTestWithAI(inlineRaw, apiKey);
+      if (!Array.isArray(qs) || qs.length === 0) throw new Error('Асуулт илрэхгүй байна');
+      setVariants(prev => prev.map((v, idx) => idx === activeVar ? ({...v, questions: qs}) : v));
+      setShowInlineAI(false);
+      setInlineRaw('');
+    } catch (e) {
+      setInlineErr('Алдаа: ' + e.message);
+    } finally {
+      setInlineParsing(false);
+    }
   };
 
   const handlePublish = () => {
@@ -1261,6 +1437,10 @@ function CreateExam({ apiKey, onSave, onCancel }) {
       onSave(exam);
     }, 300);
   };
+
+  const currentVariant = variants[activeVar] || { label: alpha(activeVar), questions: [] };
+  const currentQCount = (currentVariant.questions || []).filter(q => q.text).length;
+  const totalQCount = variants.reduce((sum, v) => sum + (v.questions||[]).filter(q=>q.text).length, 0);
 
   return (
     <div>
@@ -1305,6 +1485,10 @@ function CreateExam({ apiKey, onSave, onCancel }) {
                   <input className="form-input" type="number" min="0" max="100" value={info.passingScore} onChange={e => setInfo(p => ({...p, passingScore: +e.target.value}))} />
                 </div>
               </div>
+              <div style={{background:'var(--violet-light)',border:'1.5px solid #ddd6fe',borderRadius:10,padding:'12px 16px',marginBottom:16,fontSize:'0.83rem',color:'#5b21b6'}}>
+                🎯 <strong>Олон хувилбарт шалгалт</strong> — Дараагийн алхамд хувилбар бүрт (A, B, C...) тусдаа асуулт оруулах боломжтой.
+                Сурагч бүрд систем санамсаргүйгээр нэг хувилбар онооно.
+              </div>
               <div style={{display:'flex',justifyContent:'space-between',marginTop:8}}>
                 <button className="btn btn-outline" onClick={onCancel}>Болих</button>
                 <button className="btn btn-primary" onClick={() => setStep(2)} disabled={!info.title.trim()}>Дараах →</button>
@@ -1320,46 +1504,148 @@ function CreateExam({ apiKey, onSave, onCancel }) {
               onBack={() => setStep(1)}
               variantCount={variantCount}
               onVariantCountChange={addVariant}
+              currentVariantLabel={currentVariant.label || alpha(activeVar)}
             />
           )}
 
           {step === 3 && (
             <div>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-                <div>
-                  <div className="card-title">{info.title}</div>
-                  <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:3}}>
-                    {(variants[activeVar]?.questions || []).filter(q=>q.text).length} асуулт · {info.duration} мин · {info.subject}
-                    {' · '}<span style={{fontWeight:800,color:'var(--violet)'}}>Одоо {variants[activeVar]?.label || alpha(activeVar)} хувилбар бөглөж байна ({activeVar+1}/{variantCount})</span>
+              {/* ─── PROMINENT VERSION INDICATOR ─── */}
+              <div className="version-indicator">
+                <div className="version-indicator-icon">{currentVariant.label || alpha(activeVar)}</div>
+                <div className="version-indicator-text">
+                  <div className="version-indicator-label">
+                    Одоо Хувилбар {currentVariant.label || alpha(activeVar)}-г бөглөж байна
+                  </div>
+                  <div className="version-indicator-sub">
+                    {activeVar + 1}/{variantCount} хувилбар &nbsp;·&nbsp;
+                    {currentQCount} асуулт оруулсан &nbsp;·&nbsp;
+                    Нийт {totalQCount} асуулт ({variants.length} хувилбар)
                   </div>
                 </div>
-                <div style={{display:'flex',gap:10}}>
-                  <button className="btn btn-outline btn-sm" onClick={() => setStep(2)}>← Засах</button>
-                  <button className="btn btn-green" onClick={handlePublish} disabled={saving}>
-                    {saving ? '...' : '🚀 Нийтлэх'}
-                  </button>
+                <div style={{display:'flex',gap:8,flexShrink:0}}>
+                  {!showInlineAI && apiKey && (
+                    <button className="btn btn-outline btn-sm" onClick={() => setShowInlineAI(true)} title="AI-аар энэ хувилбарын асуулт үүсгэх">
+                      ✨ AI
+                    </button>
+                  )}
+                  {activeVar < variantCount - 1 ? (
+                    <button className="btn btn-sm" style={{background:'var(--violet)',color:'white'}} onClick={() => setActiveVar(activeVar + 1)}>
+                      {alpha(activeVar + 1)} хувилбар →
+                    </button>
+                  ) : variantCount < 5 ? (
+                    <button className="version-next-btn btn-sm" onClick={goNextVariant}>
+                      ➕ Дараагийн хувилбар
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
-              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
+              {/* ─── VARIANT TAB STRIP ─── */}
+              <div className="version-tab-strip">
+                <span style={{fontSize:'0.75rem',fontWeight:700,color:'var(--text3)',alignSelf:'center',marginRight:4}}>ХУВИЛБАР:</span>
                 {variants.map((v, idx) => (
                   <button
                     key={idx}
-                    className={`btn btn-sm ${idx === activeVar ? 'btn-violet' : 'btn-outline'}`}
-                    onClick={() => setActiveVar(idx)}
+                    className={`version-tab ${idx === activeVar ? 'active' : ''}`}
+                    onClick={() => { setActiveVar(idx); setShowInlineAI(false); setInlineRaw(''); setInlineErr(''); }}
                   >
-                    {v.label || alpha(idx)} хувилбар ({(v.questions||[]).filter(q=>q.text).length})
+                    {v.label || alpha(idx)}
+                    <span className="vtab-count">{(v.questions||[]).filter(q=>q.text).length}</span>
                   </button>
                 ))}
                 {variantCount < 5 && (
-                  <button className="btn btn-outline btn-sm" onClick={addVariant}>➕ Хувилбар нэмэх</button>
+                  <button
+                    style={{padding:'5px 12px',borderRadius:20,border:'1.5px dashed var(--border)',background:'transparent',color:'var(--text3)',fontSize:'0.78rem',cursor:'pointer',fontWeight:600}}
+                    onClick={addVariant}
+                    title="Хувилбар нэмэх"
+                  >
+                    ➕ нэмэх
+                  </button>
                 )}
+                <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setStep(2)}>← AI задлах</button>
+                  <button className="btn btn-green btn-sm" onClick={handlePublish} disabled={saving}>
+                    {saving ? '⏳ ...' : '🚀 Нийтлэх'}
+                  </button>
+                </div>
               </div>
 
+              {/* ─── INLINE AI PARSE PANEL ─── */}
+              {showInlineAI && (
+                <div className="inline-ai-panel">
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                    <div style={{fontFamily:'Outfit',fontWeight:700,fontSize:'0.95rem',color:'#4c1d95'}}>
+                      ✨ AI задлан шинжлэх — Хувилбар {currentVariant.label || alpha(activeVar)}
+                    </div>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setShowInlineAI(false); setInlineRaw(''); setInlineErr(''); }}>✕</button>
+                  </div>
+                  {inlineParsing ? (
+                    <div style={{textAlign:'center',padding:'24px 0'}}>
+                      <div className="spinner" style={{margin:'0 auto 12px'}} />
+                      <div style={{color:'var(--violet)',fontWeight:600}}>Хувилбар {currentVariant.label || alpha(activeVar)}-н асуулт задлан шинжилж байна...</div>
+                    </div>
+                  ) : (
+                    <>
+                      <textarea
+                        className="form-textarea"
+                        style={{minHeight:160,fontFamily:'monospace',fontSize:'0.82rem',marginBottom:10}}
+                        placeholder={`Хувилбар ${currentVariant.label || alpha(activeVar)}-н тестийн текстийг paste хийнэ үү...`}
+                        value={inlineRaw}
+                        onChange={e => setInlineRaw(e.target.value)}
+                      />
+                      {inlineErr && <div className="form-error" style={{marginBottom:8}}>⚠ {inlineErr}</div>}
+                      <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                        <button className="btn btn-outline btn-sm" onClick={() => { setShowInlineAI(false); setInlineRaw(''); setInlineErr(''); }}>Болих</button>
+                        <button className="btn btn-violet btn-sm" onClick={doInlineParse} disabled={!inlineRaw.trim() || !apiKey}>
+                          ✨ Задлан шинжлэх
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ─── QUESTION EDITOR FOR CURRENT VARIANT ─── */}
+              <div style={{marginBottom:12,padding:'8px 12px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',fontSize:'0.8rem',color:'var(--text2)',border:'1px solid var(--border)'}}>
+                ✏ <strong style={{color:'var(--text)'}}>Хувилбар {currentVariant.label || alpha(activeVar)}</strong>-н асуултуудыг доор засна уу.
+                {variantCount > 1 && <span style={{marginLeft:8}}>Бусад хувилбарын асуулт харагдахгүй — дээрх табаас сонгоно.</span>}
+              </div>
               <QuestionEditor
-                questions={variants[activeVar]?.questions || []}
+                questions={currentVariant.questions || []}
                 onChange={(qs) => setVariants(prev => prev.map((v, idx) => idx === activeVar ? ({...v, questions: qs}) : v))}
               />
+
+              {/* ─── BOTTOM NAV ─── */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:16,paddingTop:16,borderTop:'1px solid var(--border)'}}>
+                <div style={{fontSize:'0.82rem',color:'var(--text2)'}}>
+                  {variants.map((v,idx) => (
+                    <span key={idx} style={{marginRight:12,fontWeight: idx===activeVar ? 700 : 400, color: idx===activeVar ? 'var(--violet)' : 'var(--text3)'}}>
+                      {v.label||alpha(idx)}: {(v.questions||[]).filter(q=>q.text).length}асуулт
+                    </span>
+                  ))}
+                </div>
+                <div style={{display:'flex',gap:10}}>
+                  {activeVar > 0 && (
+                    <button className="btn btn-outline btn-sm" onClick={() => setActiveVar(activeVar - 1)}>
+                      ← {alpha(activeVar - 1)} хувилбар
+                    </button>
+                  )}
+                  {activeVar < variantCount - 1 ? (
+                    <button className="btn btn-sm" style={{background:'var(--violet)',color:'white'}} onClick={() => setActiveVar(activeVar + 1)}>
+                      {alpha(activeVar + 1)} хувилбар →
+                    </button>
+                  ) : variantCount < 5 ? (
+                    <button className="version-next-btn" onClick={goNextVariant}>
+                      ➕ Дараагийн хувилбар нэмэх
+                    </button>
+                  ) : (
+                    <button className="btn btn-green" onClick={handlePublish} disabled={saving}>
+                      {saving ? '⏳ ...' : '🚀 Нийтлэх'}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1491,7 +1777,8 @@ function QRModal({ exam, onClose }) {
               )}
 
               <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:8}}>
-                ❓ {(normalizeVariants(exam)[0]?.questions || []).length} асуулт &nbsp;·&nbsp; ⏱ {exam.duration} мин &nbsp;·&nbsp; 📚 {exam.subject}
+                ❓ {(() => { const vs = exam?.versions; if (vs && typeof vs === 'object') { const v = Object.values(vs); return v.length > 0 ? (v[0]||[]).length : 0; } return (normalizeVariants(exam)[0]?.questions||[]).length; })()} асуулт &nbsp;·&nbsp; ⏱ {exam.duration} мин &nbsp;·&nbsp; 📚 {exam.subject}
+                {Object.keys(exam?.versions||{}).length > 1 && <span style={{marginLeft:8,background:'var(--violet-light)',color:'var(--violet)',borderRadius:12,padding:'2px 8px',fontSize:'0.75rem',fontWeight:700}}>🎯 {Object.keys(exam?.versions||{}).length} хувилбар</span>}
               </div>
               <div style={{marginTop:12,fontSize:'0.78rem',color:'var(--text3)'}}>
                 Сурагч уншуулмагц нэр, ангиа оруулаад шалгалт эхэлнэ
@@ -1668,6 +1955,16 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
     const subs = Array.isArray(rtdbSubs) ? rtdbSubs : submissions.filter(s => s.examId === view.exam.id);
     const avg = subs.length ? Math.round(subs.reduce((a, s) => a + s.score, 0) / subs.length) : 0;
     const passed = subs.filter(s => s.score >= view.exam.passingScore).length;
+
+    // Per-variant stats
+    const variantGroups = {};
+    subs.forEach(s => {
+      const vl = s.variantLabel || s.studentVersion || 'A';
+      if (!variantGroups[vl]) variantGroups[vl] = [];
+      variantGroups[vl].push(s);
+    });
+    const variantLabels = Object.keys(variantGroups).sort();
+
     return (
       <div>
         <div className="page-header">
@@ -1686,6 +1983,39 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
             <div className="stat-card"><div className="stat-val" style={{color:'var(--red)'}}>{subs.length - passed}</div><div className="stat-lbl">Тэнцээгүй</div></div>
             <div className="stat-card"><div className="stat-val">{avg}%</div><div className="stat-lbl">Дундаж оноо</div></div>
           </div>
+
+          {/* Per-variant breakdown */}
+          {variantLabels.length > 1 && (
+            <div className="card" style={{marginBottom:18}}>
+              <div className="card-header">
+                <div className="card-title">🎯 Хувилбараар дүн шинжилгээ</div>
+              </div>
+              <div className="card-body" style={{padding:'16px 20px'}}>
+                <div className="variant-stats-strip">
+                  {variantLabels.map(vl => {
+                    const vs = variantGroups[vl] || [];
+                    const vAvg = vs.length ? Math.round(vs.reduce((a,s)=>a+s.score,0)/vs.length) : 0;
+                    const vPassed = vs.filter(s=>s.score>=view.exam.passingScore).length;
+                    return (
+                      <div key={vl} style={{flex:1,minWidth:130,background:'white',border:'1.5px solid #ddd6fe',borderRadius:12,padding:'14px 16px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                          <div style={{width:32,height:32,borderRadius:8,background:'var(--violet)',color:'white',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Outfit',fontWeight:900,fontSize:'1rem'}}>
+                            {vl}
+                          </div>
+                          <div style={{fontFamily:'Outfit',fontWeight:700,fontSize:'0.9rem'}}>Хувилбар {vl}</div>
+                        </div>
+                        <div style={{fontSize:'0.8rem',color:'var(--text2)',lineHeight:1.8}}>
+                          <div>👥 <strong style={{color:'var(--text)'}}>{vs.length}</strong> сурагч</div>
+                          <div>📊 Дундаж: <strong style={{color: vAvg>=view.exam.passingScore?'var(--green)':'var(--red)'}}>{vAvg}%</strong></div>
+                          <div>✅ Тэнцсэн: <strong style={{color:'var(--green)'}}>{vPassed}</strong> / <strong style={{color:'var(--red)'}}>{vs.length-vPassed}</strong></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {subs.length === 0 ? (
             <div className="card"><div className="card-body">
@@ -1717,14 +2047,14 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                       const cheatCnt = (s.cheatLog||[]).length;
                       const pillCls = cheatCnt === 0 ? 'cheat-pill-0' : cheatCnt <= 2 ? 'cheat-pill-warn' : 'cheat-pill-danger';
                       const took = typeof s.timeSpentSec === 'number' ? fmtDur(s.timeSpentSec) : '—';
-                      const vlabel = s.variantLabel || 'A';
+                      const vlabel = s.variantLabel || s.studentVersion || 'A';
                       return (
                       <tr key={s.id} className={cheatCnt > 0 ? 'cheat-row-bad' : ''}>
                         <td style={{color:'var(--text3)',fontWeight:600}}>{i+1}</td>
                         <td><strong>{s.studentName}</strong></td>
                         <td>{s.studentClass || '—'}</td>
                         <td>
-                          <span className="badge badge-violet" style={{fontFamily:'monospace',fontWeight:800}}>{vlabel}</span>
+                          <span className="badge badge-violet" style={{fontFamily:'monospace',fontWeight:800,fontSize:'0.85rem'}}>{vlabel}</span>
                         </td>
                         <td>
                           <span style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1rem',color: s.score >= view.exam.passingScore ? 'var(--green)' : 'var(--red)'}}>
@@ -1838,7 +2168,7 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                     <span>📚 {exam.subject}</span>
                     <span>❓ {qCount} асуулт</span>
                     <span>⏱ {exam.duration} мин</span>
-                    <span>🅰 {vCount} хувилбар</span>
+                    <span>🎯 <strong style={{color:'var(--violet)'}}>{vCount} хувилбар</strong> ({vars.map(v=>v.label||'A').join(', ')})</span>
                   </div>
                   <div style={{display:'flex',gap:12,fontSize:'0.82rem',color:'var(--text2)',marginBottom:10}}>
                     <span>👥 {subs.length} оролцсон</span>
@@ -2311,7 +2641,15 @@ function ResultPage({ submission, exam, onHome }) {
 function QRStudentLogin({ exam, onStart, onBack }) {
   const [name, setName] = useState('');
   const [cls, setCls] = useState('');
-  const qCount = (exam.questions || []).length;
+  // Count questions: support both old (exam.questions) and new (exam.versions) format
+  const qCount = useMemo(() => {
+    if (exam?.versions && typeof exam.versions === 'object') {
+      const vals = Object.values(exam.versions);
+      return vals.length > 0 ? (vals[0] || []).length : 0;
+    }
+    if (Array.isArray(exam?.questions)) return exam.questions.length;
+    return 0;
+  }, [exam]);
 
   const announceJoin = useCallback((n, c) => {
     try {
