@@ -945,6 +945,25 @@ const unpackQuestions = (questions) => (questions || []).map((q, idx) => ({
   answer: q?.answer ?? null
 }));
 
+const csvCell = (v) => {
+  const s = (v ?? '').toString();
+  const escaped = s.replace(/"/g, '""');
+  return `"${escaped}"`;
+};
+const downloadCSV = (filename, rows) => {
+  const bom = '\uFEFF'; // Excel UTF-8 BOM
+  const csv = bom + rows.map(r => r.map(csvCell).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.csv') ? filename : (filename + '.csv');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+};
+
 // ─── QR PAYLOAD (compact) ─────────────────────────────────────────────────────
 // Keep QR short enough to be reliably scannable.
 const packExamForQR = (exam) => ({
@@ -1819,6 +1838,28 @@ function ConfirmDeleteModal({ title, onCancel, onConfirm }) {
   );
 }
 
+function ConfirmStopModal({ title, onCancel, onConfirm }) {
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
+      <div className="modal" style={{maxWidth:420}}>
+        <div className="modal-head">
+          <div style={{fontFamily:'Outfit',fontWeight:800,fontSize:'1.1rem'}}>⏹ Шалгалт зогсоох уу?</div>
+        </div>
+        <div className="modal-body">
+          <div style={{fontSize:'0.92rem',color:'var(--text2)',lineHeight:1.7}}>
+            <strong style={{color:'var(--text)'}}>{title}</strong> шалгалтыг хүчээр зогсоовол шинэ сурагч орж эхлэх боломжгүй болно.<br/>
+            Одоо өгч байгаа сурагчид автоматаар дуусна.
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-outline" onClick={onCancel}>Болих</button>
+          <button className="btn btn-red" onClick={onConfirm}>✓ Тийм, зогсоох</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QRRoomLoader({ roomID, onLoaded, onBack }) {
   const [err, setErr] = useState('');
   useEffect(() => {
@@ -1930,6 +1971,7 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
   const [qrExam, setQrExam] = useState(null);
   const [cheatSub, setCheatSub] = useState(null);
   const [delExam, setDelExam] = useState(null);
+  const [stopExam, setStopExam] = useState(null);
   const [rtdbSubs, setRtdbSubs] = useState(null);
   const [, forceUpdate] = useState(0);
 
@@ -1973,6 +2015,32 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
             <div>
               <h2 className="page-title">{view.exam.title} — Үр дүн</h2>
               <div className="page-sub">{view.exam.subject} · {subs.length} сурагч өгсөн</div>
+            </div>
+            <div style={{marginLeft:'auto',display:'flex',gap:10,flexWrap:'wrap'}}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  const rows = [
+                    ['Нэр','Анги','Хувилбар','Дүн (%)','Cheat (тоо)','Хугацаа','Огноо'],
+                    ...subs
+                      .slice()
+                      .sort((a,b) => new Date(a.submittedAt) - new Date(b.submittedAt))
+                      .map(s => ([
+                        s.studentName || '',
+                        s.studentClass || '',
+                        (s.variantLabel || s.studentVersion || ''),
+                        (typeof s.score === 'number' ? s.score : ''),
+                        ((s.cheatLog || []).length),
+                        (typeof s.timeSpentSec === 'number' ? fmtDur(s.timeSpentSec) : ''),
+                        (s.submittedAt ? new Date(s.submittedAt).toLocaleString('mn-MN') : '')
+                      ]))
+                  ];
+                  const safeTitle = (view.exam.title || 'results').replace(/[\\/:*?"<>|]+/g, ' ').trim();
+                  downloadCSV(`SmartEXAM_${safeTitle}_${view.exam.id}`, rows);
+                }}
+              >
+                ⬇ Excel татах
+              </button>
             </div>
           </div>
         </div>
@@ -2100,6 +2168,24 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
           onConfirm={() => { onDeleteExam?.(delExam); setDelExam(null); }}
         />
       )}
+      {stopExam && (
+        <ConfirmStopModal
+          title={stopExam.title}
+          onCancel={() => setStopExam(null)}
+          onConfirm={() => {
+            const db = getDb();
+            if (db) {
+              try {
+                roomRef(db, stopExam.id).update({
+                  stopped: true,
+                  stoppedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+              } catch {}
+            }
+            setStopExam(null);
+          }}
+        />
+      )}
       {showSettings && (
         <SettingsModal
           apiKey={apiKeyState}
@@ -2180,6 +2266,7 @@ function TeacherDashboard({ exams, submissions, apiKey, teacherName, onCreateExa
                   <div className="exam-card-actions">
                     <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); setView({type:'results', exam}); }}>📊 Үр дүн</button>
                     <button className="btn btn-violet btn-sm" onClick={(e) => { e.stopPropagation(); setQrExam(exam); }}>📱 QR код</button>
+                  <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); setStopExam(exam); }}>⏹ Зогсоох</button>
                     <button className="btn btn-red btn-sm" onClick={(e) => { e.stopPropagation(); setDelExam(exam); }}>🗑 Устгах</button>
                   </div>
                 </div>
@@ -2315,7 +2402,7 @@ function ExamIntro({ exam, studentName, studentClass, onStart, onBack }) {
         </div>
         <div className="modal-foot">
           <button className="btn btn-ghost" onClick={onBack}>← Буцах</button>
-          <button className="btn btn-violet btn-lg" onClick={onStart}>▶ Эхлэх</button>
+          <button className="btn btn-violet btn-lg" onClick={onStart} disabled={!!exam.stopped}>▶ Эхлэх</button>
         </div>
       </div>
     </div>
@@ -2331,6 +2418,7 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
   const [cheatLog, setCheatLog] = useState([]);
   const [cheatWarning, setCheatWarning] = useState('');
   const [showFlash, setShowFlash] = useState(false);
+  const [stoppedNow, setStoppedNow] = useState(false);
   const submittedRef = useRef(false);
   const cheatLogRef = useRef([]);
   const startMsRef = useRef(Date.now());
@@ -2422,6 +2510,25 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
     return () => window.removeEventListener('resize', onResize);
   }, [logCheat]);
 
+  // Teacher force-stop (Firebase room flag)
+  useEffect(() => {
+    const db = getDb();
+    if (!db || !exam?.id) return;
+    try {
+      const ref = roomRef(db, exam.id).child('stopped');
+      const handler = ref.on('value', (snap) => {
+        if (submittedRef.current) return;
+        if (snap.val() === true) {
+          setStoppedNow(true);
+          logCheat('FORCE_STOP', '⏹ Багш шалгалтыг зогсоосон');
+          // Auto-submit current answers (best-effort)
+          setTimeout(() => doSubmit({}), 350);
+        }
+      });
+      return () => { try { ref.off('value', handler); } catch {} };
+    } catch {}
+  }, [exam?.id, logCheat]);
+
   const doSubmit = useCallback((extraAnswers) => {
     if (submittedRef.current) return;
     submittedRef.current = true;
@@ -2477,6 +2584,13 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
         <div className="cheat-warning">
           <span className="cheat-badge">⚠ ЧИТ</span>
           {cheatWarning}
+        </div>
+      )}
+
+      {stoppedNow && (
+        <div className="cheat-warning" style={{background:'#7f1d1d'}}>
+          <span className="cheat-badge" style={{background:'#ef4444'}}>⏹</span>
+          Багш шалгалтыг зогсоосон — автоматаар дуусгаж байна...
         </div>
       )}
 
@@ -2686,6 +2800,11 @@ function QRStudentLogin({ exam, onStart, onBack }) {
           <div style={{background:'var(--violet-light)',borderRadius:10,padding:'12px 16px',marginBottom:18,fontSize:'0.85rem',color:'#4c3db0',lineHeight:1.6}}>
             📋 <strong>{qCount} асуулт</strong> &nbsp;·&nbsp; ⏱ <strong>{exam.duration} мин</strong> &nbsp;·&nbsp; 📚 {exam.subject}
           </div>
+          {exam.stopped && (
+            <div style={{background:'var(--red-light)',border:'1px solid #fecaca',borderRadius:10,padding:'10px 14px',marginBottom:14,fontSize:'0.85rem',color:'var(--red)',fontWeight:700}}>
+              ⏹ Энэ шалгалтыг багш зогсоосон байна.
+            </div>
+          )}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Таны нэр</label>
@@ -2702,7 +2821,7 @@ function QRStudentLogin({ exam, onStart, onBack }) {
           <button
             className="btn btn-violet btn-lg"
             onClick={() => { const n=name.trim(); const c=cls.trim(); announceJoin(n, c); onStart(n, c); }}
-            disabled={!name.trim()}
+            disabled={!name.trim() || !!exam.stopped}
           >
             ▶ Шалгалт эхлэх
           </button>
