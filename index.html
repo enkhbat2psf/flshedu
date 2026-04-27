@@ -1330,7 +1330,7 @@ function CreateExam({ apiKey, onSave, onCancel }) {
                   <div className="card-title">{info.title}</div>
                   <div style={{fontSize:'0.82rem',color:'var(--text2)',marginTop:3}}>
                     {(variants[activeVar]?.questions || []).filter(q=>q.text).length} асуулт · {info.duration} мин · {info.subject}
-                    {' · '}<span style={{fontWeight:700,color:'var(--violet)'}}>Хувилбар: {variants[activeVar]?.label || alpha(activeVar)} / {variantCount}</span>
+                    {' · '}<span style={{fontWeight:800,color:'var(--violet)'}}>Одоо {variants[activeVar]?.label || alpha(activeVar)} хувилбар бөглөж байна ({activeVar+1}/{variantCount})</span>
                   </div>
                 </div>
                 <div style={{display:'flex',gap:10}}>
@@ -2175,7 +2175,6 @@ function ExamTaker({ exam, studentName, studentClass, onSubmit, onBack }) {
           <div className="exam-title-bar">{exam.title}</div>
           <div style={{fontSize:'0.78rem',color:'var(--text2)'}}>
             {answered}/{total} хариуллаа
-            {exam.variantLabel && <span style={{marginLeft:10}}>· Хувилбар: <strong style={{fontFamily:'monospace'}}>{exam.variantLabel}</strong></span>}
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
