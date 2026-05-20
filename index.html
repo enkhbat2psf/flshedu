@@ -889,6 +889,8 @@ h1,h2,h3,h4 { font-family: 'Outfit', sans-serif; }
   position: fixed; inset: 0; z-index: 10000;
   display: flex; align-items: center; justify-content: center;
   background: rgba(5,150,105,.92); animation: omrFlash .5s ease;
+  pointer-events: auto;
+  cursor: pointer;
 }
 @keyframes omrFlash { from { opacity: 0; } to { opacity: 1; } }
 .omr-result-box {
@@ -1201,25 +1203,52 @@ const OMR_ROW_Y0 = 0.24;
 const OMR_ROW_Y1 = 0.93;
 const OMR_BUBBLE_R = 0.018;
 
+const SE_TEACHER = 'se_teacher_name';
+const SE_ZIPGRADE_EXAM = 'se_zipgrade_exam';
+
+const appUrlWithHash = (tag) => {
+  const path = window.location.pathname + window.location.search;
+  const noHash = path.split('#')[0];
+  return tag ? noHash + '#' + tag : noHash;
+};
+
 let openCvReadyPromise = null;
 const loadOpenCv = () => {
   if (window.cv && window.cv.Mat) return Promise.resolve(window.cv);
   if (openCvReadyPromise) return openCvReadyPromise;
-  openCvReadyPromise = new Promise((resolve, reject) => {
+
+  const OPENCV_CDNS = [
+    'https://docs.opencv.org/4.8.0/opencv.js',
+    'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.6.0-release.1/dist/opencv.js'
+  ];
+
+  const waitCvReady = (resolve, reject, t0) => {
+    if (window.cv && window.cv.Mat) { resolve(window.cv); return; }
+    if (Date.now() - t0 > 90000) { reject(new Error('OpenCV удаан ачааллагдаж байна. Интернетээ шалгана уу.')); return; }
+    if (window.cv && !window.cv.Mat) {
+      window.cv.onRuntimeInitialized = () => resolve(window.cv);
+    }
+    setTimeout(() => waitCvReady(resolve, reject, t0), 120);
+  };
+
+  const tryLoad = (idx, resolve, reject) => {
+    if (idx >= OPENCV_CDNS.length) {
+      reject(new Error('OpenCV.js татахад алдаа. Дахин refresh хийнэ үү.'));
+      return;
+    }
     const s = document.createElement('script');
-    s.src = 'https://docs.opencv.org/4.x/opencv.js';
     s.async = true;
-    s.onload = () => {
-      const wait = () => {
-        if (window.cv && window.cv.Mat) resolve(window.cv);
-        else if (window.cv && window.cv.onRuntimeInitialized) {
-          window.cv.onRuntimeInitialized = () => resolve(window.cv);
-        } else setTimeout(wait, 80);
-      };
-      wait();
-    };
-    s.onerror = () => reject(new Error('OpenCV.js ачаалахад алдаа'));
+    s.src = OPENCV_CDNS[idx];
+    s.onload = () => waitCvReady(resolve, reject, Date.now());
+    s.onerror = () => tryLoad(idx + 1, resolve, reject);
     document.head.appendChild(s);
+  };
+
+  openCvReadyPromise = new Promise((resolve, reject) => {
+    tryLoad(0, resolve, (err) => {
+      openCvReadyPromise = null;
+      reject(err);
+    });
   });
   return openCvReadyPromise;
 };
@@ -3102,20 +3131,21 @@ function OMRAnswerSheet({ examTitle, examId }) {
 
 // ─── OMR SCANNER PAGE ─────────────────────────────────────────────────────────
 function OMRScannerPage({ exam, onBack, onSubmit }) {
-  const [tab, setTab] = useState('scan');
+  const [tab, setTab] = useState('key');
   const [cvReady, setCvReady] = useState(false);
   const [cvErr, setCvErr] = useState('');
   const [scanning, setScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [err, setErr] = useState('');
   const [answerKey, setAnswerKey] = useState(() => {
+    if (!exam?.id) return omrDefaultAnswerKey();
     try {
       const raw = localStorage.getItem('se_omr_key_' + exam.id);
       if (raw) return JSON.parse(raw);
     } catch {}
     return omrDefaultAnswerKey();
   });
-  const [keyText, setKeyText] = useState(() => answerKeyToText(answerKey));
+  const [keyText, setKeyText] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('');
   const [lastResult, setLastResult] = useState(null);
@@ -3130,17 +3160,30 @@ function OMRScannerPage({ exam, onBack, onSubmit }) {
   const stableCountRef = useRef(0);
 
   useEffect(() => {
-    loadOpenCv().then(() => setCvReady(true)).catch(e => setCvErr(e.message));
-    return () => stopCamera();
+    setKeyText(answerKeyToText(answerKey));
+  }, [exam?.id]);
+
+  useEffect(() => {
+    let alive = true;
+    loadOpenCv().then(() => { if (alive) setCvReady(true); }).catch(e => { if (alive) setCvErr(e.message || 'OpenCV алдаа'); });
+    return () => {
+      alive = false;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      setScanning(false);
+    };
   }, []);
 
   useEffect(() => {
+    if (!exam?.id) return;
     try { localStorage.setItem('se_omr_key_' + exam.id, JSON.stringify(answerKey)); } catch {}
     const db = getDb();
     if (db) {
       try { roomRef(db, exam.id).child('omrAnswerKey').set(answerKey); } catch {}
     }
-  }, [answerKey, exam.id]);
+  }, [answerKey, exam?.id]);
 
   const stopCamera = () => {
     if (scanLoopRef.current) { cancelAnimationFrame(scanLoopRef.current); scanLoopRef.current = null; }
@@ -3242,14 +3285,6 @@ function OMRScannerPage({ exam, onBack, onSubmit }) {
   }, [cvReady, finalizeScan]);
 
   useEffect(() => {
-    if (!scanning || !cvReady) return;
-    const id = setInterval(() => {
-      if (!processing) captureAndProcess();
-    }, 650);
-    return () => clearInterval(id);
-  }, [scanning, cvReady, processing, captureAndProcess]);
-
-  useEffect(() => {
     const db = getDb();
     if (!db || !exam?.id) return;
     try {
@@ -3271,10 +3306,30 @@ function OMRScannerPage({ exam, onBack, onSubmit }) {
     });
   };
 
+  const handleBack = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setScanning(false);
+    onBack?.();
+  };
+
+  if (!exam?.id) {
+    return (
+      <div className="container-lg" style={{ padding: 24 }}>
+        <div className="card"><div className="card-body">
+          <p style={{ marginBottom: 12 }}>⚠️ Тест сонгогдоогүй. Самбар руу буцаад ZipGrade дахин нээнэ үү.</p>
+          <button type="button" className="btn btn-primary" onClick={handleBack}>← Буцах</button>
+        </div></div>
+      </div>
+    );
+  }
+
   return (
     <div className="omr-scanner-page">
       {showFlash && lastResult && (
-        <div className="omr-result-flash">
+        <div className="omr-result-flash" onClick={() => setShowFlash(false)} title="Хаах">
           <div className="omr-result-box">
             <div className="big">{lastResult.correct}/{lastResult.total}</div>
             <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>зөв бөглөлөө</div>
@@ -3285,7 +3340,7 @@ function OMRScannerPage({ exam, onBack, onSubmit }) {
 
       <div className="page-header">
         <div className="container-lg" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => { stopCamera(); onBack(); }}>← Буцах</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={handleBack}>← Буцах</button>
           <div>
             <h2 className="page-title">📷 ZipGrade</h2>
             <div className="page-sub">{exam.title} · Цаасан хариулт сканер (OpenCV)</div>
@@ -3304,8 +3359,14 @@ function OMRScannerPage({ exam, onBack, onSubmit }) {
           ))}
         </div>
 
-        {!cvReady && !cvErr && <div className="card mb-3"><div className="card-body">⏳ OpenCV.js ачаалж байна...</div></div>}
-        {cvErr && <div className="card mb-3"><div className="card-body" style={{ color: 'var(--red)' }}>⚠ {cvErr}</div></div>}
+        {!cvReady && !cvErr && tab === 'scan' && (
+          <div className="card mb-3"><div className="card-body">⏳ OpenCV ачаалж байна... (🔑 Түлхүүр / 🖨 Хэвлэх таб ажиллана)</div></div>
+        )}
+        {cvErr && (
+          <div className="card mb-3"><div className="card-body" style={{ color: 'var(--red)' }}>
+            ⚠ {cvErr} — <strong>🔑 Зөв хариулт</strong> болон <strong>🖨 Хуудас хэвлэх</strong> ажиллана.
+          </div></div>
+        )}
 
         {tab === 'print' && (
           <div>
@@ -4116,6 +4177,34 @@ function App() {
     }
   }, []);
 
+  // Hash + browser back (←) — 404 засах
+  useEffect(() => {
+    const applyHash = () => {
+      const tag = (window.location.hash || '').replace(/^#/, '').split('&')[0];
+      if (tag === 'zipgrade') {
+        try {
+          const exam = JSON.parse(sessionStorage.getItem(SE_ZIPGRADE_EXAM) || 'null');
+          const name = localStorage.getItem(SE_TEACHER) || 'Багш';
+          if (exam?.id) setPage({ type: 'omrScanner', exam, teacherName: name });
+          else setPage({ type: 'teacherDash', name });
+        } catch {
+          setPage({ type: 'teacherDash', name: localStorage.getItem(SE_TEACHER) || 'Багш' });
+        }
+        return;
+      }
+      if (tag === 'teacher') {
+        setPage({ type: 'teacherDash', name: localStorage.getItem(SE_TEACHER) || 'Багш' });
+        return;
+      }
+      if (!tag) setPage(p => (p.type === 'omrScanner' || p.type === 'teacherDash') ? { type: 'landing' } : p);
+    };
+    window.addEventListener('popstate', applyHash);
+    const tag0 = (window.location.hash || '').replace(/^#/, '');
+    if (tag0 === 'teacher') setPage({ type: 'teacherDash', name: localStorage.getItem(SE_TEACHER) || 'Багш' });
+    else if (tag0 === 'zipgrade') applyHash();
+    return () => window.removeEventListener('popstate', applyHash);
+  }, []);
+
   // Handle QR URL hash on load
   useEffect(() => {
     const hash = window.location.hash;
@@ -4133,7 +4222,32 @@ function App() {
     }
   }, []);
 
-  const goHome = () => { setQrExam(null); setPage({ type: 'landing' }); };
+  const goHome = () => {
+    setQrExam(null);
+    setPage({ type: 'landing' });
+    history.replaceState({ se: 'landing' }, '', appUrlWithHash(''));
+  };
+
+  const goTeacherDash = useCallback((name) => {
+    const n = (name || '').trim() || localStorage.getItem(SE_TEACHER) || 'Багш';
+    try { localStorage.setItem(SE_TEACHER, n); } catch {}
+    setPage({ type: 'teacherDash', name: n });
+    history.pushState({ se: 'teacher' }, '', appUrlWithHash('teacher'));
+  }, []);
+
+  const goZipGrade = useCallback((exam, teacherName) => {
+    if (!exam?.id) return;
+    try { sessionStorage.setItem(SE_ZIPGRADE_EXAM, JSON.stringify(exam)); } catch {}
+    const n = teacherName || localStorage.getItem(SE_TEACHER) || 'Багш';
+    setPage({ type: 'omrScanner', exam, teacherName: n });
+    history.pushState({ se: 'zipgrade' }, '', appUrlWithHash('zipgrade'));
+  }, []);
+
+  const backFromZipGrade = useCallback(() => {
+    const n = localStorage.getItem(SE_TEACHER) || 'Багш';
+    setPage({ type: 'teacherDash', name: n });
+    history.pushState({ se: 'teacher' }, '', appUrlWithHash('teacher'));
+  }, []);
 
   const deleteExam = useCallback((exam) => {
     if (!exam?.id) return;
@@ -4171,10 +4285,10 @@ function App() {
   if (page.type === 'omrScanner') {
     return (
       <div>
-        <Topbar userName={page.teacherName || 'Багш'} role="teacher" onHome={goHome} />
+        <Topbar userName={page.teacherName || 'Багш'} role="teacher" onHome={backFromZipGrade} />
         <OMRScannerPage
           exam={page.exam}
-          onBack={() => setPage({ type: 'teacherDash', name: page.teacherName })}
+          onBack={backFromZipGrade}
           onSubmit={sub => setSubmissions(s => [...s, sub])}
         />
       </div>
@@ -4225,7 +4339,9 @@ function App() {
           <TeacherLogin
             onLogin={(name, key) => {
               if (key) setApiKey(key);
+              try { localStorage.setItem(SE_TEACHER, name); } catch {}
               setPage({ type: 'teacherDash', name });
+              history.replaceState({ se: 'teacher' }, '', appUrlWithHash('teacher'));
             }}
           />
         </>
@@ -4247,7 +4363,7 @@ function App() {
               onCreateExam={() => setPage({ ...page, type: 'createExam' })}
               onApiKey={k => { setApiKey(k); localStorage.setItem('se_apikey', k); }}
               onDeleteExam={deleteExam}
-              onOpenOMR={exam => setPage({ type: 'omrScanner', exam, teacherName: page.name })}
+              onOpenOMR={exam => goZipGrade(exam, page.name)}
             />
           </div>
         </div>
